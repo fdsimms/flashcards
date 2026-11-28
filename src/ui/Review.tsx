@@ -511,7 +511,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     const model = n && card.kind.startsWith('t') && !isOmnilanguage(n) ? noteTypes.get(n.model) : undefined;
     if (!card || !n || !model) return undefined;
     const ord = Number(card.kind.slice(1));
-    const { front, back, typeAnswer } = renderTemplateCard(n, model, ord, typedIn);
+    const { front, back, typeAnswer } = renderTemplateCard(n, model, ord, typedIn, card);
     const font = fontOf(card, n);
     const opts = {
       css: model.css, ord, dark, autoplay: paramsForDeck(cardHomeDeck(card, n.deck), allParams)?.autoplay ?? true,
@@ -522,7 +522,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     };
     return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer, frontAudio: sideAudio(front), backAudio: sideAudio(back) };
   };
-  const page = useMemo(() => templatePage(current, typedShown), [note, noteType, current?.id, current?.kind, dark, c, typedShown, autoplay, cardFont, thaiSize]); // eslint-disable-line react-hooks/exhaustive-deps
+  const page = useMemo(() => templatePage(current, typedShown), [note, noteType, current?.id, current?.kind, dark, c, typedShown, autoplay, cardFont, thaiSize, textSize]); // eslint-disable-line react-hooks/exhaustive-deps
   // The next card's question, loaded out of sight while this one is studied, so a template card
   // comes up without a blank card while its page loads. After a native card too (a Basic skill card in a
   // Languages deck comes after word cards): the WebView slot below is then kept offstage just to hold it.
