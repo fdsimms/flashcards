@@ -236,6 +236,7 @@ export type WritingRequest =
 // A native speaker's recording of a word, found on Wikimedia Commons (server/reader routes/native.py).
 export type NativeRecordingFound = Schemas['NativeRecordingOut'];
 export type NativeFind = Schemas['NativeFindOut'];
+export type Level = Schemas['LevelOut'];
 // The writing journal (server/reader journal.py): an entry checked by Claude sentence by sentence and kept on
 // the server. A mistake's `kind` is a grammar point's id or a general kind ("case", "word_order"); `case` and
 // `governor` say which case a case ending should be and the word that decides it. Never graded.
@@ -905,6 +906,10 @@ export function createApi(
     // recordings, Lingua Libre's first, with the credit to keep; words beyond the first few come back
     // `pending`, to ask again. Then one recording's audio, trimmed and leveled, as MP3 bytes.
     nativeFind: (language: Language, words: string[]) => call<NativeFind>('POST', '/api/native/find', { language, words }),
+    // Your level (server/reader level.py): the language's studied words by frequency band, the share of
+    // everyday speech they make up, and one figure a study day for the trend. 404 for Toki Pona, 409
+    // before the language's deck has been read.
+    level: (language: GlossLanguage) => call<Level>('GET', `/api/level?language=${language}`),
     nativeAudio: async (title: string) =>
       new Uint8Array(await (await send('GET', `/api/native/audio?title=${encodeURIComponent(title)}`)).arrayBuffer()),
     speech: async (text: string, voice: string, rate = 1, language?: string, reading?: string, ipa?: string) =>

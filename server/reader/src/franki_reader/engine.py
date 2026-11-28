@@ -37,6 +37,7 @@ from franki_reader import (
     forms,
     grammar,
     journal_store,
+    level_store,
     meanings,
     own_text,
     rotation,
@@ -65,6 +66,7 @@ from franki_reader.generator import (
 )
 from franki_reader.genre import Genre
 from franki_reader.languages import LANGUAGES, SPEAKING_LANGUAGES, Code
+from franki_reader.level import Level, known_words, level
 from franki_reader.lexicon import Entry, ReadDeck, clean, lexicon_from
 from franki_reader.meanings import Wanted
 from franki_reader.met import MET_WINDOW_DAYS, PastReading, pick_met
@@ -303,6 +305,27 @@ class Engine:
         """Japanese's words learned in WaniKani, as the model's word list shows them; none for
         another language. They aren't deck words, so they're kept out of `snapshot`'s entries."""
         return as_entries(store.load_wanikani(self.conn)) if language == "ja" else []
+
+    def level(self, language: Code) -> Level | None:
+        """Your level from the language's snapshot (level.py), None for a language with no frequency
+        list, or before its deck has been read."""
+        if store.load_snapshot(self.conn, language)[1] is None:
+            return None
+        entries, lexicon = self.snapshot(language)
+        words = known_words(entries, [e.text for e in self.wanikani_entries(language)])
+        return level(language, words, lexicon)
+
+    def note_level(self, language: Code) -> Level | None:
+        """Your level, with today's figure kept for its trend (level_store.py) the first time it's
+        worked out on a study day: by the page, or by the top-up pass, so the trend fills in on days
+        the page isn't opened."""
+        day = study_day(self.clock(), self.rollover(), self.zone)
+        if level_store.has_day(self.conn, language, day):
+            return None
+        figure = self.level(language)
+        if figure is not None:
+            level_store.keep(self.conn, language, day, figure)
+        return figure
 
     async def refresh_lexicon(
         self,
@@ -1210,6 +1233,7 @@ class Engine:
         await self.time_waiting_texts()
         language = self.language()
         await self.refresh_lexicon(language)
+        self.note_level(language)
         # Texts written before their common words were glossed, newest first, a batch a pass.
         recent = store.recent_texts(self.conn, language, BACKFILL_TEXTS)
         await self.fill_meanings(recent, language)

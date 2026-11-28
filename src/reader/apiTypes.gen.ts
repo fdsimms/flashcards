@@ -1411,6 +1411,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/level": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Level
+         * @description The language's level from its last snapshot of the deck: known words by frequency band
+         *     (`bands`, each `start` to `end` places in the list), how many of the `top` most common are
+         *     known, the share of everyday speech they make up (`speech`, 0 to 1, null without
+         *     frequencies), and `history`, one figure a study day, oldest first, today's included. 404 for
+         *     a language with no frequency list (Toki Pona), 409 before its deck has been read.
+         */
+        get: operations["get_level_api_level_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/cram/say/ask": {
         parameters: {
             query?: never;
@@ -2710,6 +2734,39 @@ export interface components {
             register?: ("casual" | "everyday" | "formal") | null;
             /** Phrases */
             phrases?: components["schemas"]["GivenIn"][] | null;
+        };
+        /** LevelBand */
+        LevelBand: {
+            /** Start */
+            start: number;
+            /** End */
+            end: number;
+            /** Known */
+            known: number;
+        };
+        /** LevelDayOut */
+        LevelDayOut: {
+            /** Day */
+            day: string;
+            /** Known Top */
+            known_top: number;
+            /** Speech */
+            speech: number | null;
+        };
+        /** LevelOut */
+        LevelOut: {
+            /** Top */
+            top: number;
+            /** Known Top */
+            known_top: number;
+            /** Speech */
+            speech: number | null;
+            /** Studied */
+            studied: number;
+            /** Bands */
+            bands: components["schemas"]["LevelBand"][];
+            /** History */
+            history: components["schemas"]["LevelDayOut"][];
         };
         /** LineOut */
         LineOut: {
@@ -6579,6 +6636,39 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_level_api_level_get: {
+        parameters: {
+            query: {
+                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LevelOut"];
+                };
             };
             /** @description Validation Error */
             422: {
