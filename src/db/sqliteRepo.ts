@@ -563,18 +563,20 @@ export async function openRepo(name = 'flashcards.db'): Promise<Repo & BackupSto
         const { settings, unmoved } = withCollectionGates(local, await anki.ankiProgressGates(), names);
         if (unmoved.size && !movingGates) { movingGates = true; moveLocalGates(unmoved).finally(() => { movingGates = false; }); }
         // Daily goals are kept there the same way (src/anki/dailyGoals.ts).
-        return withCollectionGoals(settings, await anki.ankiDailyGoals(), names);
+        return withCollectionGoals(settings, await anki.ankiDailyGoals(), await anki.ankiGoalReplaced(), names);
       } catch { return local; }
     },
     async saveDeckSettings(deck, settings) {
       // A deck Anki has keeps its gate in the collection, not here. A failed write throws, so the
       // screen says so and reads back what's stored.
       // So does its daily goal (src/anki/dailyGoals.ts).
-      const { gateCap, dailyGoal, ...rest } = settings;
+      // And what the goal replaced, so whichever device turns it off puts that back.
+      const { gateCap, dailyGoal, goalReplaced, ...rest } = settings;
       let keep = settings;
       if ((await anki.ankiDecks()).some((d) => d.name === deck)) {
         if ((await anki.ankiProgressGates()).get(deck) !== gateCap) await anki.setAnkiProgressGate(deck, gateCap);
         if ((await anki.ankiDailyGoals()).get(deck) !== dailyGoal) await anki.setAnkiDailyGoal(deck, dailyGoal);
+        if ((await anki.ankiGoalReplaced()).get(deck) !== goalReplaced) await anki.setAnkiGoalReplaced(deck, goalReplaced);
         keep = rest;
       }
       await db.runAsync('INSERT OR REPLACE INTO deck_settings (deck, data) VALUES (?, ?)', deck, JSON.stringify(keep));
