@@ -235,3 +235,9 @@ With a sense marked Again is outlined, and the rating is still the learner's tap
 (`src/core/confusedPairs.ts`, the `confused_pairs` table) are shown on the answer side and asked in
 Similar words. Nothing in `src/core/scheduler.ts`, the queue or the lookalike hold may read them, and
 they aren't written into the Anki collection.
+
+## WaniKani offline
+
+Moved out of `CLAUDE.md`'s Data flow, verbatim. WaniKani keeps an offline copy of what's up (`offline.ts`: reviews, lessons,
+subjects, synonyms, and recordings as files), made each time WaniKani is reached, so a session can be studied with no
+connection: its answers go to the outbox and are sent later, and the copy leaves out items answered since it was made.

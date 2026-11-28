@@ -1752,6 +1752,39 @@ from texts written to the deck toward native material. `server/reader/src/franki
   reading"), and the words looked up in it count as any text's do. It never moves the language's
   difficulty (`record_reading`): that level is about texts written to it.
 
+## Videos
+
+Decided 28 November 2026, the owner choosing from a mock, with the embedded player picked over opening
+the YouTube app. A YouTube video's subtitles, read under the video as it plays (Watch,
+`ReadWatch.tsx`, the `watch` route).
+
+- **Off until turned on** (Settings, Reading and listening, Videos; `prefs.videos`), since the server
+  then asks YouTube for subtitles and the phone loads YouTube's player. With it on, New text has A
+  video (`ReadVideo.tsx`), and a YouTube link shared to Franki skips the share card's choices and
+  opens it (`kind: 'video'`, `ShareViewController.isVideo`).
+- **The subtitles come through youtube-transcript-api** (`video.py`), which reads them as YouTube's
+  page does: an unofficial route YouTube can change, so its failures are refusals that say so (422),
+  never a crash. The channel's own subtitles come first; YouTube's automatic ones only when there are
+  none, and the preview and Watch say which. The title and channel are from YouTube's oEmbed, and a
+  failure there only loses the title. A preview's subtitles are kept 30 minutes in memory, so adding
+  the video doesn't ask again. Up to an hour of video.
+- **Cues become lines with their times.** Sound marks ([Music], ♪, >>) go; a cue too short to read
+  alone and not ending a sentence is joined with the next, up to a longest line (`lines_of`), which
+  is what automatic subtitles need. Each line's start and end are kept beside the text
+  (`video_texts`, `video_store.py`).
+- **It's an own text** (`reason = 'own'`, on the Your texts row, never moving the difficulty), made
+  as a pasted one is (`own_text.preview_lines`, `Engine.add_video`): translated a part's worth at a
+  time, glossed, and not recorded, since the video is its sound. Its cover says Video, it opens on
+  Watch, and it's left out of the shelf's reading order and of Up Next, which have no recording to play.
+- **Watch** plays the video in YouTube's privacy-enhanced embedded player (youtube-nocookie.com, its
+  own subtitles off), which posts its time about five times a second; the line being said is shaded
+  and kept in view. A line's time jumps there, Loop line plays the current line again and again,
+  0.75× slows the video, Hide text listens first. A word's tap opens the reader's gloss popover with
+  Add to deck. Finished logs it as read. A video its owner won't let play embedded says so, with Open
+  in YouTube. The embed's own ads and tracking come with it, which the owner accepted in the mock.
+- Podcasts with a published transcript were picked to come next, in the same player; podcasts with
+  none would need Azure's transcription, a cost to ask about first.
+
 ## Stories
 
 Added on 12 November 2026 by the owner, with the shelf: an ongoing story in each language, whose

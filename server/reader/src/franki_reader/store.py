@@ -416,6 +416,17 @@ CREATE TABLE IF NOT EXISTS native_lookups (
     PRIMARY KEY (language, word)
 );
 
+-- A text made from a video's subtitles (video.py, video_store.py): the YouTube video it plays with,
+-- its channel, whether the subtitles were YouTube's automatic ones, and each line's start and end in
+-- milliseconds (JSON [[start, end], ...], line for line with the text's).
+CREATE TABLE IF NOT EXISTS video_texts (
+    text_id INTEGER PRIMARY KEY,
+    video_id TEXT NOT NULL,
+    channel TEXT NOT NULL,
+    generated INTEGER NOT NULL,
+    times TEXT NOT NULL
+);
+
 -- The writing journal (journal.py, journal_store.py): each entry as last written and checked, and
 -- the mistakes its first check found, one row each, which the home counts by kind and rotation.py
 -- reads for a practiced point. `client_key` is the phone's own id for the entry, so an entry held

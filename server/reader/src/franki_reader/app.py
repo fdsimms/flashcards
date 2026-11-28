@@ -237,6 +237,14 @@ marked words, ideas) is in the current language, the `language` setting.
                                       kept. 503 without Claude. Its cost is kept in `call_costs`
                                       (feature "ask_phrase") and counts under explanations in
                                       /api/costs
+    POST  /api/videos/preview         {language, link} what adding a YouTube video would give (video.py):
+                                      its title, channel, length, whether its subtitles are
+                                      YouTube's automatic ones, and the own-text preview (coverage,
+                                      new words, lines, cost). 422 with the reason when it can't be
+                                      added (no subtitles in the language, too long, not a link)
+    POST  /api/videos                 {language, link} -> 202 {id}: the video's subtitles as a text
+                                      on the own row, translated and glossed in the background, not
+                                      recorded (the video is their sound)
     POST  /api/native/find            {language, words} each word's native speakers' recordings on
                                       Wikimedia Commons (franki_speech.commons: Lingua Libre's,
                                       then Wiktionary's older files), each with its speaker,
@@ -420,6 +428,7 @@ from pathlib import Path
 from typing import Annotated
 
 import anthropic
+import httpx
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from franki_speech import SpeechClient
 from franki_speech.commons import Commons
@@ -453,6 +462,7 @@ from franki_reader import (
     situations,
     store,
     topic_image,
+    video,
     vocab_check,
     wanikani_senses,
     word_lookup,
@@ -557,6 +567,7 @@ def create_app(
     write_lesson_topics: WriteTopics | None = None,
     lessons_dir: Path | None = None,
     commons: Commons | None = None,
+    fetch_captions: video.FetchCaptions | None = None,
     native_dir: Path | None = None,
     write_aspect: aspect.WriteAspect | None = None,
     ask_about_card: ask_card.AskCard | None = None,
@@ -658,6 +669,7 @@ def create_app(
         write_lesson_topics=write_lesson_topics,
         lessons_dir=lessons_dir,
         commons=commons,
+        fetch_captions=fetch_captions,
         native_dir=native_dir,
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
@@ -858,6 +870,9 @@ def production_app() -> FastAPI:
         # Native recordings ask Lingua Libre and Commons directly: no key, and the app's own
         # setting (off until turned on) decides whether anything is asked.
         commons=Commons(user_agent="franki-reader-native/1.0"),
+        # Videos ask YouTube for a video's subtitles only when the learner adds one, and the app's
+        # own setting (off until turned on) decides whether anything is asked (video.py).
+        fetch_captions=video.youtube_captions(httpx.AsyncClient(), "franki-reader-videos/1.0"),
         native_dir=settings.audio_dir / "native",
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,

@@ -94,6 +94,20 @@ def split_lines(text: str, language: Code) -> list[OwnLine]:
     return lines
 
 
+def chunks(lines: list[str], size: int = PART_CHARS) -> list[list[str]]:
+    """Lines in runs of about `size` characters, for translating a long text a run at a time (a
+    video's subtitles are one text however long, unlike a pasted text's parts)."""
+    runs: list[list[str]] = [[]]
+    count = 0
+    for line in lines:
+        if runs[-1] and count + len(line) > size:
+            runs.append([])
+            count = 0
+        runs[-1].append(line)
+        count += len(line)
+    return [r for r in runs if r]
+
+
 def split_parts(lines: list[OwnLine], size: int = PART_CHARS) -> list[list[OwnLine]]:
     """The lines in parts of about `size` characters, each starting at a paragraph where one is
     near: a part ends at the last paragraph start past half its size, else where it's full."""
@@ -172,19 +186,31 @@ _DEFAULT_CHARS_PER_SECOND = 14.0
 _CHARS_PER_TOKEN = {"th": 1.5, "ja": 1.2}
 
 
-def estimate_cost(lines: list[OwnLine], language: Code) -> float:
-    """Recording every line, and translating it (the prompt, the lines in, about as much English out)."""
+def estimate_cost(lines: list[OwnLine], language: Code, recorded: bool = True) -> float:
+    """Recording every line (unless `recorded` is False: a video's lines are its own sound), and
+    translating it (the prompt, the lines in, about as much English out)."""
     chars = sum(len(line.text) for line in lines)
     tokens = int(chars / _CHARS_PER_TOKEN.get(language, 3.5))
     translating = Usage(input_tokens=tokens + 400, output_tokens=tokens, model=CHEAP_MODEL)
-    audio = azure_usd(sum(billed_chars(line.text) for line in lines))
+    audio = azure_usd(sum(billed_chars(line.text) for line in lines)) if recorded else 0.0
     return round(translating.cost_usd() + audio, 3)
 
 
 def preview(text: str, given_title: str, language: Code, lexicon: Checker) -> Preview:
     """What adding the text would give: its coverage against the deck as it is now, its new words,
     and its size and cost. Raises `OwnTextRefused` for a text that can't be added."""
-    lines = checked(text, language)
+    return preview_lines(checked(text, language), given_title, language, lexicon)
+
+
+def preview_lines(
+    lines: list[OwnLine],
+    given_title: str,
+    language: Code,
+    lexicon: Checker,
+    seconds: int | None = None,
+) -> Preview:
+    """`preview` for lines already split: a video's (video.py), whose `seconds` is its length and
+    whose lines aren't recorded, since the video is their sound."""
     coverage = check((line.text for line in lines), lexicon)
     counts: dict[str, int] = {}
     shown: dict[str, str] = {}
@@ -207,8 +233,8 @@ def preview(text: str, given_title: str, language: Code, lexicon: Checker) -> Pr
         lines=len(lines),
         parts=len(split_parts(lines)),
         characters=chars,
-        seconds=round(chars / rate),
-        cost_usd=estimate_cost(lines, language),
+        seconds=round(chars / rate) if seconds is None else seconds,
+        cost_usd=estimate_cost(lines, language, recorded=seconds is None),
     )
 
 
