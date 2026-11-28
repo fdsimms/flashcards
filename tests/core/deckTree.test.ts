@@ -243,6 +243,18 @@ describe('skill cards', () => {
     expect(rows.find((r) => r.deck === 'Thai')!.unstudied).toBe(3);
   });
 
+  it("counts the listening cards Quiet mode holds back, for the deck list's line", () => {
+    const note = { ...omniNote({ GenerateAudioCard: 'y' }), id: 'q1', deck: 'Thai' };
+    const listening = makeCards(note, NOW).find((c) => c.kind === 'audio')!;
+    const due = { ...listening, sched: { ...listening.sched, state: 2, due: new Date(2026, 10, 10, 12).toISOString() } };
+    const forward = { ...makeCards(note, NOW).find((c) => c.kind === 'forward')!, sched: { ...listening.sched, state: 2, due: new Date(2026, 10, 10, 12).toISOString() } };
+    const base = { notes: [note], cards: [due, forward], params: new Map(), studied: new Map(), collection: { ...DEFAULT_COLLECTION_SETTINGS, dayStartsAtHour: H }, now: NOW, ownLimitsFor: () => undefined };
+    const row = (quiet: boolean) => deckRows(queueInput({ ...base, held: quiet ? new Set([due.id]) : undefined, quiet })).find((r) => r.deck === 'Thai')!;
+    expect(row(false).setAside).toBeUndefined();
+    expect(row(true).setAside).toBe(1);
+    expect(row(true).due).toBe(1);
+  });
+
   it("queueInput takes a deck's own limits when it has no preset, and the preset's over them", () => {
     const cards = newCards(30);
     const notes = cards.map((c) => ({ id: c.noteId, deck: 'Thai', model: '', fields: { Front: c.noteId, Back: '' }, tags: [] }));

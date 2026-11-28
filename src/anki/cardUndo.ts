@@ -41,6 +41,8 @@ export interface AnkiActionUndo {
   revlogIds: number[];
   /** Config values the action changed, as they were; `row` null for one that wasn't there. */
   config: { key: string; row: { usn: number; mtime_secs: number; val: Uint8Array } | null }[];
+  /** Note rows the action changed (Browse's tags), as they were. */
+  notes?: { nid: number; tags: string; mod: number; usn: number }[];
 }
 
 const ROW_SQL =
@@ -94,11 +96,16 @@ export async function undoAnkiAction(db: SyncDb, u: AnkiActionUndo, now: Date): 
     const r = await db.first<{ usn: number }>('SELECT usn FROM revlog WHERE id = ?', id);
     if (!r || r.usn !== -1) return false;
   }
+  for (const n of u.notes ?? []) {
+    const r = await db.first<{ usn: number }>('SELECT usn FROM notes WHERE id = ?', n.nid);
+    if (!r || r.usn !== -1) return false;
+  }
   await db.transaction(async () => {
     for (const c of u.cards) {
       await db.run(RESTORE_SQL, c.did, c.odid, c.odue, c.type, c.queue, c.due, c.ivl, c.factor, c.reps, c.lapses, c.left, c.flags, c.data, c.mod, c.usn, c.cid);
     }
     for (const id of u.revlogIds) await db.run('DELETE FROM revlog WHERE id = ?', id);
+    for (const n of u.notes ?? []) await db.run('UPDATE notes SET tags = ?, mod = ?, usn = ? WHERE id = ?', n.tags, n.mod, n.usn, n.nid);
     for (const { key, row } of u.config) {
       if (row) await db.run('INSERT OR REPLACE INTO config (KEY, usn, mtime_secs, val) VALUES (?, ?, ?, ?)', key, row.usn, row.mtime_secs, row.val);
       else await db.run('DELETE FROM config WHERE KEY = ?', key);

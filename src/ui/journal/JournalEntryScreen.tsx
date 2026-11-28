@@ -7,7 +7,7 @@ import { asksAnotherTry, JOURNAL_MAX, kindPractice, withDraft, type Draft } from
 import { LANGUAGES } from '../../reader/languages';
 import { CASE_LANGUAGES } from '../../tools/cases';
 import { haptic } from '../haptics';
-import { Button, ErrorNote, Field, Help, Icon, Loading, Screen, Tappable } from '../kit';
+import { Button, Chip, ErrorNote, Field, Help, Icon, Loading, Screen } from '../kit';
 import { readable, radius, smooth, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { useNoteQueue } from '../useNoteQueue';
@@ -184,15 +184,7 @@ export function JournalEntryScreen({ api, onSay, language, entryId, prompt: give
         {words.length ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
             {words.map((w) => (
-              <Tappable
-                key={w}
-                onPress={() => addWord(w)}
-                accessibilityRole="button"
-                accessibilityLabel={`Add ${w} to the entry`}
-                style={{ paddingHorizontal: space.m, paddingVertical: space.xs, borderRadius: radius.pill, borderWidth: 1, borderColor: c.border, backgroundColor: c.surface }}
-              >
-                <Text style={{ ...type.subhead, color: c.text }} accessibilityLanguage={info.speech}>{w}</Text>
-              </Tappable>
+              <Chip key={w} label={w} accessibilityLanguage={info.speech} accessibilityLabel={`Add ${w} to the entry`} onPress={() => addWord(w)} />
             ))}
           </View>
         ) : null}

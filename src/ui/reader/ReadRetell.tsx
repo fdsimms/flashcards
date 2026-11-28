@@ -11,7 +11,7 @@ import { speedFor } from '../../reader/prefs';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
 import { useOutputWake } from '../useOutputWake';
-import { Button, Card, ErrorNote, Help, Tappable } from '../kit';
+import { Button, Card, Chip, ErrorNote, Help, Tappable } from '../kit';
 import { Reveal } from '../motion';
 import type { ReadTextStyle } from './ReadWord';
 import { asksAnotherTry } from '../../reader/production';
@@ -92,17 +92,7 @@ export function ReadRetell({ api, text, textStyle, onDone }: {
                 <Text style={{ ...type.overline, color: c.textSecondary }}>From the text, you could also use</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
                   {check.words.map((w) => (
-                    <Tappable
-                      key={w.word}
-                      onPress={() => { haptic.select(); setOpened(opened === w.line ? null : w.line); }}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${w.word}, ${w.english}. Show the line it's in`}
-                      accessibilityState={{ expanded: opened === w.line }}
-                      hitSlop={{ top: space.xs, bottom: space.xs }}
-                      style={{ minHeight: MIN_TAP - 8, justifyContent: 'center', paddingHorizontal: space.m, borderRadius: radius.pill, backgroundColor: c.accentFill }}
-                    >
-                      <Text style={{ ...type.subhead, color: c.accentInk }}>{`${w.word} · ${w.english}`}</Text>
-                    </Tappable>
+                    <Chip key={w.word} label={`${w.word} · ${w.english}`} accessibilityLabel={`${w.word}, ${w.english}. Show the line it's in`} accessibilityState={{ expanded: opened === w.line }} onPress={() => setOpened(opened === w.line ? null : w.line)} />
                   ))}
                 </View>
                 {opened !== null && text.lines[opened] ? (

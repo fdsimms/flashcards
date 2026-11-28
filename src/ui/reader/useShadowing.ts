@@ -3,7 +3,6 @@ import { useCallback, useEffect, useRef, useState, type RefObject } from 'react'
 import { failureText } from '../../core/failure';
 import type { Api, ReaderText } from '../../reader/api';
 import { nextShadowLine, shadowStart, shadowTick } from '../../reader/shadow';
-import { haptic } from '../haptics';
 import { LISTENING_MODE } from '../listeningAudio';
 import { useSelfRecording, type SelfRecording } from '../useSelfRecording';
 import type { Media } from './VideoPane';
@@ -77,7 +76,6 @@ export function useShadowing({ api, text, media, current }: {
   const playLine = useCallback((i: number) => start(i, 'playing'), [start]);
 
   const toggle = useCallback(() => {
-    haptic.select();
     if (live.current.on) {
       recNow.current.stop(false);
       setOn(false);

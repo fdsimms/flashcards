@@ -233,7 +233,7 @@ A few of those rules apply far from their own folder, so they're repeated here:
 - **Mock up a proposed UI change as an Artifact before building it** (`screens.md` says how),
   motion, gestures and native controls included, and say in the PR that you did.
 - **A merge to `main` that touches `server/` deploys itself** (`server/update.sh`, on a timer, within
-  about 15 minutes) and restarts sync, the MCP and Read & Listen. A server change must work with nothing done by
+  about 15 minutes), rebuilding and restarting whichever of sync, the MCP and Read & Listen changed. A server change must work with nothing done by
   hand on the server; if one truly needs a step there (a new `.env` setting), the PR says so plainly.
 
 ## Architecture and the rules that come with it

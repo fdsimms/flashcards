@@ -6,8 +6,10 @@ from mcp.server.mcpserver import MCPServer
 
 from franki_speech.commons import Commons
 
+from . import audits as audits_module
 from . import forms, frequency, known_words, lint, native, pronunciation, skills, stress, tiers, tools
 from . import reader as reader_tools
+from .audits import AuditStore
 from .collection import CollectionManager
 from .downloads import AudioFetcher
 from .reader import ReaderClient, ReaderSettings
@@ -16,7 +18,8 @@ from .speech import SpeechClient
 
 def build_server(cm: CollectionManager, speech: SpeechClient | None = None, unimorph: forms.UniMorph | None = None,
                  reader_settings: ReaderSettings | None = None, reader: ReaderClient | None = None,
-                 downloads: AudioFetcher | None = None, commons: Commons | None = None, **kwargs) -> MCPServer:
+                 downloads: AudioFetcher | None = None, commons: Commons | None = None,
+                 audits: AuditStore | None = None, **kwargs) -> MCPServer:
     """The server with every tool. kwargs go to MCPServer (sign-in settings, for one)."""
     server = MCPServer("Franki", instructions=tools.INSTRUCTIONS, **kwargs)
     # Read & Listen's server (optional): its costs, word ranks and Japanese readings.
@@ -24,7 +27,10 @@ def build_server(cm: CollectionManager, speech: SpeechClient | None = None, unim
     # add_audio_from_url's downloads: a real fetcher unless a test passes a faked one.
     # Native speakers' recordings from Wikimedia Commons (tests pass one with a faked network).
     recorder = native.NativeRecorder(cm, commons or Commons(user_agent="franki-mcp-native/1.0"))
-    tools.register(server, cm, speech, client, downloads, recorder)
+    # Content audits: their definitions, and what's been checked and found, kept beside the collection's folder.
+    store = audits or AuditStore(cm.path.parent.parent / "audits.sqlite")
+    tools.register(server, cm, speech, client, downloads, recorder, store)
+    audits_module.register(server, cm, store, client)
     native.register(server, cm, recorder)
     # Wiktionary's inflection tables, kept beside the collection's folder.
     tables = unimorph or forms.UniMorph(cm.path.parent.parent / "unimorph")

@@ -83,6 +83,8 @@ jobs:
               # tests/test_anki_version.py reads ANKI_VERSION from it.
               - 'server/docker-compose.yml'
               - 'tests/fixtures/anki/**'
+              # tests/test_audits.py checks an audit's flag reasons against the app's flag sheet.
+              - 'src/core/agentFlag.ts'
               - '.github/workflows/test.yml'
       - if: github.event_name != 'pull_request' || steps.paths.outputs.mcp == 'true'
         uses: actions/setup-python@v5
@@ -91,8 +93,12 @@ jobs:
           cache: pip
           cache-dependency-path: server/mcp/requirements*.txt
       - if: github.event_name != 'pull_request' || steps.paths.outputs.mcp == 'true'
-        # The shared Azure client (server/speech) is a package of its own.
-        run: pip install -r server/mcp/requirements-dev.txt ./server/speech
+        # requirements.txt is hashed, so it goes in on its own; then the tests' packages, and the
+        # shared Azure client (server/speech), a package of its own whose one dependency is pinned there.
+        run: |
+          pip install --require-hashes -r server/mcp/requirements.txt
+          pip install -r server/mcp/requirements-dev.txt
+          pip install --no-deps ./server/speech
       - if: github.event_name != 'pull_request' || steps.paths.outputs.mcp == 'true'
         run: python -m pytest -q
         working-directory: server/mcp

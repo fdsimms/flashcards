@@ -4,7 +4,9 @@ import { ScrollView } from 'react-native';
 import type { Repo } from '../db/repo';
 import type { Api, Language } from '../reader/api';
 import { LANGUAGES, flaggedName } from '../reader/languages';
+import { needsSound } from '../core/quietMode';
 import { TOOLS, TOOL_LANGUAGES, listLanguage, type ToolInfo } from '../tools/tools';
+import { useQuiet } from './quietPrefs';
 import { FLAG_IMAGES } from './flagImages';
 import { useConnectionProblem } from './connection';
 import { Group, NavRow, Screen, SECTION_GAP } from './kit';
@@ -21,6 +23,7 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo, studied 
   studied: Language[];
 }) {
   const c = useTheme();
+  const quiet = useQuiet();
   const grammarDue = useGrammarDue(readerApi, repo);
   const problem = useConnectionProblem();
   const [saved, setLanguage] = useAppLanguage();
@@ -61,7 +64,7 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo, studied 
             // Grammar, Sentences and Situations need Read & Listen's server, so they're off while it can't be reached.
             // The journal needs it on, but opens offline: an entry written then is held and checked later.
             const needsServer = tool.id === 'sentences' || tool.id === 'situations' || tool.id === 'grammar';
-            const off = (needsServer && (!readerApi || !!problem)) || (tool.id === 'journal' && !readerApi);
+            const off = (needsServer && (!readerApi || !!problem)) || (tool.id === 'journal' && !readerApi) || (quiet.active && needsSound(tool.id));
             // The rows settle in one after another the first time the tab opens.
             return (
               <Reveal key={tool.id} delay={i * 30}>
@@ -69,7 +72,7 @@ export function Practice({ onOpen, onCram, onSettings, readerApi, repo, studied 
                 first={i === 0}
                 icon={{ name: TOOL_SCREENS[tool.id].icon, color: TOOL_SCREENS[tool.id].color(c) }}
                 label={tool.title}
-                detail={!off ?(tool.id === 'grammar' && grammarDueHere ? `${grammarDueHere} due today. ${tool.summary}` : tool.summary) : !readerApi ? 'Uses Read & Listen. Turn it on in Settings, Read & Listen.' : problem === 'offline' ? "Available when you're back online." : 'Available when your server answers.'}
+                detail={quiet.active && needsSound(tool.id) ? 'Needs sound. Off while Quiet mode is on.' : !off ?(tool.id === 'grammar' && grammarDueHere ? `${grammarDueHere} due today. ${tool.summary}` : tool.summary) : !readerApi ? 'Uses Read & Listen. Turn it on in Settings, Read & Listen.' : problem === 'offline' ? "Available when you're back online." : 'Available when your server answers.'}
                 disabled={off}
                 onPress={() => onOpen(tool)}
               />

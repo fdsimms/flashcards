@@ -11,6 +11,7 @@ things can (`GET /api/grammar/{point_id}/lesson` writes a missing lesson and rec
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sqlite3
 from datetime import datetime, timedelta
@@ -375,19 +376,26 @@ def _point_name(point_id: str) -> str:
     return point.name if point else point_id
 
 
+def _digest(*parts: str) -> str:
+    """A short hash of a page's text, which changes whenever any part of it does."""
+    return hashlib.sha256("\x1f".join(parts).encode()).hexdigest()[:16]
+
+
 def list_grammar_pages(
     conn: sqlite3.Connection, *, language: str | None = None
 ) -> list[dict[str, Any]]:
     """Every grammar page Claude wrote, newest first: the owner's own topics (`kind` "topic", by
     the title they typed) and the built-in points' lessons (`kind` "point", by the point's id).
-    `note` is what the app says about a write that failed, `examples` how many lines it has."""
+    `note` is what the app says about a write that failed, `examples` how many lines it has, and
+    `digest` changes whenever the page's text does (the MCP's content audits tell a page written
+    again from one they've already checked by it, without reading every page)."""
     pages: list[dict[str, Any]] = []
     topic_rows = conn.execute(
-        "SELECT id, language, title, status, note, examples, created_at FROM grammar_topics"
-        + (" WHERE language = ?" if language else ""),
+        "SELECT id, language, title, status, note, examples, created_at, lead, explanation"
+        " FROM grammar_topics" + (" WHERE language = ?" if language else ""),
         (language,) if language else (),
     )
-    for i, lang, title, status, note, examples, created in topic_rows:
+    for i, lang, title, status, note, examples, created, lead, explanation in topic_rows:
         pages.append(
             {
                 "kind": "topic",
@@ -398,6 +406,7 @@ def list_grammar_pages(
                 "note": note or "",
                 "examples": len(json.loads(examples)),
                 "at": _instant(created),
+                "digest": _digest(title, lead, explanation, examples),
             }
         )
     for point_id, status, note, examples, updated in conn.execute(
@@ -417,6 +426,7 @@ def list_grammar_pages(
                 "note": note,
                 "examples": len(json.loads(examples)),
                 "at": _instant(updated),
+                "digest": _digest(point_id, examples),
             }
         )
     pages.sort(key=lambda p: p["at"] or "", reverse=True)

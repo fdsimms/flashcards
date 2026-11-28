@@ -1,6 +1,7 @@
-import { Stack, usePreventRemove } from 'expo-router';
+import { Stack, usePreventRemove, useRouter } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ipaGuideFor } from '../../tools/ipaGuide';
 import type { SFSymbol } from 'expo-symbols';
 import { ActivityIndicator, Alert, AppState, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, type ScrollViewInstance } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -79,6 +80,7 @@ import { MakingCard } from '../MakingCard';
 import { textSteps } from '../../reader/making';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { PlayCircle } from '../PlayCircle';
+import { Figure } from '../Figure';
 
 /**
  * The reader: a text split into words by the server, a gloss on tap, audio line by line, and a
@@ -1262,6 +1264,7 @@ export function GlossPopover({ tapped, docked, characters, onXray, language, mea
   onClose: () => void;
 }) {
   const c = useTheme();
+  const router = useRouter();
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   // Measured on first layout (drawn invisible until then), since a long gloss wraps.
@@ -1318,6 +1321,9 @@ export function GlossPopover({ tapped, docked, characters, onXray, language, mea
     if (character && onXray) actions.push({ icon: 'person.2', label: 'See all characters', onPress: onXray });
     if (onAddToDeck) actions.push({ icon: 'plus.circle', label: 'Add to deck', accessibilityLabel: `Add ${tapped.word.text} to your deck`, onPress: onAddToDeck });
     if (onToggleFlag) actions.push({ icon: flagged ? 'flag.slash' : 'flag', label: flagged ? 'Unmark' : 'Mark as unknown', onPress: onToggleFlag, chevron: false });
+    // What the IPA's symbols mean (IpaSheet.tsx). The popup closes first: iOS won't open a sheet over it. The IPA's own tap keeps saying where it's from.
+    const ipaLanguage = language && tapped.word.ipa ? ipaGuideFor(language) : undefined;
+    if (ipaLanguage) actions.push({ icon: 'waveform', label: "How it's said", accessibilityLabel: `How ${tapped.word.text} is said, sound by sound`, onPress: () => { onClose(); router.push({ pathname: '/ipa', params: { ipa: tapped.word.ipa!, language: ipaLanguage } }); } });
   }
   const content = (
     <>
@@ -1529,8 +1535,7 @@ function Stat({ value, label }: { value: string; label: string }) {
   const c = useTheme();
   return (
     <View style={{ flex: 1, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.m, ...smooth, padding: space.m }}>
-      <Text style={{ ...type.title, color: c.text }}>{value}</Text>
-      <Text style={{ ...type.caption, color: c.textSecondary }}>{label}</Text>
+      <Figure value={value} label={label} />
     </View>
   );
 }

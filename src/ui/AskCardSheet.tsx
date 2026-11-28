@@ -5,8 +5,8 @@ import { claudeChatLink, noteDraft, SUGGESTED_QUESTIONS, withNoteRequest, withQu
 import { failureText } from '../core/failure';
 import type { FixProposal } from '../core/fixCard';
 import { haptic } from './haptics';
-import { Button, ErrorNote, Field, SheetHeader, Tappable, TextButton } from './kit';
-import { MIN_TAP, radius, space, type, useTheme, smooth } from './theme';
+import { Button, Chip, ErrorNote, Field, SheetHeader, TextButton } from './kit';
+import { radius, space, type, useTheme, smooth } from './theme';
 import { AskingText } from './AskingText';
 import { FixProposalView } from './FixProposalView';
 
@@ -66,7 +66,6 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
 
   const send = async (question: string) => {
     if (!ask || asking || !question.trim()) return;
-    haptic.tap();
     const next = withQuestion(turns, question);
     follow.current = 'end';
     setTurns(next);
@@ -193,9 +192,7 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
         {ask && !asking && !turns.length ? (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
             {SUGGESTED_QUESTIONS.map((q) => (
-              <Tappable key={q} onPress={() => void send(q)} accessibilityRole="button" accessibilityLabel={`Ask: ${q}`} style={{ backgroundColor: c.accentFill, borderRadius: radius.m, ...smooth, paddingHorizontal: space.m, paddingVertical: space.s, minHeight: MIN_TAP, justifyContent: 'center' }}>
-                <Text style={{ ...type.subhead, color: c.text }}>{q}</Text>
-              </Tappable>
+              <Chip key={q} label={q} accessibilityLabel={`Ask: ${q}`} onPress={() => void send(q)} />
             ))}
           </View>
         ) : null}

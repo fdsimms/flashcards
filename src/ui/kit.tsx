@@ -3,7 +3,7 @@ import { SymbolView, type SFSymbol } from 'expo-symbols';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, Switch, Text, TextInput, useColorScheme, View,
-  type AccessibilityState, type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type ViewStyle,
+  type AccessibilityState, type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type TextStyle, type ViewStyle,
 } from 'react-native';
 import { Host, Picker, Text as SwiftText } from '@expo/ui/swift-ui';
 import { accessibilityLabel, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
@@ -306,7 +306,8 @@ export function NavRow({ label, detail, badge, facts, loading, making, working, 
           scaleTo={0.92}
           style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Icon name={action.icon} size={18} color={c.accent} weight="semibold" />
+          {/* The same mark as PlayDot (PlayCircle.tsx), which kit can't import. */}
+          <Icon name={action.icon} size={16} color={c.accent} weight="semibold" />
         </Tappable>
       ) : null}
       {making || working ? <WorkingMark /> : <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />}
@@ -315,16 +316,29 @@ export function NavRow({ label, detail, badge, facts, loading, making, working, 
   );
 }
 
-type TagProps = { text: string; color: string; fill: string; /** What VoiceOver says when the text alone is cryptic ("AI", "N5"). */ accessibilityLabel?: string };
+type TagProps = {
+  text: string;
+  color: string;
+  fill: string;
+  /** What VoiceOver says when the text alone is cryptic ("AI", "N5"). */
+  accessibilityLabel?: string;
+  /** A symbol before the text (a card's state, a verdict). */
+  icon?: SFSymbol;
+  /** The symbol's color, when it isn't the text's (an amber mark beside amber ink). */
+  iconColor?: string;
+  /** Drawn before the text in place of a symbol (a learning card's step dots). */
+  leading?: React.ReactNode;
+};
 
 /**
  * A short colored label (a grammar point's state, a count beside a heading): its text in a color
  * on a faint fill of the same color, which the theme pairs to pass 4.5:1 (`violetInk` on
  * `violetFill`, `goodInk` on `goodFill`).
  */
-export function Tag({ text, color, fill, accessibilityLabel }: TagProps) {
+export function Tag({ text, color, fill, accessibilityLabel, icon, iconColor, leading }: TagProps) {
   return (
-    <View accessible={!!accessibilityLabel} accessibilityLabel={accessibilityLabel} style={{ borderRadius: radius.pill, ...smooth, backgroundColor: fill, paddingHorizontal: space.s, paddingVertical: 2 }}>
+    <View accessible={!!accessibilityLabel} accessibilityLabel={accessibilityLabel} style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, borderRadius: radius.pill, ...smooth, backgroundColor: fill, paddingHorizontal: space.s, paddingVertical: 2 }}>
+      {leading ?? (icon ? <Icon name={icon} size={12} color={iconColor ?? color} weight="semibold" /> : null)}
       <Text style={{ ...type.footnote, fontWeight: '600', color, fontVariant: ['tabular-nums'] }}>{text}</Text>
     </View>
   );
@@ -555,10 +569,18 @@ export function Button(props: {
   busyLabel?: string;
   /** What VoiceOver says when the label alone isn't enough: a button repeated down a list names its row. */
   accessibilityLabel?: string;
+  /** `small` is 44pt with the label in subhead, for buttons side by side in a bar or under a card (Look up's Hear it and Add to deck). */
+  size?: 'regular' | 'small';
+  /** A symbol before the label. */
+  icon?: SFSymbol;
+  /** A caption under the label, saying what the button will act on ("3 notes"). */
+  hint?: string;
   style?: StyleProp<ViewStyle>;
 }) {
   const c = useTheme();
   const variant = props.variant ?? 'primary';
+  const small = props.size === 'small';
+  const labelType = small ? { ...type.subhead, fontWeight: '600' as const } : type.headline;
   const off = props.disabled || props.busy;
   const fg = variant === 'primary' ? c.onAccent : variant === 'destructive' ? c.danger : variant === 'tinted' ? c.accentInk : c.text;
   return (
@@ -573,7 +595,7 @@ export function Button(props: {
       restOpacity={off ? 0.45 : 1}
       style={[
         {
-          minHeight: 52, borderRadius: radius.m + 2, ...smooth, paddingHorizontal: space.l, paddingVertical: space.m,
+          minHeight: small ? MIN_TAP : 52, borderRadius: radius.m + 2, ...smooth, paddingHorizontal: small ? space.m : space.l, paddingVertical: small ? space.s : space.m,
           alignItems: 'center', justifyContent: 'center',
           backgroundColor: variant === 'primary' ? c.accent : variant === 'tinted' ? c.accentFill : c.fill,
           // The fill alone is 1.1:1 on the screen in light mode, so the button needs an edge to read as one. Inside the box: the size is the same.
@@ -585,9 +607,17 @@ export function Button(props: {
       {props.busy && props.busyLabel ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
           <WorkingMark color={fg} />
-          <Text style={{ ...type.headline, color: fg }}>{props.busyLabel}</Text>
+          <Text style={{ ...labelType, color: fg }}>{props.busyLabel}</Text>
         </View>
-      ) : props.busy ? <ActivityIndicator color={fg} /> : <Text style={{ ...type.headline, color: fg }}>{props.label}</Text>}
+      ) : props.busy ? <ActivityIndicator color={fg} /> : (
+        <>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 }}>
+            {props.icon ? <Icon name={props.icon} size={small ? 15 : 18} color={fg} weight="semibold" /> : null}
+            <Text style={{ ...labelType, color: fg, textAlign: 'center', flexShrink: 1 }}>{props.label}</Text>
+          </View>
+          {props.hint ? <Text style={{ ...type.caption, color: variant === 'destructive' ? c.danger : c.textSecondary, textAlign: 'center' }}>{props.hint}</Text> : null}
+        </>
+      )}
     </Tappable>
   );
 }
@@ -642,6 +672,28 @@ export function TextButton({ label, onPress, icon, chevron, disabled, busy, busy
 }
 
 /**
+ * A small × that closes or removes the thing beside it (a notice, a queued word, a suggestion): a
+ * 44pt target around a 14pt mark in the quiet gray. `label` says what it closes ("Remove kot").
+ * The round gray button that closes a sheet is `SheetHeader`'s.
+ */
+export function CloseButton({ label, onPress, disabled, busy, style }: { label: string; onPress: () => void; disabled?: boolean; /** A spinner in place of the ×, while what it started runs. */ busy?: boolean; style?: StyleProp<ViewStyle> }) {
+  const c = useTheme();
+  return (
+    <Tappable
+      onPress={() => { haptic.tap(); onPress(); }}
+      disabled={disabled || busy}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!(disabled || busy), busy: !!busy }}
+      scaleTo={0.9}
+      style={[{ minWidth: MIN_TAP, minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center' }, style]}
+    >
+      {busy ? <ActivityIndicator size="small" color={c.textSecondary} /> : <Icon name="xmark" size={14} color={c.textTertiary} weight="semibold" />}
+    </Tappable>
+  );
+}
+
+/**
  * A lifted card that says something has happened and opens it: a deck shared to Franki, new words
  * running low, notes ready from Claude, vacation, reviews to do first. An icon, the news, a line
  * on what a tap does, then a close button when it can be dismissed or a chevron when it can't.
@@ -681,14 +733,7 @@ export function Banner({ icon, iconColor, title, hint, onPress, onDismiss, dismi
         {onDismiss ? null : <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />}
       </Tappable>
       {onDismiss ? (
-        <Tappable
-          onPress={() => { haptic.tap(); onDismiss(); }}
-          accessibilityRole="button"
-          accessibilityLabel={dismissLabel}
-          style={{ minWidth: MIN_TAP, minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center', marginRight: space.xs }}
-        >
-          <Icon name="xmark" size={14} color={c.textTertiary} weight="semibold" />
-        </Tappable>
+        <CloseButton label={dismissLabel} onPress={onDismiss} style={{ marginRight: space.xs }} />
       ) : null}
     </View>
   );
@@ -756,6 +801,30 @@ export function CheckboxRow({ label, detail, checked, onPress, first, big, color
       </View>
       {trailing}
     </HoverPressable>
+  );
+}
+
+/**
+ * Something added that a tap takes back out (a tag, a word added to a lesson, a phrase caught in a
+ * cram lesson): its text in the gold ink on the gold tint, a line after it if any, and a ×.
+ * `labelStyle` replaces the label's size (a cram's text size); a word in the language being
+ * learned takes Thai's taller line where it needs one.
+ */
+export function RemovableChip({ label, detail, onRemove, accessibilityLabel, labelStyle }: { label: string; detail?: string; onRemove: () => void; accessibilityLabel?: string; labelStyle?: TextStyle }) {
+  const c = useTheme();
+  return (
+    <Tappable
+      onPress={() => { haptic.tap(); onRemove(); }}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? `Remove ${detail ? `${label}, ${detail}` : label}`}
+      scaleTo={0.95}
+      hitSlop={{ top: 4, bottom: 4 }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, minHeight: 36, paddingVertical: space.xs, paddingLeft: space.m, paddingRight: space.s, borderRadius: radius.pill, backgroundColor: c.accentFill }}
+    >
+      <Text style={{ ...withThaiLineHeight(type.subhead, label), ...labelStyle, color: c.accentInk }}>{label}</Text>
+      {detail ? <Text style={{ ...type.caption, color: c.textSecondary }}>{detail}</Text> : null}
+      <Icon name="xmark" size={12} color={c.accentInk} weight="semibold" />
+    </Tappable>
   );
 }
 
@@ -925,21 +994,34 @@ export function Select({ label, options, value, onChange }: { label: string; opt
 }
 
 /** A choice among a few (a deck, a note type): pill-shaped, filled when chosen. */
-export function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+export function Chip({ label, selected = false, onPress, disabled, accessibilityLabel, accessibilityLanguage, accessibilityState }: {
+  label: string;
+  /** A choice that's on. Leave it off for a suggestion that fills something in when tapped (a topic, a question to ask). */
+  selected?: boolean;
+  onPress: () => void;
+  disabled?: boolean;
+  accessibilityLabel?: string;
+  /** The label's language, for a word in the language being learned (it also picks the font). */
+  accessibilityLanguage?: string;
+  accessibilityState?: AccessibilityState;
+}) {
   const c = useTheme();
   return (
     <Tappable
       onPress={() => { haptic.select(); onPress(); }}
+      disabled={disabled}
+      restOpacity={disabled ? 0.45 : 1}
       accessibilityRole="button"
-      accessibilityState={{ selected }}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ ...accessibilityState, selected, disabled: !!disabled }}
       scaleTo={0.95}
       hitSlop={{ top: 4, bottom: 4 }}
       style={{
-        minHeight: 36, justifyContent: 'center', paddingHorizontal: space.m + 2, borderRadius: radius.pill,
+        minHeight: 36, justifyContent: 'center', paddingHorizontal: space.m + 2, paddingVertical: space.xs, borderRadius: radius.pill,
         backgroundColor: selected ? c.accent : c.surface, borderWidth: hairline, borderColor: selected ? c.accent : c.border,
       }}
     >
-      <Text style={{ ...type.subhead, color: selected ? c.onAccent : c.text, fontWeight: selected ? '600' : '400' }}>{label}</Text>
+      <Text accessibilityLanguage={accessibilityLanguage} style={{ ...type.subhead, color: selected ? c.onAccent : c.text, fontWeight: selected ? '600' : '400' }}>{label}</Text>
     </Tappable>
   );
 }

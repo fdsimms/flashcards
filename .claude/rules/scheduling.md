@@ -182,7 +182,8 @@ of its own applies. **While a review from an earlier study day waits, reviews co
 (`isBehind`, `src/core/order.ts`; the owner's choice, 21 November 2026), after a vacation or any days away, so what a
 session doesn't reach is what was already slipping; the preset's review order returns once nothing older than today waits.
 **A new reverse or audio card waits for its word to be recognized** (`heldReverseCards`, `src/core/reverseHold.ts`): left out of
-the queue, through `held`, while the note's forward card is unstudied or in progress. Nothing is written, so Anki still offers it.
+the queue, through `held`, while the note's forward card is unstudied or in progress. Nothing is written, so Anki still offers it,
+and Deck counts says how many wait (`waitingForWord`).
 
 **A cram moves due dates by itself, and only ever earlier** (`src/core/cram.ts`, Practice,
 Cram): until a running cram's day, a review of one of its words (or a day-long learning step) isn't

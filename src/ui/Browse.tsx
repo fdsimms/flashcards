@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, FlatList, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { deleteNote, deleteNotes, type NoteStore } from '../anki/noteService';
 import { browseProblem, parseSearch, readsAnswers } from '../core/ankiSearch';
+import { DAY_STARTS_AT_HOUR } from '../core/config';
 import { cardHomeDeck } from '../core/deckTree';
 import { browseSearch } from '../core/filteredDeck';
 import { retrievability } from '../core/order';
@@ -24,6 +25,7 @@ import { hairline, radius, smooth, space, type, useTheme, readable } from './the
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { HoverPressable } from './hover';
 import { BrowseNotePanel } from './BrowseNotePanel';
+import { useBrowseActions } from './BrowseActions';
 import { SIDE_PANEL_WIDTH, sidePanelFits } from '../core/wide';
 import { withThaiLineHeight } from '../core/script';
 
@@ -43,7 +45,7 @@ const SYNTAX_HINT = 'Search also takes Anki\'s syntax, e.g. deck:Polski, tag:ver
  * On a window wide enough for a panel beside the list (`sidePanelFits`), a tap picks the note and
  * shows it there instead (BrowseNotePanel.tsx), with Edit note to open the editor.
  */
-export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: NoteStore & Pick<AnkiLink, 'ankiReviewLog'>; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void; /** Opens Card info on one of the picked note's cards (the wide window's panel). */ onCardInfo: (cardId: string) => void; initialDeck: string | null }) {
+export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: NoteStore & Pick<AnkiLink, 'ankiReviewLog' | 'ankiDecks'>; onEditNote: (target: NoteEditorTarget, onClose: (result?: NoteEditorResult) => void) => void; /** Opens Card info on one of the picked note's cards (the wide window's panel). */ onCardInfo: (cardId: string) => void; initialDeck: string | null }) {
   const { bottomPadding } = useKeyboardScroll();
   const c = useTheme();
   const [notes, setNotes] = useState<Note[] | null>(null);
@@ -118,7 +120,6 @@ export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: No
   const foundIds = useMemo(() => found.map((n) => n.id), [found]);
   const sel = useSelection(foundIds);
   const deleteSelected = () => {
-    haptic.tap();
     const picked = [...sel.selected];
     const cardCount = picked.reduce((n, id) => n + (cards?.byNote.get(id)?.length ?? 0), 0);
     Alert.alert(deleteNotesTitle(picked.length), deleteNotesWarning(cardCount), [
@@ -126,6 +127,8 @@ export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: No
       {
         text: 'Delete', style: 'destructive',
         onPress: async () => {
+          // Notes deleted can't have the last action undone on them.
+          actions.selectionChanged();
           const { deleted, failed, error } = await deleteNotes(repo, picked);
           const gone = new Set(deleted);
           setNotes((all) => (all ? all.filter((n) => !gone.has(n.id)) : all));
@@ -135,6 +138,10 @@ export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: No
       },
     ]);
   };
+  // Suspend, Tags and More (src/ui/BrowseActions.tsx), on the notes picked in the list's order.
+  const pickedIds = useMemo(() => foundIds.filter((id) => sel.selected.has(id)), [foundIds, sel.selected]);
+  const actions = useBrowseActions({ repo, picked: pickedIds, cardsOf: (id) => cards?.byNote.get(id) ?? [], dayStartsAtHour: cards?.dayStartsAtHour ?? DAY_STARTS_AT_HOUR, reload: load });
+  const pick = <A extends unknown[]>(f: (...a: A) => void) => (...a: A) => { actions.selectionChanged(); f(...a); };
   const edit = (target: NoteEditorTarget) => onEditNote(target, (result) => { if (result) load(); });
   // A wide window: the note picked shows beside the list, while it's still among those found.
   const wide = sidePanelFits(useWindowDimensions().width);
@@ -145,11 +152,20 @@ export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: No
     <Screen
       title="Browse"
       footer={sel.selecting ? (
-        <SelectBar count={sel.selected.size} total={found.length} onSelectAll={() => sel.selectAll(foundIds)} onClear={sel.clear} actions={[{ label: 'Delete notes', hint: 'Asks first', destructive: true, onPress: deleteSelected }]} />
+        actions.repositionPanel ?? (
+          <SelectBar
+            count={pickedIds.length}
+            total={found.length}
+            onSelectAll={pick(() => sel.selectAll(foundIds))}
+            onClear={pick(sel.clear)}
+            status={actions.status}
+            actions={[...actions.barActions, { label: 'Delete notes', hint: 'Asks first', destructive: true, onPress: deleteSelected }]}
+          />
+        )
       ) : undefined}
       toolbar={
         <Stack.Toolbar placement="right">
-          {sel.selecting ? <Stack.Toolbar.Button accessibilityLabel="Done selecting" onPress={sel.stop}>Done</Stack.Toolbar.Button> : null}
+          {sel.selecting ? <Stack.Toolbar.Button accessibilityLabel="Done selecting" onPress={pick(sel.stop)}>Done</Stack.Toolbar.Button> : null}
           {!sel.selecting && found.length ? <Stack.Toolbar.Button accessibilityLabel="Select notes" onPress={sel.start}>Select</Stack.Toolbar.Button> : null}
           {!sel.selecting && !searchProblem && (query.trim() || scope || filter) ? (
             <Stack.Toolbar.Button
@@ -212,7 +228,7 @@ export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: No
             onOpenChange={(o) => setOpenNote(o ? item.id : null)}
             onDelete={() => confirmDelete(item)}
             // Tapping a row that's slid open closes it, rather than opening the note.
-            onPress={() => (sel.selecting ? sel.toggle(item.id) : openNote === item.id ? setOpenNote(null) : wide ? setPicked(item.id) : edit({ noteId: item.id }))}
+            onPress={() => (sel.selecting ? pick(sel.toggle)(item.id) : openNote === item.id ? setOpenNote(null) : wide ? setPicked(item.id) : edit({ noteId: item.id }))}
           />
         )}
       />

@@ -1,8 +1,8 @@
 import React from 'react';
-import { Text, View, type ViewStyle } from 'react-native';
+import { View, type ViewStyle } from 'react-native';
 import type { StateChip } from '../core/stateChip';
-import { Icon } from './kit';
-import { radius, smooth, space, type, useTheme } from './theme';
+import { Tag } from './kit';
+import { radius, space, useTheme } from './theme';
 
 const NAMES = { new: 'New', learning: 'Learning', relearning: 'Relearning' } as const;
 
@@ -16,37 +16,26 @@ const NAMES = { new: 'New', learning: 'Learning', relearning: 'Relearning' } as 
 export function CardStateChips({ chip, leech, mnemonic = false, style }: { chip?: StateChip; leech: boolean; mnemonic?: boolean; style?: ViewStyle }) {
   const c = useTheme();
   if (!chip && !leech) return null;
-  const pill = { flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, borderRadius: radius.pill, ...smooth, paddingHorizontal: space.m, paddingVertical: space.xs } as const;
   return (
     <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s, ...style }}>
       {chip ? (
-        <View
-          accessible
+        <Tag
+          text={NAMES[chip.kind]}
+          color={chip.kind === 'new' ? c.countNew : c.countLearn}
+          fill={chip.kind === 'new' ? c.countNewFill : c.countLearnFill}
           accessibilityLabel={chip.step ? `${NAMES[chip.kind]} card, step ${chip.step.at} of ${chip.step.of}` : `${NAMES[chip.kind]} card`}
-          style={{ ...pill, backgroundColor: chip.kind === 'new' ? c.countNewFill : c.countLearnFill }}
-        >
-          {chip.kind === 'new' ? <Icon name="sparkle" size={12} color={c.countNew} /> : chip.step ? (
+          icon={chip.kind === 'new' ? 'sparkle' : 'arrow.triangle.2.circlepath'}
+          leading={chip.kind !== 'new' && chip.step ? (
             <View style={{ flexDirection: 'row', gap: 3 }}>
               {Array.from({ length: chip.step.of }, (_, i) => (
-                <View key={i} style={{ width: 6, height: 6, borderRadius: radius.pill, backgroundColor: i < chip.step!.at ? c.countLearn : 'transparent', borderWidth: i < chip.step!.at ? 0 : 1.5, borderColor: c.countLearn }} />
+                <View key={i} style={{ width: 6, height: 6, borderRadius: radius.pill, backgroundColor: i < chip.step!.at ? c.countLearn : 'transparent', borderWidth: 1.5, borderColor: c.countLearn }} />
               ))}
             </View>
-          ) : <Icon name="arrow.triangle.2.circlepath" size={12} color={c.countLearn} />}
-          <Text style={{ ...type.overline, color: chip.kind === 'new' ? c.countNew : c.countLearn }}>{NAMES[chip.kind]}</Text>
-        </View>
+          ) : undefined}
+        />
       ) : null}
-      {leech ? (
-        <View accessible accessibilityLabel="Leech: you keep forgetting this card" style={{ ...pill, backgroundColor: c.warningFill }}>
-          <Icon name="exclamationmark.triangle.fill" size={12} color={c.warning} />
-          <Text style={{ ...type.overline, color: c.warningInk }}>Leech</Text>
-        </View>
-      ) : null}
-      {leech && mnemonic ? (
-        <View accessible accessibilityLabel="Has a mnemonic. It's on the back." style={{ ...pill, backgroundColor: c.accentFill }}>
-          <Icon name="lightbulb.fill" size={12} color={c.accentInk} />
-          <Text style={{ ...type.overline, color: c.accentInk }}>Has mnemonic</Text>
-        </View>
-      ) : null}
+      {leech ? <Tag text="Leech" color={c.warningInk} fill={c.warningFill} icon="exclamationmark.triangle.fill" iconColor={c.warning} accessibilityLabel="Leech: you keep forgetting this card" /> : null}
+      {leech && mnemonic ? <Tag text="Has mnemonic" color={c.accentInk} fill={c.accentFill} icon="lightbulb.fill" accessibilityLabel="Has a mnemonic. It's on the back." /> : null}
     </View>
   );
 }

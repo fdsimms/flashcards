@@ -23,6 +23,7 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
   so the large title collapses. Never pad a screen's top or bottom by a fixed number: the status
   bar and Dynamic Island differ by iPhone, and a hard-coded 56 put headers under them.
 - **A header item is a `Stack.Toolbar.Button` or `Menu`, never a component of your own.** `Stack.Toolbar` drops any other child without an error, so `<ReviewMenu />` left Review's whole menu off the header. Build it in a plain function called inside the toolbar (`reviewMenu(props)`), or let a component return its own `<Stack.Toolbar placement>` (`LessonLanguageMenu`). `tests/noCustomToolbarChildren.test.ts` fails the build on one.
+- **A sheet opens from a screen, never from over something else.** iOS won't present a sheet while an RN `Modal` is up (a word popup), so close the modal first, then push (`GlossPopover`'s How it's said). A full screen pushed from inside a `formSheet` isn't reliably shown over the screen beneath it, so a sheet that leads to a screen closes itself first (`router.back()`, then `push`), and leaves that link out when it opened over another sheet, which the route tells from `SHEET_ROUTES` (the `ipa` route).
 - **A sound a screen starts waits for `useOutputWake` first** (`src/ui/useOutputWake.ts`): Bluetooth headphones that have been quiet lose the first half second of it, all of a word. A sound that follows straight on from another doesn't wait. `tests/noUnwokenPlay.test.ts` fails the build on a file that plays without it.
 - **Every color, gap, corner and text size comes from `src/ui/theme.ts`** (`useTheme()`, `space`,
   `radius`, `type`). `tests/noRawColors.test.ts` fails the build on a hex color in a screen; add a
@@ -30,7 +31,8 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
   holding text gets padding or a `minHeight`, never a fixed `height`. Words take the ink tokens,
   not the fills: `goodInk`, `danger` or `warningInk` rather than a rating color
   (`tests/noRatingColorText.test.ts`), and `accentInk` for gold text on `accentFill`.
-- **A border that marks a state keeps one width in every state**, clear when off, so picking or answering doesn't shift the box's text. A quiz's answer choice spreads `answerLook` (`kit.tsx`), which does this.
+- **A border that marks a state keeps one width in every state**, clear when off, so picking or answering doesn't shift the box's text. A quiz's answer choice spreads `answerLook` (`kit.tsx`), which does this. `tests/noShiftingBorder.test.ts` fails the build on a `borderWidth` chosen by a condition outside its list.
+- **A reading drawn as a bar is `Meter`, and a failure is `ErrorNote`** (both `kit.tsx`), never a hand-built bar or a bare red line; a red line is for what to fix in what was typed. `tests/noHandBuiltMeter.test.ts` and `tests/noBareFailureLine.test.ts` fail the build on either.
 - **Mock up a proposed UI change before building it, so the owner can see it.** There are no
   screen tests and no renderer, so a description in prose isn't something they can react to. For a
   new screen, a layout change or a change to how a card or row is presented, publish a small HTML

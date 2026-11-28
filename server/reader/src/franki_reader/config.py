@@ -25,6 +25,12 @@ SECRET_NAMES = (
 )
 
 
+# The shortest passphrase that isn't warned about at startup: the MCP's own minimum for its password
+# (server/mcp/franki_mcp/auth.py). A shorter one still works, so a server already running on one
+# keeps starting unattended after an update; the log says to make it longer.
+MIN_PASSPHRASE = 12
+
+
 @dataclass(frozen=True)
 class Settings:
     db_path: Path
@@ -36,6 +42,11 @@ class Settings:
 
     def missing(self) -> list[str]:
         return [name for name in SECRET_NAMES if not self.secrets.get(name)]
+
+    def short_passphrase(self) -> bool:
+        """Whether the passphrase is set but shorter than `MIN_PASSPHRASE`."""
+        passphrase = self.secrets.get("APP_PASSPHRASE", "")
+        return 0 < len(passphrase) < MIN_PASSPHRASE
 
 
 def load(env: dict[str, str] | None = None) -> Settings:

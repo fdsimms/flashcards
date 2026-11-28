@@ -58,6 +58,8 @@ if [ -n "$caddyfile_changed" ]; then
   docker compose up -d --force-recreate caddy
 fi
 echo "$target" > "$record.tmp" && mv "$record.tmp" "$record"
-# The images the rebuild replaced, which otherwise fill the disk a few hundred MB at a time.
-docker image prune -f >/dev/null
+# The images the rebuild replaced, which otherwise fill the disk a few hundred MB at a time: this
+# project's only, not every unused image on the server.
+project=$(docker compose config | sed -n 's/^name: //p')
+docker image prune -f --filter "label=com.docker.compose.project=$project" >/dev/null
 echo "Updated."

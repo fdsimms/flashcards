@@ -19,9 +19,23 @@ curl -fsSL https://get.docker.com | sh                  # installs Docker
 git clone https://github.com/fdsimms/flashcards.git     # or copy just this server/ folder over
 cd flashcards/server
 cp .env.example .env
+chmod 600 .env                                          # only root can read it: it holds every key
+openssl rand -base64 24                                 # a long random password, for ANKI_PASSWORD
 nano .env                                               # set DOMAIN, ANKI_USER, ANKI_PASSWORD and TZ
 docker compose up -d --build
 ```
+
+Use a long random password: Anki's sync server doesn't slow down repeated wrong guesses, so the password's length is what keeps it safe.
+
+**Sync key:** Anki's sync server unpacks a request before it checks the password, so anyone could make it use gigabytes of memory with one small request. With `ANKI_HKEY` in `.env`, Caddy refuses any sync request that doesn't carry your sync key, before it reaches Anki. Make the key from your user and password (`me` and the password from `.env`, separated by a colon), put it in `.env` as `ANKI_HKEY=`, and restart with `docker compose up -d`:
+
+```bash
+printf '%s' 'me:your-anki-password' | sha1sum | cut -d' ' -f1
+```
+
+If you change `ANKI_PASSWORD`, make the key again: with an old key every device's sync is refused. Without `ANKI_HKEY`, sync works as before, with only a sign-in's size limited.
+
+**IPv6:** `dig AAAA <your domain>` should show no address. Docker's network here is IPv4 only, so over IPv6 every phone would reach the MCP and Read & Listen from the same address, and a few wrong passwords from anywhere would lock everyone out for a while. If it shows one, remove that AAAA record at your DNS provider.
 
 Check it's running: open `https://<your domain>/health` in a browser. A blank page (rather than an error) means the server is up and the certificate works. If not, `docker compose logs` says why. The first start can take a minute while Caddy gets the certificate.
 
@@ -66,7 +80,7 @@ Each Claude app asks for the password once; after that it stays signed in (it's 
 
 **What it keeps.** The MCP keeps its own copy of the collection and its media in Docker's `mcp-data` volume, so the server holds your media twice. It syncs before it reads and after every change. If another device replaces the server's collection (a full sync), the MCP takes the new one, unless it has changes of its own that never reached the server, in which case it stops and says so rather than overwrite either.
 
-**Upgrading:** the MCP's Anki version is in `mcp/requirements.txt`; keep it the same as `ANKI_VERSION`.
+**Upgrading:** the MCP's Anki version is in `mcp/requirements.in`; keep it the same as `ANKI_VERSION`, then remake `mcp/requirements.txt` with the `pip-compile` command in its header.
 
 ## Read & Listen
 

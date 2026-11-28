@@ -228,12 +228,16 @@ def check_point(
         line = item.get("line") if isinstance(item, dict) else None
         if isinstance(line, str) and found(line):
             return None, "its finder fires on a look-alike line"
+
+    # The same point when another finds it on the same words, not anywhere in the line: case and
+    # aspect are found in nearly every line, whatever point it was written for.
+    def overlaps(line: str, other: grammar.Point) -> bool:
+        ws = grammar.words(parse_line(line, checker.spaced)[0], checker)
+        mine = {k for a, b in find(ws) for k in range(a, b)}
+        return any(k in mine for a, b in other.find(ws) for k in range(a, b))
+
     for other in grammar.points_for(language):
-        hits = sum(
-            1
-            for e in examples
-            if grammar.find_in_lines([e["line"]], checker, (other.id,))[other.id]
-        )
+        hits = sum(1 for e in examples if overlaps(e["line"], other))
         if hits * 2 > len(examples):
             return None, f"the same as {other.id}"
     data = {

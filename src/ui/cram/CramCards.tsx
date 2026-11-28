@@ -6,7 +6,7 @@ import type { NoteStore } from '../../anki/noteService';
 import { cramNotes, dayName, daysUntil, isAwaitingFinish, isDismissedToday, isRunning, practiceLabel, practiceSummary, type Cram } from '../../core/cram';
 import { haptic } from '../haptics';
 import { HoverPressable } from '../hover';
-import { Button, Card, Icon, Tappable } from '../kit';
+import { Button, Card, CloseButton, Icon } from '../kit';
 import { space, type, useTheme } from '../theme';
 import { saveCram, useCollection, useCramClock, useCrams } from '../useCrams';
 
@@ -29,11 +29,9 @@ function CramCard({ repo, cram, now, dayStartsAtHour: H }: { repo: NoteStore; cr
   const c = useTheme();
   const router = useRouter();
   const collection = useCollection(repo);
-  const dismiss = () => { haptic.tap(); saveCram(repo, { ...cram, dismissedOn: studyDayKey(now, H) }).catch(() => undefined); };
+  const dismiss = () => { saveCram(repo, { ...cram, dismissedOn: studyDayKey(now, H) }).catch(() => undefined); };
   const dismissButton = (
-    <Tappable onPress={dismiss} accessibilityRole="button" accessibilityLabel={`Dismiss ${cram.name} until tomorrow`} style={{ width: 44, height: 44, marginTop: -space.s, marginRight: -space.s, alignItems: 'center', justifyContent: 'center' }}>
-      <Icon name="xmark" size={14} color={c.textSecondary} />
-    </Tappable>
+    <CloseButton label={`Dismiss ${cram.name} until tomorrow`} onPress={dismiss} style={{ marginTop: -space.s, marginRight: -space.s }} />
   );
   const open = () => { haptic.tap(); router.push({ pathname: '/cram', params: { id: cram.id } }); };
   if (isAwaitingFinish(cram, now, H)) {

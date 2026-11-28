@@ -12,6 +12,8 @@ import { countNounsKnown } from '../tools/skills';
 import { COUNTING, toolById } from '../tools/tools';
 import { useApp } from './AppContext';
 import { useStudyDay } from './useStudyDay';
+import { needsSound } from '../core/quietMode';
+import { useQuiet } from './quietPrefs';
 
 /** How long after one tap on an extra another one is taken as the same tap. */
 const OPEN_GAP_MS = 1000;
@@ -87,9 +89,11 @@ export function useDailyExtras() {
     updateExtraState((s) => ({ ...s, plan }));
   }, [saved, plan]);
 
+  // Quiet mode hides the drills that need sound from what's shown, and the day's saved plan stays as it was, so they're back when it ends.
+  const quiet = useQuiet();
   const items = useMemo<ExtraItem[]>(() => {
     if (!saved || !plan) return [];
-    return plan.extras.map((extra) => {
+    return plan.extras.filter((extra) => !(quiet.active && needsSound(extra.kind))).map((extra) => {
       const done = isDone(saved.state, extra, plan.start);
       const name = LANGUAGES[extra.language].name;
       if (extra.kind === 'read') {
@@ -103,7 +107,7 @@ export function useDailyExtras() {
         : [extra.why === 'focus' ? 'Focus language' : 'Your turn today', missed ? 'you missed some recently' : ''].filter(Boolean).join(', ');
       return { extra, title, detail, done };
     });
-  }, [saved, plan]);
+  }, [saved, plan, quiet.active]);
 
   /** Opens the extra: a drill in its language, or Read & Listen's shelf in it. */
   // A second tap before the screen it opens is up (a double tap on a chip or a row) opens it once.

@@ -2,9 +2,8 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { ApiError, type Api, type Language, type LinesDrillOffer } from '../../reader/api';
 import { linesDetail } from '../../reader/lessons';
-import { Button, Card, ErrorNote, Segments } from '../kit';
+import { Button, Card, ErrorNote, Segments, Tag } from '../kit';
 import { space, type, useTheme } from '../theme';
-import { Chip } from './LessonReviewCard';
 
 /**
  * Lines from your reading on the Lessons tab, beside Review (server/reader line_drill.py): a lesson
@@ -44,11 +43,11 @@ export function LinesDrillCard({ api, language, offer, narrator, particle, onMad
     <Card>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.s }}>
         <Text style={{ ...type.headline, color: c.text, flex: 1 }}>Lines from your reading</Text>
-        <Chip label={`${offer.minutes} min`} gold />
+        <Tag text={`${offer.minutes} min`} color={c.accentInk} fill={c.accentFill} />
       </View>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{linesDetail(offer)}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs }}>
-        {offer.texts.map((t, i) => <Chip key={`${i}:${t.title}`} label={`${t.title} · ${t.count}`} />)}
+        {offer.texts.map((t, i) => <Tag key={`${i}:${t.title}`} text={`${t.title} · ${t.count}`} color={c.textSecondary} fill={c.fill} />)}
       </View>
       <Segments<'normal' | 'slow'>
         options={[{ value: 'normal', label: 'Lines at normal speed' }, { value: 'slow', label: 'Slow lines' }]}

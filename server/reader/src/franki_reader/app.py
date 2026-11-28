@@ -430,6 +430,7 @@ marked words, ideas) is in the current language, the `language` setting.
 
 import hmac
 import ipaddress
+import logging
 import math
 import time
 from collections.abc import AsyncIterator, Callable
@@ -723,6 +724,11 @@ def production_app() -> FastAPI:
     """Built on startup by `uvicorn --factory franki_reader.app:production_app`, so importing this module
     (as the tests do) opens no database and reads no secrets."""
     settings = config.load()
+    if settings.short_passphrase():
+        logging.getLogger(__name__).warning(
+            "READER_PASSPHRASE is shorter than %d characters. Set a longer one in .env.",
+            config.MIN_PASSPHRASE,
+        )
     settings.db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = store.connect(settings.db_path)
     store.fail_interrupted_lessons(conn)

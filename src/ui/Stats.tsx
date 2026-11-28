@@ -19,6 +19,7 @@ import { ForecastBox } from './StatsForecast';
 import { AnswerCalendar } from './StatsCalendar';
 import { space, type, useTheme, readable } from './theme';
 import { WordsKnown } from './WordsKnown';
+import { Figure } from './Figure';
 
 /** How many study days the charts cover, back and ahead. */
 const DAYS = 30;
@@ -130,10 +131,10 @@ export function Stats({ repo, wanikani = [], onTrouble }: { repo: Repo & AnkiLin
           <Box>
             <Text style={{ ...type.headline, color: c.text }}>Today</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: space.m }}>
-              <Tile value={stats.today.answered.toLocaleString()} label={stats.today.answered === 1 ? 'answer' : 'answers'} />
-              <Tile value={durationText(stats.today.takenMs)} label="studying" />
-              <Tile value={stats.today.newCards.toLocaleString()} label={onWaniKani ? 'lessons' : 'new cards'} />
-              <Tile value={stats.today.again.toLocaleString()} label={onWaniKani ? 'missed along the way' : 'answered Again'} />
+              <Figure style={{ width: '50%' }} value={stats.today.answered.toLocaleString()} label={stats.today.answered === 1 ? 'answer' : 'answers'} />
+              <Figure style={{ width: '50%' }} value={durationText(stats.today.takenMs)} label="studying" />
+              <Figure style={{ width: '50%' }} value={stats.today.newCards.toLocaleString()} label={onWaniKani ? 'lessons' : 'new cards'} />
+              <Figure style={{ width: '50%' }} value={stats.today.again.toLocaleString()} label={onWaniKani ? 'missed along the way' : 'answered Again'} />
             </View>
           </Box>
 
@@ -234,16 +235,6 @@ function pastSummary(past: { learn: number; review: number; relearn: number; tak
   return `Studied on ${studied} of ${past.length} days: ${plural(total, 'answer', 'answers')}`
     + `${time ? ` in ${durationText(time)}` : ''} (${plural(sum('review'), 'review', 'reviews')}, `
     + `${sum('learn').toLocaleString()} learning, ${sum('relearn').toLocaleString()} relearning).`;
-}
-
-function Tile({ value, label }: { value: string; label: string }) {
-  const c = useTheme();
-  return (
-    <View style={{ width: '50%', gap: 2 }}>
-      <Text style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{value}</Text>
-      <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
-    </View>
-  );
 }
 
 function Row({ label, hint, value }: { label: string; hint?: string; value: number }) {

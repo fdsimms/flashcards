@@ -6,8 +6,11 @@ import base64
 import hashlib
 import secrets
 import socket
+import sqlite3
 import threading
 import time
+from contextlib import contextmanager
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -20,6 +23,7 @@ from franki_mcp import auth
 from franki_mcp.__main__ import PROXY_NETWORKS, build_app
 from mcp import Client
 from mcp.client.streamable_http import streamable_http_client
+from mcp.shared.auth import OAuthClientInformationFull
 
 pytestmark = pytest.mark.anyio
 
@@ -27,14 +31,14 @@ PASSWORD = "correct horse battery"
 CALLBACK = "https://claude.ai/api/mcp/auth_callback"
 
 
-@pytest.fixture
-def served(desktop, sync_server, tmp_path):
+@contextmanager
+def serving(sync_server: str, data: Path):
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         port = s.getsockname()[1]
     public = f"http://127.0.0.1:{port}"
     app, cm = build_app({
-        "MCP_PUBLIC_URL": public, "MCP_PASSWORD": PASSWORD, "MCP_DATA": str(tmp_path / "data"),
+        "MCP_PUBLIC_URL": public, "MCP_PASSWORD": PASSWORD, "MCP_DATA": str(data),
         "ANKI_SYNC_ENDPOINT": sync_server, "ANKI_USER": "user", "ANKI_PASSWORD": "pass",
     })
     # Proxies trusted as main() trusts them, so a test's X-Forwarded-For stands for the address Caddy passes on.
@@ -43,10 +47,18 @@ def served(desktop, sync_server, tmp_path):
     thread.start()
     while not server.started:
         time.sleep(0.05)
-    yield public
-    server.should_exit = True
-    thread.join(5)
-    cm.close()
+    try:
+        yield public
+    finally:
+        server.should_exit = True
+        thread.join(5)
+        cm.close()
+
+
+@pytest.fixture
+def served(desktop, sync_server, tmp_path):
+    with serving(sync_server, tmp_path / "data") as public:
+        yield public
 
 
 def pkce() -> tuple[str, str]:
@@ -55,10 +67,29 @@ def pkce() -> tuple[str, str]:
     return verifier, challenge
 
 
-def sign_in(http: httpx.Client, public: str, redirect: str = CALLBACK, password: str = PASSWORD, used: str | None = None) -> dict:
-    """Claude's side of connecting: register, open the approval page, submit the password, swap the code."""
-    client = http.post("/register", json={"client_name": "Claude", "redirect_uris": [redirect],
-                                          "token_endpoint_auth_method": "none", "grant_types": ["authorization_code", "refresh_token"]}).json()
+def client_auth(client: dict, secret: str | None = None) -> dict:
+    """What a token request adds to prove it's this client, by the method it registered with."""
+    secret = client.get("client_secret") if secret is None else secret
+    method = client["token_endpoint_auth_method"]
+    if method == "client_secret_basic":
+        return {"data": {"client_id": client["client_id"]},
+                "headers": {"Authorization": "Basic " + base64.b64encode(f"{client['client_id']}:{secret}".encode()).decode()}}
+    if method == "client_secret_post":
+        return {"data": {"client_id": client["client_id"], "client_secret": secret}, "headers": {}}
+    return {"data": {"client_id": client["client_id"]}, "headers": {}}
+
+
+def token(http: httpx.Client, client: dict, form: dict, secret: str | None = None) -> httpx.Response:
+    proof = client_auth(client, secret)
+    return http.post("/token", data={**form, **proof["data"]}, headers=proof["headers"])
+
+
+def sign_in(http: httpx.Client, public: str, redirect: str = CALLBACK, password: str = PASSWORD, used: str | None = None,
+            method: str = "none", client: dict | None = None, exchange: bool = True) -> dict:
+    """Claude's side of connecting: register (unless given a client), open the approval page, submit the password, swap the code."""
+    if client is None:
+        client = http.post("/register", json={"client_name": "Claude", "redirect_uris": [redirect],
+                                              "token_endpoint_auth_method": method, "grant_types": ["authorization_code", "refresh_token"]}).json()
     redirect = used or redirect  # Claude Code registers one loopback port and comes back on another
     verifier, challenge = pkce()
     r = http.get("/authorize", params={"response_type": "code", "client_id": client["client_id"], "redirect_uri": redirect,
@@ -75,9 +106,21 @@ def sign_in(http: httpx.Client, public: str, redirect: str = CALLBACK, password:
     back = urlparse(r.headers["location"])
     q = parse_qs(back.query)
     assert q["state"] == ["xyz"]
-    tokens = http.post("/token", data={"grant_type": "authorization_code", "code": q["code"][0], "redirect_uri": redirect,
-                                       "client_id": client["client_id"], "code_verifier": verifier}).json()
-    return {**tokens, "client_id": client["client_id"], "code": q["code"][0], "redirect": redirect, "verifier": verifier}
+    done = {"client_id": client["client_id"], "client": client, "code": q["code"][0], "redirect": redirect, "verifier": verifier}
+    if not exchange:
+        return done
+    tokens = token(http, client, {"grant_type": "authorization_code", "code": q["code"][0], "redirect_uri": redirect,
+                                  "code_verifier": verifier}).json()
+    return {**tokens, **done}
+
+
+def stored(data: Path) -> dict[str, list[tuple[str, str]]]:
+    """The sign-in database's rows, table by table, as a copy of the file would show them."""
+    db = sqlite3.connect(data / "signins.sqlite")
+    try:
+        return {t: db.execute(f"select id, data from {t}").fetchall() for t in ("clients", "codes", "access", "refresh")}
+    finally:
+        db.close()
 
 
 def test_tells_claude_where_to_sign_in(served):
@@ -196,3 +239,63 @@ async def test_only_the_proxy_says_where_a_request_came_from(peer, forwarded, se
     scope = {"type": "http", "client": (peer, 1234), "headers": [(b"x-forwarded-for", forwarded.encode())]}
     await ProxyHeadersMiddleware(app, PROXY_NETWORKS)(scope, None, None)
     assert got["client"] == seen
+
+
+def test_codes_are_stored_only_as_hashes(served, tmp_path):
+    with httpx.Client(base_url=served) as http:
+        t = sign_in(http, served, exchange=False)
+        [(key, data)] = stored(tmp_path / "data")["codes"]
+        assert key == hashlib.sha256(t["code"].encode()).hexdigest() and t["code"] not in data
+        # Looked up by the hash of the code Claude sends, it still swaps once for tokens.
+        r = token(http, t["client"], {"grant_type": "authorization_code", "code": t["code"], "redirect_uri": t["redirect"],
+                                      "code_verifier": t["verifier"]})
+        assert r.status_code == 200 and r.json()["access_token"]
+        # The stored hash itself is no code.
+        t = sign_in(http, served, exchange=False)
+        [(key, _)] = stored(tmp_path / "data")["codes"]
+        r = token(http, t["client"], {"grant_type": "authorization_code", "code": key, "redirect_uri": t["redirect"],
+                                      "code_verifier": t["verifier"]})
+        assert r.status_code == 400 and r.json()["error"] == "invalid_grant"
+
+
+@pytest.mark.parametrize("method", ["client_secret_post", "client_secret_basic"])
+def test_clients_with_a_secret_sign_in_and_only_its_hash_is_stored(served, tmp_path, method):
+    with httpx.Client(base_url=served) as http:
+        t = sign_in(http, served, method=method)
+        secret = t["client"]["client_secret"]
+        assert len(secret) == 64 and t["access_token"] and t["refresh_token"]
+        rows = stored(tmp_path / "data")
+        [(_, data)] = [row for row in rows["clients"] if row[0] == t["client_id"]]
+        assert secret not in data and hashlib.sha256(secret.encode()).hexdigest() in data
+        assert not any(secret in d or t["access_token"] in d or t["refresh_token"] in d for table in rows.values() for _, d in table)
+
+        refresh = {"grant_type": "refresh_token", "refresh_token": t["refresh_token"]}
+        for wrong in ("not the secret", hashlib.sha256(secret.encode()).hexdigest()):  # a copy of the database doesn't sign in
+            r = token(http, t["client"], refresh, secret=wrong)
+            assert r.status_code == 401 and r.json()["error"] == "invalid_client"
+        r = token(http, t["client"], refresh)
+        assert r.status_code == 200 and r.json()["refresh_token"] != t["refresh_token"]
+
+
+def test_a_client_registered_before_secrets_were_hashed_still_signs_in(desktop, sync_server, tmp_path):
+    # The database as the MCP left it before: the secret stored as issued, and a code under itself.
+    data = tmp_path / "data"
+    data.mkdir()
+    secret = secrets.token_hex(32)
+    old = OAuthClientInformationFull(client_id="old-client", client_secret=secret, client_id_issued_at=int(time.time()),
+                                     redirect_uris=[CALLBACK], token_endpoint_auth_method="client_secret_post",
+                                     grant_types=["authorization_code", "refresh_token"], client_name="Claude")
+    db = sqlite3.connect(data / "signins.sqlite")
+    for table in ("clients", "codes"):
+        db.execute(f"create table {table} (id text primary key, data text not null, expires real)")
+    db.execute("insert into clients values (?, ?, null)", (old.client_id, old.model_dump_json()))
+    db.execute("insert into codes values ('old-code', ?, ?)", ('{"code": "old-code"}', time.time() + 300))
+    db.commit()
+    db.close()
+    with serving(sync_server, data) as public, httpx.Client(base_url=public) as http:
+        rows = stored(data)
+        assert secret not in rows["clients"][0][1] and rows["codes"] == []
+        t = sign_in(http, public, client=old.model_dump(mode="json"))
+        assert t["access_token"]
+        r = token(http, t["client"], {"grant_type": "refresh_token", "refresh_token": t["refresh_token"]}, secret="wrong")
+        assert r.status_code == 401

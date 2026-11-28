@@ -6,11 +6,12 @@ import { todayProgress } from '../core/todaySummary';
 import { EmptyDeckCard } from './EmptyDeckCard';
 import { DeckRowLink, groupByTopLevel, NoDecksCard, WarningBanner, type DeckAction } from './DeckList';
 import { Group, Icon, Loading, Screen } from './kit';
-import { CountingText, Reveal, useLeaveAnimation, useReduceMotion } from './motion';
+import { Reveal, useLeaveAnimation, useReduceMotion } from './motion';
 import type { StudiedToday } from './useTodaySummary';
 import { NewWordsCards } from './NewWordsCard';
 import { FromZeroCards } from './FromZeroCards';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
+import { QuietCard } from './QuietCard';
 import { SharedCard, useSharedBanner } from './SharedBanner';
 import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
@@ -20,6 +21,7 @@ import { VacationCard, useVacationBanner } from './vacationNotice';
 import { useVocabReady, VocabReadyCard } from './VocabReadyBanner';
 import { TodayColumns } from './TodayColumns';
 import { TWO_COLUMNS_WIDTH } from '../core/wide';
+import { Figure } from './Figure';
 
 /** What's waiting across every deck, or that nothing is: the first thing Today says. */
 function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; studied?: StudiedToday }) {
@@ -27,10 +29,7 @@ function TodaySummary({ due, fresh, studied }: { due: number; fresh: number; stu
   const caughtUp = due + fresh === 0;
   // The figures tick to a new value (back from studying, after a sync) rather than jumping.
   const figure = (value: number, label: string, color: string) => (
-    <View style={{ flex: 1, gap: 2, alignItems: 'center' }}>
-      <CountingText value={value} style={{ ...type.largeTitle, color: value ? color : c.textDim, fontVariant: ['tabular-nums'] }} />
-      <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
-    </View>
+    <Figure large centered value={value} label={label} color={value ? color : c.textDim} style={{ flex: 1 }} />
   );
   return (
     <View
@@ -99,6 +98,8 @@ function ProgressTrack({ value }: { value: number }) {
  */
 export function Today(props: {
   decks: DeckRow[];
+  /** Decks that are Anki filtered decks: they hold no notes of their own, so "Add your first words" never applies to one. */
+  filteredDecks?: ReadonlySet<string>;
   /** False until the first load of the decks has finished, so an empty list isn't "No decks yet" yet. */
   loaded?: boolean;
   /**
@@ -154,7 +155,8 @@ export function Today(props: {
   const backup = props.sync ? undefined : props.backup;
   const anyDecks = props.decks.length > 0 || !!props.extra;
   // Decks made in Franki with nothing in them yet: what to do next, in place of "All caught up".
-  const firstEmpty = !props.extra && props.decks.length && props.decks.every((r) => r.cards === 0) ? props.decks[0].deck : undefined;
+  const ownDecks = props.decks.filter((r) => !props.filteredDecks?.has(r.deck));
+  const firstEmpty = !props.extra && ownDecks.length && ownDecks.every((r) => r.cards === 0) ? ownDecks[0].deck : undefined;
   const ready = props.ready !== false;
   return (
     <Screen
@@ -204,6 +206,7 @@ export function Today(props: {
                 <FromZeroCards />
                 <NewWordsCards />
                 {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
+                <QuietCard />
               </>
             )}
             crams={props.crams}

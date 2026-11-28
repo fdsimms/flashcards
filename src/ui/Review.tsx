@@ -29,6 +29,7 @@ import { DEFAULT_THAI_TEXT_SIZE, thaiTextStyle, type ThaiTextSize } from '../cor
 import { answerTimeMs, bumpStudied, currentCard, keepSessionOrder, nextUndo, sessionProgress, sessionSummary, upNext, type AnswerRecord, type CardAction } from '../core/session';
 import { setCardStatesUndoable, undoCardAction } from '../anki/cardUndo';
 import { ankiWrites, reviewWrites } from '../core/writeQueue';
+import { DEFAULT_QUIET_CHOICE, isListeningCard, quietEndsText, quietHeldIds, quietHolds, startQuiet, type QuietChoice } from '../core/quietMode';
 import { vacationPlan } from '../core/vacation';
 import { durationText } from '../core/stats';
 import { secondsPerCard } from '../core/todaySummary';
@@ -36,7 +37,6 @@ import { wantedLines } from '../core/synonyms';
 import { cardDocument, renderTemplateCard, sideAudio } from '../core/template';
 import type { TtsTag } from '../core/tts';
 import type { Card, CollectionSettings, DeckParams, DeckSettings, Note, NoteType } from '../core/types';
-import type { AnkiUndo } from '../anki/writeback';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import { cardFontsBase } from '../media/cardFonts';
@@ -63,6 +63,9 @@ import { useCardGlosses, type CardGlossing } from './useCardGlosses';
 import { useReadingLines } from './useReadingLines';
 import { lineWord, withReadingLine } from '../reader/readingLines';
 import { capDays } from '../core/cram';
+import { QuietChip } from './QuietChip';
+import { chooseQuietLength } from './quietSheet';
+import { saveQuiet, useQuiet } from './quietPrefs';
 import { useVacationPrefs } from './vacationPrefs';
 import { useCrams } from './useCrams';
 import { useStudyDay } from './useStudyDay';
@@ -72,7 +75,7 @@ import { wordsToUse, type WordToUse } from '../reader/production';
 import { headword, type DrillRequest } from '../core/forms';
 import { AnswerExtras, useReviewForms } from './ReviewForms';
 import { SkillBackButton, SkillDrillCard, SkillDrillFooter, useSkillDrill, type Drill } from './SkillDrill';
-import { AspectQuestion, AspectResult, useAspectCheck } from './AspectCheck';
+import { AspectQuestion, useAspectCheck } from './AspectCheck';
 import { aspectCheckOn, aspectToCheck } from '../core/aspectCheck';
 import { useSkillRelease } from './useSkillRelease';
 import { drillOfTags, knownHeadwords, skillLanguageDeck, skillOffer } from '../tools/skills';
@@ -126,7 +129,7 @@ import { compareTyped, compareTypedAnswer } from '../core/typedCompare';
 import { cardWordRuns } from '../core/furigana';
 import { useFurigana } from './useFurigana';
 import { Button, Count, Icon, Loading, ProgressBar, Screen, Tappable } from './kit';
-import { CountingText, Pop, Reveal, useReduceMotion } from './motion';
+import { Pop, Reveal } from './motion';
 import { LastAnswerLine, buttonHaptic, useLastAnswer } from './ChangeRating';
 import { HoldStrip, useHoldOffer } from './HoldUndo';
 import { MissMnemonicCover, useMissMnemonic } from './MissMnemonic';
@@ -145,6 +148,7 @@ import { afterPaint, painted } from './afterPaint';
 import { useAnswerTiming } from './useAnswerTiming';
 import { MissingKeyboardNote } from './useMissingKeyboard';
 import { READABLE_WIDTH } from '../core/wide';
+import { Figure } from './Figure';
 export { CardSurface };
 
 /** The audio mode Review plays in (AppContext's), put back after Record yourself records. */
@@ -169,12 +173,7 @@ function SessionSummary({ history, delay = 0 }: { history: AnswerRecord[]; delay
   const [counting, setCounting] = useState(false);
   useEffect(() => { const t = setTimeout(() => setCounting(true), delay + 80); return () => clearTimeout(t); }, []); // eslint-disable-line react-hooks/exhaustive-deps
   const tile = (value: string | number, label: string) => (
-    <View style={{ flex: 1, alignItems: 'center', gap: 2 }}>
-      {typeof value === 'number'
-        ? <CountingText value={counting ? value : 0} style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }} />
-        : <Text style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{value}</Text>}
-      <Text style={{ ...type.footnote, color: c.textSecondary }}>{label}</Text>
-    </View>
+    <Figure centered value={typeof value === 'number' && !counting ? 0 : value} label={label} style={{ flex: 1 }} />
   );
   return (
     <View
@@ -306,6 +305,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // The line above the answer buttons offering Undo, or to change the last answer to Good or Again (ChangeRating.tsx).
   const lastAnswer = useLastAnswer();
   const holdOffer = useHoldOffer();
+  // The strip Quiet mode shows when it starts, with Undo to turn it off again.
+  const quietStrip = useHoldOffer();
   // A missed card's mnemonic, held over the next card until Continue (MissMnemonic.tsx).
   const missCover = useMissMnemonic();
   // Anki's session time limit, from the collection's settings (useTimebox.ts).
@@ -386,25 +387,46 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   // Words linked as ones that get mixed up (src/core/confusedPairs.ts), and the sheet that links one.
   const confused = useConfusedPairs(repo);
   const vacation = useVacationPrefs();
+  // Quiet mode (src/core/quietMode.ts): listening cards are left out of the queue and nothing plays.
+  const quiet = useQuiet();
   // Running crams: a review of one of their words isn't put off past the cram's day (src/core/cram.ts).
   const { crams } = useCrams(repo as NoteStore);
   const deckOf = useMemo(() => new Map([...notes.values()].map((n) => [n.id, n.deck])), [notes]);
   // The queue as last built, for this deck and study day: each rebuild keeps its order (`keepSessionOrder`).
   const sessionQueue = useRef<{ key: string; queue: Queue } | undefined>(undefined);
+  // Held back for the queue only: `forms.held` is the lookalike hold, which the done screen counts apart from this one.
+  const quietIds = useMemo(() => quietHeldIds(cards ?? undefined, quiet.active), [cards, quiet.active]);
+  const queueHeld = useMemo(() => (quietIds.size ? new Set([...(forms.held ?? []), ...quietIds]) : forms.held), [forms.held, quietIds]);
   const rebuilt = useMemo(() => {
     if (!cards || settle) return null;
     const started = performance.now();
     const key = `${deck}:${studyDayKey(now, H)}`;
     const q = keepSessionOrder(sessionQueue.current?.key === key ? sessionQueue.current.queue : undefined, treeQueue(deck, queueInput({
-      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, ownLimitsFor: (d) => deckSettings.get(d), collection, now, held: forms.held, vacation, boostFor: boostFor({ notes: notes.values(), settings: deckSettings, now }), batchBySubdeck: inheritedSetting(deck, deckSettings, 'batchBySubdeck'),
+      notes: notes.values(), cards, params: allParams, studied, gateFor: (d) => deckSettings.get(d)?.gateCap, ownLimitsFor: (d) => deckSettings.get(d), collection, now, held: queueHeld, vacation, boostFor: boostFor({ notes: notes.values(), settings: deckSettings, now }), batchBySubdeck: inheritedSetting(deck, deckSettings, 'batchBySubdeck'),
     })));
     sessionQueue.current = { key, queue: q };
     timing.queueTook(performance.now() - started);
     return q;
-  }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, forms.held, vacation, settle]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [cards, notes, allParams, studied, deckSettings, collection, deck, now, queueHeld, vacation, settle]); // eslint-disable-line react-hooks/exhaustive-deps
   const queue = settle ? settle.queue : rebuilt;
   // Reviews a lookalike seen today holds until tomorrow, for the done screen (`heldDue`).
   const heldToday = useMemo(() => (cards ? heldDue(deck, groupByDeck(cards, deckOf), forms.held, now, H) : 0), [cards, deckOf, deck, forms.held, now, H]);
+  // Reviews Quiet mode is holding, for the done screen.
+  const quietToday = useMemo(() => (cards && quietIds.size ? heldDue(deck, groupByDeck(cards, deckOf), quietIds, now, H) : 0), [cards, deckOf, deck, quietIds, now, H]);
+  // Quiet mode: start it for a length (the card's chip uses the default), turn it off, or pick (the header chip and the menu).
+  const startQuietMode = (choice: QuietChoice) => {
+    const when = new Date();
+    saveQuiet(startQuiet(choice, when, H));
+    setNow(when);
+    haptic.success();
+    quietStrip.show({ label: `Listening cards set aside ${choice === 'manual' ? 'until you turn it off' : choice === 'tomorrow' ? 'until tomorrow' : `for ${choice === 'hour' ? '1 hour' : '3 hours'}`}` });
+  };
+  const turnQuietOff = () => {
+    saveQuiet(null);
+    quietStrip.show(null);
+    setNow(new Date());
+  };
+  const chooseQuiet = () => chooseQuietLength({ active: quiet.active, onStart: startQuietMode, onOff: turnQuietOff });
   // While settling, `queue` still holds the card just answered, so a bar worked out from it would move
   // once on that count and again when the queue is rebuilt. It holds still until the rebuilt queue is in.
   const progressRef = useRef(0);
@@ -494,7 +516,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const [hookFocused, setHookFocused] = useState(false);
   const typedShown = revealed ? typed : '';
   // The card's preset says whether a template card's sounds and {{tts:}} play on their own (Anki's autoplay).
-  const autoplay = cardParams?.autoplay ?? true;
+  // Quiet mode plays nothing, whatever the preset says.
+  const autoplay = (cardParams?.autoplay ?? true) && !quiet.active;
   // The font this card is set in: its deck's cycle, else the font chosen for its language (the Text menu), else the app's font when cards use it, else the system font (`cardFontFor`).
   const fontOf = (card: Card, n: Note) => {
     const pool = availableFonts(deckCardFonts(cardHomeDeck(card, n.deck), deckSettings), appFont.installed);
@@ -519,7 +542,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     const { front, back, typeAnswer } = renderTemplateCard(n, model, ord, typedIn, card);
     const font = fontOf(card, n);
     const opts = {
-      css: model.css, ord, dark, autoplay: paramsForDeck(cardHomeDeck(card, n.deck), allParams)?.autoplay ?? true,
+      css: model.css, ord, dark, autoplay: (paramsForDeck(cardHomeDeck(card, n.deck), allParams)?.autoplay ?? true) && !quiet.active,
       mediaBase: mediaBaseUri(), mathjax: mathjaxUri(),
       colors: { background: c.surface, text: c.text, cloze: c.countNew },
       font: font === 'system' ? undefined : { id: font, base: isBundled(font) ? cardFontsBase() : downloadedFontsBase() },
@@ -606,7 +629,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const speak = useCallback(
     async (what: Playback | undefined) => {
       const mine = ++speakSeq.current;
-      if (!what || !rendered) return;
+      if (!what || !rendered || quiet.active) return;
       self.stopTake();
       await stopSpeechIfRunning();
       // A notification, call or alarm can end the app's audio session, and nothing starts it again: set the mode
@@ -649,8 +672,16 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       if (!what.text) return;
       phoneSpeech.sayWord(what.text, rendered.speechLang);
     },
-    [rendered, phoneSpeech, self.stopTake, wake],
+    [rendered, phoneSpeech, self.stopTake, wake, quiet.active],
   );
+  // Turning Quiet mode on stops what's playing.
+  useEffect(() => {
+    if (!quiet.active) return;
+    speakSeq.current++;
+    phoneSpeech.cancelPending();
+    player.current?.pause();
+    void stopSpeechIfRunning();
+  }, [quiet.active]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The Example sentence's speaker button: the phone's voice for the note's language, at the speed chosen
   // for it (Settings, Voices). Never the note's recording, which is of the word and not the sentence. The
@@ -658,6 +689,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const speechLang = rendered?.speechLang;
   const sourceAudio = rendered?.sourceAudioFile;
   const speakSentence = useCallback((text: string, fromSource?: boolean) => {
+    if (quiet.active) return;
     if (fromSource && sourceAudio && mediaFileUri(sourceAudio)) {
       void speak({ file: sourceAudio });
       return;
@@ -666,14 +698,14 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     self.stopTake();
     player.current?.pause();
     phoneSpeech.sayLine(text, speechLang, false);
-  }, [speechLang, sourceAudio, speak, phoneSpeech, self.stopTake]);
+  }, [speechLang, sourceAudio, speak, phoneSpeech, self.stopTake, quiet.active]);
 
   // Anki's {{tts:}} tags, read with the phone's voices: on their own when a side without a
   // recording is shown and the preset autoplays (a recording plays instead, in the page), and
   // from each play button.
   const readAloud = useCallback((tags: TtsTag[]) => {
-    phoneSpeech.readTags(tags);
-  }, [phoneSpeech]);
+    if (!quiet.active) phoneSpeech.readTags(tags);
+  }, [phoneSpeech, quiet.active]);
   const pageAudio = page && (revealed ? page.backAudio : page.frontAudio);
   useEffect(() => {
     if (!pageAudio) return;
@@ -848,7 +880,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // card), nor for a Change to Good or Again's `redo` (its queue is from before the undo).
       const buriedIds = new Set(siblings.map((sb) => sb.id));
       const heldAfter = forms.holdsAfter({ cardId: cur.id, ...res.log }, when, [updated, ...buried]);
-      const next = !redo && queue && cards && !settle ? upNext(queue, cur, (cd) => buriedIds.has(cd.id) || heldAfter(cd)) : undefined;
+      const next = !redo && queue && cards && !settle ? upNext(queue, cur, (cd) => buriedIds.has(cd.id) || heldAfter(cd) || quietHolds(cd, quiet.active)) : undefined;
       // A marked card whose return is due comes up before the queue's next card (the queue is rebuilt as usual).
       const comesBack = !redo && !preview ? cram.answered(cur.id, rating, !next, usableAfter(new Map([updated, ...buried].map((cd) => [cd.id, cd])), pool)) : undefined;
       setSettling(next && !comesBack && queue && cards ? { at: history.length + 1, next, queue, cards, now } : null);
@@ -1297,7 +1329,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       <Screen
         title={title}
         largeTitle={false}
-        toolbar={undoButton ? <Stack.Toolbar placement="right">{undoButton}</Stack.Toolbar> : undefined}
+        toolbar={undoButton || quiet.active ? <Stack.Toolbar placement="right">{quiet.active ? <Stack.Toolbar.Button icon="speaker.slash.fill" tintColor={c.accent} accessibilityLabel={`Quiet mode is on ${quiet.prefs ? quietEndsText(quiet.prefs, now) : ''}. Change it`} onPress={chooseQuiet} /> : null}{undoButton}</Stack.Toolbar> : undefined}
         footer={footer}
       >
         <View style={{ flex: 1 }}>
@@ -1323,6 +1355,13 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             <Reveal rise={8} delay={500}>
               <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
                 {`${heldToday} ${heldToday === 1 ? 'review waits' : 'reviews wait'} until tomorrow, apart from a lookalike you saw today.`}
+              </Text>
+            </Reveal>
+          ) : null}
+          {quietToday && !waitingFor ? (
+            <Reveal rise={8} delay={520}>
+              <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>
+                {`Quiet mode is holding ${quietToday} ${quietToday === 1 ? 'listening card' : 'listening cards'}. They're due again when it ends.`}
               </Text>
             </Reveal>
           ) : null}
@@ -1361,7 +1400,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
   const typeItWord = rendered ? typeItAnswer(note, current) : undefined;
   // The footer's one microphone: Answer by speaking where the card asks for a typed word and iOS can hear the language
   // (which also keeps the take, `keepTake` above), else Record yourself on a card with a recording to compare against.
-  const footerMic = typeItWord && spoken.available
+  // None in Quiet mode, which is for where nothing can be said aloud either.
+  const footerMic = quiet.active ? null : typeItWord && spoken.available
     ? <SpeakButton spoken={spoken} />
     : rendered && canRecordYourself(rendered) ? <RecordMicButton rec={self} label="Record" /> : null;
   const asksHook = !!rendered && ownHook.on && asksOwnHook(note, current, noteCards(current, cards));
@@ -1417,8 +1457,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       ))}
     </Reveal>
   ) : revealed ? (
-    <>
-    <AspectResult check={aspectCheck} />
     <Reveal rise={6} style={{ flexDirection: 'row', gap: space.s }}>
       {drill ? <SkillBackButton skill={skill} onBack={() => setRevealedAt(undefined)} /> : null}
       {buttons.map((b) => b.r === 1 && missReasons.length && !senseMarks.miss ? (
@@ -1446,12 +1484,10 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </Tappable>
       ))}
     </Reveal>
-    </>
   ) : drill && skill.question ? (
     <SkillDrillFooter skill={skill} onFinished={reveal} say={(text, speech) => phoneSpeech.sayWord(text, speech)} />
   ) : (
     <>
-      {typing ? null : <AspectQuestion check={aspectCheck} />}
       {page?.typeAnswer || (typing && typeItWord) ? (
         <TextInput
           key={current.id}
@@ -1649,6 +1685,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
           {current.flag ? (
             <Stack.Toolbar.Button icon="flag.fill" tintColor={c.flags[current.flag]} accessibilityLabel={`Flagged ${FLAG_NAMES[current.flag]}. Change the flag`} onPress={chooseFlag} />
           ) : null}
+          {quiet.active ? <Stack.Toolbar.Button icon="speaker.slash.fill" tintColor={c.accent} accessibilityLabel={`Quiet mode is on ${quiet.prefs ? quietEndsText(quiet.prefs, now) : ''}. Change it`} onPress={chooseQuiet} /> : null}
           {undoButton}
           <Stack.Toolbar.Button
             icon="square.and.pencil"
@@ -1685,6 +1722,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
             // The deck is loaded again when Card Info closes: the same card stays on screen.
             onCardInfo: () => { setPreferId(current.id); onCardInfo(current.id); },
             onBrowse: paramsForDeck(deck, allParams)?.filtered ? undefined : onBrowse,
+            quietOn: quiet.active,
+            onQuiet: chooseQuiet,
             timingOn: timing.on,
             onTiming: timing.toggle,
             onSettings,
@@ -1692,7 +1731,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         </Stack.Toolbar>
       }
       footer={<ReviewFooter>{lastAnswer.last || lastAnswer.notice ? <LastAnswerLine last={lastAnswer.last} notice={lastAnswer.notice} onUndo={() => undo()} onChange={changeLast} /> : null}{footer}</ReviewFooter>}
-      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoAction} /> : contrast.offer ? <HoldStrip offer={contrast.offer} onUndo={contrast.undo} /> : stopSuggestion.offer ? <SkillStopStrip offer={stopSuggestion.offer} onStop={() => void stopSuggestion.stop()} onDismiss={stopSuggestion.dismiss} /> : null}
+      floating={holdOffer.offer ? <HoldStrip offer={holdOffer.offer} onUndo={undoAction} /> : quietStrip.offer ? <HoldStrip offer={quietStrip.offer} onUndo={turnQuietOff} /> : contrast.offer ? <HoldStrip offer={contrast.offer} onUndo={contrast.undo} /> : stopSuggestion.offer ? <SkillStopStrip offer={stopSuggestion.offer} onStop={() => void stopSuggestion.stop()} onDismiss={stopSuggestion.dismiss} /> : null}
     >
       {queue ? (
         <View style={{ flexDirection: 'row', justifyContent: 'center', gap: space.l }}>
@@ -1735,38 +1774,42 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
         <SwipeCard enabled={swipeOn && revealed && !fieldEdit.editing} language={cardLanguage} cardKey={`${current.id}:${turn}`} shown={shown} motion={cardMotion} onRate={answer}>
           {/* Tapping the card shows the answer. Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
           <Pressable accessible={false} disabled={revealed} onPress={() => { haptic.select(); reveal(); }} style={{ flex: 1 }}>
-          <ScrollView {...cardScroll.scrollProps} scrollIndicatorInsets={playButtonScrollInsets(!!playbackFor(rendered, revealed))} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: (playbackFor(rendered, revealed) ? PLAY_BUTTON_CLEARANCE : space.xl) + (fieldEdit.editing || hookFocused ? cardScroll.bottomPadding : 0), gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: READABLE_WIDTH, alignSelf: 'center' }}>
+          <ScrollView {...cardScroll.scrollProps} scrollIndicatorInsets={playButtonScrollInsets(!!playbackFor(rendered, revealed) && !quiet.active)} keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.xl, paddingBottom: (playbackFor(rendered, revealed) && !quiet.active ? PLAY_BUTTON_CLEARANCE : space.xl) + (fieldEdit.editing || hookFocused ? cardScroll.bottomPadding : 0), gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: READABLE_WIDTH, alignSelf: 'center' }}>
             {/* Keyed to the showing, so each card, and a card shown again, fades in rather than swapping. Quickly: until it's in, the next card reads as slow to arrive. */}
             <Reveal key={showing} rise={6} duration={140} style={{ gap: space.l }}>
               <CardStateChips chip={stateChip(current, { learn: cardParams?.learnSteps ?? DEFAULT_LEARN_STEPS, relearn: cardParams?.relearnSteps ?? DEFAULT_RELEARN_STEPS })} leech={liveLeech} mnemonic={!revealed && hasMnemonic(note)} />
-              <CardFontScope font={cardFont} scale={textScale(textSize)}><Side key={current.id} side={rendered.front} which="front" showHints={showHints || revealed} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
+              <CardFontScope font={cardFont} scale={textScale(textSize)}><Side key={current.id} side={rendered.front} which="front" showHints={showHints || revealed} thaiSize={thaiSize} speechLang={speechLang} speakSentence={speechLang && !quiet.active ? speakSentence : undefined} {...(revealed ? { furigana, wordRuns } : {})} /></CardFontScope>
               <LanguageCue kind={current.kind} speechLang={speechLang} />
               {/* Record yourself's mic is in the footer; once a take is made or being made, its capsule takes a row here. */}
               {reminder ? <MissReminder text={reminder} /> : null}
               {senseCountOn && !senseMarks.reminder && !revealed && senseCountLabel(senseMarks.count) ? <SenseCount text={senseCountLabel(senseMarks.count)!} /> : null}
               {senseMarks.reminder && !revealed ? <SenseReminder key={current.id} {...senseMarks.reminder} /> : null}
-              {canRecordYourself(rendered) && !idleRecording(self) ? (
+              {canRecordYourself(rendered) && !quiet.active && !idleRecording(self) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
                   <RecordYourself rec={self} label="Record" size="card" />
                 </View>
               ) : null}
+              {isListeningCard(current) && !quiet.active && !revealed ? <QuietChip onStart={() => startQuietMode(DEFAULT_QUIET_CHOICE)} onChoose={chooseQuiet} /> : null}
               <ReviewPitchLine rec={self} recordingUri={recordingUri} speechLang={speechLang} note={note} />
             </Reveal>
             {revealed ? (
               <Reveal rise={14} style={{ gap: space.xl }}>
                 {/* Not `border`: the card takes a tint while it's swiped, and `border` is too close to a dark tinted card to show. */}
                 <View style={{ height: hairline, backgroundColor: c.textTertiary, opacity: 0.6 }} />
-                <CardFontScope font={cardFont} scale={textScale(textSize)}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} onEditField={note ? (field, text) => fieldEdit.save(note.id, field, text) : undefined} onEditing={fieldEdit.setEditing} contrast={contrast.actions} senseMarking={senseMarks.marking} /></CardFontScope>
+                <CardFontScope font={cardFont} scale={textScale(textSize)}><Side key={current.id} side={rendered.back} which="back" showHints={showHints} thaiSize={thaiSize} speechLang={speechLang} gloss={note ? glossFor(current, note) : null} speakSentence={speechLang && !quiet.active ? speakSentence : undefined} furigana={furigana} wordRuns={wordRuns} onEditField={note ? (field, text) => fieldEdit.save(note.id, field, text) : undefined} onEditing={fieldEdit.setEditing} contrast={contrast.actions} senseMarking={senseMarks.marking} /></CardFontScope>
                 {fragile !== undefined ? <MemoryStrength percent={fragile} /> : null}
                 {extras}
               </Reveal>
             ) : null}
           </ScrollView>
+          {/* A band along the card's foot, not in the footer: the footer holds the tallest height it has shown (ReviewFooter.tsx). */}
+          {typing ? null : <AspectQuestion check={aspectCheck} revealed={revealed} />}
           </Pressable>
         </SwipeCard>
         {/* Fixed in the card's bottom right corner, so it's under the thumb whatever the card's length. */}
-        {playbackFor(rendered, revealed) ? (
+        {playbackFor(rendered, revealed) && !quiet.active ? (
           <PlayButton
+            lift={typing ? 0 : aspectCheck.bandHeight}
             onPlay={() => speak(playbackFor(rendered, revealed))}
             speech={rendered.speechLang}
           />

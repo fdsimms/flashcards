@@ -54,6 +54,8 @@ describe('cards', () => {
     expect(renderCard(note, 'reverse').back.blocks.map((b) => b.text).slice(0, 2)).toEqual(['дом', '[dom]']);
     expect(renderCard(note, 'audio').back.blocks.map((b) => b.text)).toContain('[dom]');
     expect(renderCard(note, 'audio').back.blocks.find((b) => b.text === '[dom]')?.tapLabel).toBeUndefined();
+    // Marked as the IPA, so the screen can open what its symbols mean (ipaGuide.ts).
+    for (const kind of ['forward', 'reverse', 'audio'] as const) expect(renderCard(note, kind).back.blocks.find((b) => b.text === '[dom]')?.role).toBe('pronunciation');
     expect(renderCard(omniNote({ Entry: 'дом', Meaning: 'house', Transliteration: '' }), 'forward').back.blocks.map((b) => b.text)).not.toContain('[dom]');
   });
   it("shows a Russian word's stress mark on answers only: a line on the forward back, the headword where the word is the answer", () => {
