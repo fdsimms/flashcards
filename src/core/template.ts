@@ -488,7 +488,8 @@ body { margin: 0; padding: 16px; min-height: 100%; box-sizing: border-box; displ
   background: ${colors.background}; color: ${colors.text}; }
 img { max-width: 100%; height: auto; }
 .cloze { font-weight: bold; color: ${colors.cloze}; }
-.replay-button { display: inline-block; text-decoration: none; font-size: 22px; padding: 2px 8px; }
+/* A play button is a round control in the page's own text color, not a link's default blue. A deck's own CSS, after this, can restyle it. */
+.replay-button { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; margin: 6px; border-radius: 50%; box-sizing: border-box; padding: 0 0 0 3px; font-size: 18px; line-height: 1; text-decoration: none; color: inherit; background: ${opts.dark ? 'rgba(255, 255, 255, 0.12)' : 'rgba(0, 0, 0, 0.08)'}; -webkit-tap-highlight-color: transparent; }
 /* A typed answer's comparison, as Anki's reviewer styles it (a deck's own CSS, after this, can restyle it). */
 code#typeans { display: inline-block; white-space: pre-wrap; font-family: ui-monospace, Menlo, monospace; line-height: 1.75; }
 .typeGood { color: black; background: #afa; }
