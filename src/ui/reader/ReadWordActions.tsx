@@ -2,9 +2,9 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
 import { haptic } from '../haptics';
-import { Icon, Tappable } from '../kit';
+import { Divider, Icon, Tappable } from '../kit';
 import { useSoundingButton } from '../useSoundingButton';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { HoverPressable } from '../hover';
 
 /**
@@ -54,10 +54,11 @@ export function WordActionRow({ icon, label, accessibilityLabel, onPress, first,
       accessibilityLabel={accessibilityLabel ?? label}
       style={({ pressed }) => ({
         minHeight: MIN_TAP + space.xs, flexDirection: 'row', alignItems: 'center', gap: space.m,
+        // The group is already on the fill color (`WordActionGroup`), so a pressed row darkens to the border color instead.
         paddingHorizontal: space.m + space.xs, paddingVertical: space.s, backgroundColor: pressed ? c.border : 'transparent',
       })}
     >
-      {first ? null : <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: space.m + space.xs + ICON + space.m, right: 0, height: hairline, backgroundColor: c.border }} />}
+      {first ? null : <Divider inset={space.m + space.xs + ICON + space.m} />}
       <Icon name={icon} size={ICON} color={c.accent} />
       <Text style={{ ...type.body, color: c.text, flex: 1 }}>{label}</Text>
       {chevron ? <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" /> : null}
