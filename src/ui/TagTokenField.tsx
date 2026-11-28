@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, TextInput, View, useColorScheme, type TextInputInstance } from 'react-native';
 import { suggestTags, type TagSuggestion } from '../core/priority';
 import { haptic } from './haptics';
-import { Divider, Icon, Tappable } from './kit';
+import { Divider, RemovableChip, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 const SUGGESTIONS = 4;
@@ -47,17 +47,7 @@ export function TagTokenField({ label, tags, onChange, counts, placeholder }: {
         {tags.length ? (
           <ScrollView style={{ maxHeight: 140 }} contentContainerStyle={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs }} nestedScrollEnabled>
             {tags.map((t) => (
-              <Tappable
-                key={t}
-                onPress={() => remove(t)}
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${t}`}
-                hitSlop={{ top: space.xs, bottom: space.xs }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: 36, paddingLeft: space.m, paddingRight: space.s, borderRadius: radius.pill, backgroundColor: c.accentFill }}
-              >
-                <Text style={{ ...type.subhead, color: c.accentInk }}>{t}</Text>
-                <Icon name="xmark" size={12} color={c.accentInk} weight="semibold" />
-              </Tappable>
+              <RemovableChip key={t} label={t} onRemove={() => remove(t)} />
             ))}
           </ScrollView>
         ) : null}

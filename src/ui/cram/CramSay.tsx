@@ -10,7 +10,7 @@ import { loadParticle } from '../../reader/lessonStorage';
 import { LANGUAGES } from '../../reader/languages';
 import { talkTextStyle } from '../../reader/fonts';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Field, Group, Help, Icon, NavRow, Screen, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Field, Group, Help, Icon, NavRow, Screen, Tag, Tappable } from '../kit';
 import { MIN_TAP, radius, readable, smooth, space, type, useTheme } from '../theme';
 import { SpeakButton } from '../SpeakButton';
 import { saveCram, useCollection, useCrams } from '../useCrams';
@@ -18,7 +18,6 @@ import { useKeyboardScroll } from '../useKeyboardScroll';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { useWordInDeck } from '../useWordInDeck';
-import { Chip } from './CramThemes';
 import { setThemeState } from './themeStore';
 import { TalkLine } from './TalkLine';
 import { useTalkSize } from './talkSize';
@@ -290,8 +289,8 @@ function Result({ repo, result, language, deck, add, kept, saving, onKeep }: {
               <TalkLine text={line.text} language={language} size={size} unknown={line.missing} onSay={say} />
               {chips.known || chips.missing ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
-                  {chips.known ? <Chip label={chips.known} ink={c.accentInk} fill={c.accentFill} /> : null}
-                  {chips.missing ? <Chip label={chips.missing} ink={c.warningInk} fill={c.warningFill} /> : null}
+                  {chips.known ? <Tag text={chips.known} color={c.accentInk} fill={c.accentFill} /> : null}
+                  {chips.missing ? <Tag text={chips.missing} color={c.warningInk} fill={c.warningFill} /> : null}
                 </View>
               ) : null}
             </View>

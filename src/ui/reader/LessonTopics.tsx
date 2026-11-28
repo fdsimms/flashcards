@@ -1,10 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { lessonRequestWords, type LessonWord } from '../../core/lessonWords';
 import { ApiError, type Api, type Language } from '../../reader/api';
-import { haptic } from '../haptics';
-import { ErrorNote, Tappable, TextButton } from '../kit';
-import { radius, space, type, useTheme } from '../theme';
+import { Chip, ErrorNote, TextButton } from '../kit';
+import { space, type, useTheme } from '../theme';
 
 /**
  * The New lesson card's "Suggest topics": Claude writes a few scenes (fitted to the words chosen,
@@ -55,7 +54,6 @@ export function LessonTopics({ api, language, words, onPick }: {
   };
 
   const pick = (topic: string) => {
-    haptic.tap();
     onPick(topic);
     setTopics([]);
   };
@@ -66,16 +64,7 @@ export function LessonTopics({ api, language, words, onPick }: {
         <>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
             {topics.map((t) => (
-              <Tappable
-                key={t}
-                onPress={() => pick(t)}
-                accessibilityRole="button"
-                accessibilityLabel={`Use ${t}`}
-                scaleTo={0.95}
-                style={{ borderWidth: 1, borderColor: c.controlEdge, borderRadius: radius.pill, paddingVertical: space.s, paddingHorizontal: space.m }}
-              >
-                <Text style={{ ...type.subhead, color: c.text }}>{t}</Text>
-              </Tappable>
+              <Chip key={t} label={t} accessibilityLabel={`Use ${t}`} onPress={() => pick(t)} />
             ))}
           </View>
           <TextButton label="More ideas" busy={asking} busyLabel="Thinking of ideas" onPress={() => void ask()} style={{ alignSelf: 'flex-end' }} />

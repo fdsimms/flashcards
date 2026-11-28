@@ -3,7 +3,7 @@ import { SymbolView, type SFSymbol } from 'expo-symbols';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, Switch, Text, TextInput, useColorScheme, View,
-  type AccessibilityState, type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type ViewStyle,
+  type AccessibilityState, type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type TextStyle, type ViewStyle,
 } from 'react-native';
 import { Host, Picker, Text as SwiftText } from '@expo/ui/swift-ui';
 import { accessibilityLabel, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
@@ -791,6 +791,30 @@ export function CheckboxRow({ label, detail, checked, onPress, first, big, color
   );
 }
 
+/**
+ * Something added that a tap takes back out (a tag, a word added to a lesson, a phrase caught in a
+ * cram lesson): its text in the gold ink on the gold tint, a line after it if any, and a ×.
+ * `labelStyle` replaces the label's size (a cram's text size); a word in the language being
+ * learned takes Thai's taller line where it needs one.
+ */
+export function RemovableChip({ label, detail, onRemove, accessibilityLabel, labelStyle }: { label: string; detail?: string; onRemove: () => void; accessibilityLabel?: string; labelStyle?: TextStyle }) {
+  const c = useTheme();
+  return (
+    <Tappable
+      onPress={() => { haptic.tap(); onRemove(); }}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? `Remove ${detail ? `${label}, ${detail}` : label}`}
+      scaleTo={0.95}
+      hitSlop={{ top: 4, bottom: 4 }}
+      style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, minHeight: 36, paddingVertical: space.xs, paddingLeft: space.m, paddingRight: space.s, borderRadius: radius.pill, backgroundColor: c.accentFill }}
+    >
+      <Text style={{ ...withThaiLineHeight(type.subhead, label), ...labelStyle, color: c.accentInk }}>{label}</Text>
+      {detail ? <Text style={{ ...type.caption, color: c.textSecondary }}>{detail}</Text> : null}
+      <Icon name="xmark" size={12} color={c.accentInk} weight="semibold" />
+    </Tappable>
+  );
+}
+
 /** A grouped block of content on a screen, the way iOS Settings groups its rows. */
 export function Card({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const c = useTheme();
@@ -957,21 +981,31 @@ export function Select({ label, options, value, onChange }: { label: string; opt
 }
 
 /** A choice among a few (a deck, a note type): pill-shaped, filled when chosen. */
-export function Chip({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+export function Chip({ label, selected = false, onPress, accessibilityLabel, accessibilityLanguage, accessibilityState }: {
+  label: string;
+  /** A choice that's on. Leave it off for a suggestion that fills something in when tapped (a topic, a question to ask). */
+  selected?: boolean;
+  onPress: () => void;
+  accessibilityLabel?: string;
+  /** The label's language, for a word in the language being learned (it also picks the font). */
+  accessibilityLanguage?: string;
+  accessibilityState?: AccessibilityState;
+}) {
   const c = useTheme();
   return (
     <Tappable
       onPress={() => { haptic.select(); onPress(); }}
       accessibilityRole="button"
-      accessibilityState={{ selected }}
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ ...accessibilityState, selected }}
       scaleTo={0.95}
       hitSlop={{ top: 4, bottom: 4 }}
       style={{
-        minHeight: 36, justifyContent: 'center', paddingHorizontal: space.m + 2, borderRadius: radius.pill,
+        minHeight: 36, justifyContent: 'center', paddingHorizontal: space.m + 2, paddingVertical: space.xs, borderRadius: radius.pill,
         backgroundColor: selected ? c.accent : c.surface, borderWidth: hairline, borderColor: selected ? c.accent : c.border,
       }}
     >
-      <Text style={{ ...type.subhead, color: selected ? c.onAccent : c.text, fontWeight: selected ? '600' : '400' }}>{label}</Text>
+      <Text accessibilityLanguage={accessibilityLanguage} style={{ ...type.subhead, color: selected ? c.onAccent : c.text, fontWeight: selected ? '600' : '400' }}>{label}</Text>
     </Tappable>
   );
 }
