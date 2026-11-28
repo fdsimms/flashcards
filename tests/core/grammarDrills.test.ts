@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { grammarPoint } from '../../src/core/grammar';
-import { drillPrompts, drillWentWell, dueByLanguage, dueWhen, duePoints, drillResults, grammarListGroups, hasDrill, isDrilled, missingNote, namesAnswer, pointSchedule, practiceKinds, scheduledPoints, type GrammarAnswer } from '../../src/core/grammarDrills';
+import { drillPrompts, drillWentWell, dueByLanguage, dueWhen, duePoints, drillResults, formsPracticeDetail, grammarListGroups, hasDrill, isDrilled, missingNote, namesAnswer, pointSchedule, practiceKinds, scheduledPoints, type GrammarAnswer } from '../../src/core/grammarDrills';
 
 const H = 4;
 const NOW = new Date(2026, 10, 12, 12);
@@ -67,6 +67,21 @@ describe('which points are drilled', () => {
     expect(scheduledPoints('es', choices, done, NOW, H).map((s) => s.pointId)).toEqual(['es.preterite', 'es.imperfect']);
     expect(duePoints('th', choices, [], NOW, H).map((s) => s.pointId)).toEqual(['th.ever']);
     expect(duePoints('es', { 'es.gone': 'practice' }, [], NOW, H)).toEqual([]);
+  });
+
+  it("doesn't drill a point that is Know it only by the catalog's default", () => {
+    const known = { 'ru.genitive': 'normal', 'ru.accusative': 'normal', 'ru.past': 'practice' } as const;
+    expect(duePoints('ru', known, [], NOW, H, ['ru.genitive']).map((s) => s.pointId)).toEqual(['ru.past', 'ru.accusative']);
+    expect(dueByLanguage(['ru'], known, [], NOW, H, ['ru.genitive', 'ru.accusative'])).toEqual([{ language: 'ru', count: 1 }]);
+    // Still listed, with its choice, among the points not drilled.
+    const { due, other } = grammarListGroups('ru', known, [], NOW, H, ['ru.genitive']);
+    expect(due.map((r) => r.pointId)).not.toContain('ru.genitive');
+    expect(other).toContainEqual({ pointId: 'ru.genitive', state: 'normal' });
+  });
+
+  it("says what Forms practice asks on a point's forms", () => {
+    expect(formsPracticeDetail(['past'])).toBe('Conjugate past verbs.');
+    expect(formsPracticeDetail(['genitive'])).toBe('Put words in the genitive.');
   });
 
   it('says when, in study days', () => {

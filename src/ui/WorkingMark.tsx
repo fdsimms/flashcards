@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, View } from 'react-native';
+import { Animated, Easing, Text, View } from 'react-native';
 import { useReduceMotion } from './motion';
-import { radius, useTheme } from './theme';
+import { radius, space, type, useTheme } from './theme';
 
 export const MARK = 18;
 
@@ -28,6 +28,20 @@ export function WorkingMark({ color }: { color?: string }) {
           transform: [{ rotate: turn.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] }) }],
         }}
       />
+    </View>
+  );
+}
+
+/**
+ * A wait in words: the turning mark and what's under way ("Thinking of themes"), read by VoiceOver
+ * as one item. The same everywhere a screen waits on Claude or a server without steps to show.
+ */
+export function WorkingLine({ text }: { text: string }) {
+  const c = useTheme();
+  return (
+    <View accessible accessibilityRole="progressbar" accessibilityLabel={text} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+      <WorkingMark />
+      <Text style={{ ...type.subhead, color: c.textSecondary, flexShrink: 1 }}>{text}</Text>
     </View>
   );
 }

@@ -1,8 +1,8 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { selectedText } from '../core/selection';
-import { Tappable, TextButton } from './kit';
-import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { Button, TextButton } from './kit';
+import { space, type, useTheme } from './theme';
 
 /**
  * The bar at the bottom of a list in Select mode (the screen's `footer`): how many rows are picked,
@@ -33,18 +33,16 @@ export function SelectBar({ count, total, onSelectAll, onClear, actions, status 
       ) : null}
       <View style={{ flexDirection: 'row', gap: space.s }}>
         {actions.map((a) => (
-          <Tappable
+          <Button
             key={a.label}
+            size="small"
+            variant={a.destructive ? 'destructive' : 'secondary'}
+            label={a.label}
+            hint={a.hint}
             disabled={count === 0}
-            restOpacity={count === 0 ? 0.4 : 1}
             onPress={a.onPress}
-            accessibilityRole="button"
-            accessibilityLabel={a.label}
-            style={{ flex: 1, minHeight: MIN_TAP, borderRadius: radius.m, ...smooth, paddingVertical: space.s, paddingHorizontal: space.s, alignItems: 'center', justifyContent: 'center', backgroundColor: a.destructive ? c.dangerFill : c.fill }}
-          >
-            <Text style={{ ...type.subhead, fontWeight: '600', color: a.destructive ? c.danger : c.text, textAlign: 'center' }}>{a.label}</Text>
-            {a.hint ? <Text style={{ ...type.caption, color: a.destructive ? c.danger : c.textSecondary, textAlign: 'center' }}>{a.hint}</Text> : null}
-          </Tappable>
+            style={{ flex: 1 }}
+          />
         ))}
       </View>
     </View>

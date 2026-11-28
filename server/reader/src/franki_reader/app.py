@@ -524,6 +524,7 @@ from franki_reader.tts import (
     Speech,
     azure_synthesize,
     azure_synthesize_parts,
+    azure_transcribe,
 )
 from franki_reader.wanikani import wanikani_reader
 
@@ -580,6 +581,7 @@ def create_app(
     commons: Commons | None = None,
     fetch_captions: video.FetchCaptions | None = None,
     podcasts: podcast.Podcasts | None = None,
+    transcribe: podcast.Transcribe | None = None,
     native_dir: Path | None = None,
     write_aspect: aspect.WriteAspect | None = None,
     ask_about_card: ask_card.AskCard | None = None,
@@ -691,6 +693,7 @@ def create_app(
         commons=commons,
         fetch_captions=fetch_captions,
         podcasts=podcasts,
+        transcribe=transcribe,
         native_dir=native_dir,
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
@@ -807,6 +810,7 @@ def production_app() -> FastAPI:
 
     synthesize = None
     synthesize_parts = None
+    transcribe: podcast.Transcribe | None = None
     speech: SpeechClient | None = None
     key, region = (
         settings.secrets.get("AZURE_SPEECH_KEY"),
@@ -825,6 +829,7 @@ def production_app() -> FastAPI:
         )
         synthesize = azure_synthesize(speech)
         synthesize_parts = azure_synthesize_parts(speech)
+        transcribe = azure_transcribe(speech)
 
     # Without the sync server's address and sign-in the lexicon is never refreshed, and the server
     # says it has no word list.
@@ -898,6 +903,9 @@ def production_app() -> FastAPI:
         # Podcasts ask Apple's directory and a show's feed only when the learner searches or opens a
         # show, and the app's own setting (off until turned on) decides whether anything is asked.
         podcasts=podcast.Podcasts(httpx.AsyncClient(), "franki-reader-podcasts/1.0"),
+        # Transcribing an episode with no transcript goes to Azure, only when the learner taps
+        # Transcribe and agrees to its price (podcast.py).
+        transcribe=transcribe,
         native_dir=settings.audio_dir / "native",
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,

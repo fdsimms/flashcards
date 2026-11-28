@@ -2,8 +2,8 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import type { LessonReview } from '../../reader/api';
 import { reviewDetail, reviewMinutes } from '../../reader/lessons';
-import { Button, Card, ErrorNote } from '../kit';
-import { radius, space, type, useTheme } from '../theme';
+import { Button, Card, ErrorNote, Tag } from '../kit';
+import { space, type, useTheme } from '../theme';
 
 /**
  * The review on offer at the top of the Lessons tab (docs/read-and-listen/architecture.md, Audio
@@ -16,11 +16,11 @@ export function LessonReviewCard({ review, onMake, busy, error }: { review: Less
     <Card>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.s }}>
         <Text style={{ ...type.headline, color: c.text }}>Review</Text>
-        <Chip label={`${reviewMinutes(review.phrases)} min`} gold />
+        <Tag text={`${reviewMinutes(review.phrases)} min`} color={c.accentInk} fill={c.accentFill} />
       </View>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{reviewDetail(review)}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs }}>
-        {review.lessons.map((l, i) => <Chip key={`${i}:${l.title}`} label={`${l.title} · ${l.count}`} />)}
+        {review.lessons.map((l, i) => <Tag key={`${i}:${l.title}`} text={`${l.title} · ${l.count}`} color={c.textSecondary} fill={c.fill} />)}
       </View>
       <Button label="Make the review" onPress={onMake} busy={busy} />
       {error ? <ErrorNote message={error} /> : null}
@@ -28,12 +28,3 @@ export function LessonReviewCard({ review, onMake, busy, error }: { review: Less
   );
 }
 
-/** A small rounded label: the gold one for the minutes, the plain ones for where the phrases are from. Also LinesDrillCard's. */
-export function Chip({ label, gold }: { label: string; gold?: boolean }) {
-  const c = useTheme();
-  return (
-    <View style={{ paddingVertical: 3, paddingHorizontal: space.s, borderRadius: radius.pill, backgroundColor: gold ? c.accentFill : c.fill }}>
-      <Text style={{ ...type.caption, fontWeight: '600', color: gold ? c.accentInk : c.textSecondary }}>{label}</Text>
-    </View>
-  );
-}

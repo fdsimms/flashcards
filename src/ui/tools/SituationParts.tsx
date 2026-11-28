@@ -5,11 +5,12 @@ import type { SituationFeedback, SituationTurn } from '../../reader/api';
 import { needsMeaning } from '../../reader/languages';
 import { lineParts } from '../../reader/situations';
 import { haptic } from '../haptics';
-import { Button, Icon, Tappable, TextButton } from '../kit';
+import { Button, TextButton } from '../kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { useSoundingButton } from '../useSoundingButton';
 import { TypedDiff } from '../TypedDiff';
 import { RoundScore } from '../RoundScore';
+import { PlayDot } from '../PlayCircle';
 
 type TextLook = { fontSize: number; lineHeight: number; fontFamily?: string };
 
@@ -71,15 +72,7 @@ export function TheirLine({ turn, name, look, lang, heardOnly, onPlay, lookup }:
           <TextButton label="Show the text" onPress={() => setShown(true)} style={{ flexShrink: 1 }} />
         )}
         {onPlay ? (
-          <Tappable
-            onPress={() => tap(onPlay)}
-            accessibilityRole="button"
-            accessibilityLabel={playing ? 'Pause' : `Play ${name}'s line`}
-            hitSlop={space.xs}
-            style={{ width: MIN_TAP - 8, height: MIN_TAP - 8, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Icon name={playing ? 'pause.fill' : 'play.fill'} size={13} color={c.accent} />
-          </Tappable>
+          <PlayDot label={`Play ${name}'s line`} playing={playing} onPress={() => tap(onPlay)} />
         ) : null}
       </View>
       {word ? (

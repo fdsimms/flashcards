@@ -2130,6 +2130,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/podcasts/transcribe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Start Transcribe
+         * @description Has Azure transcribe an episode with no transcript, in the background; ask
+         *     /api/podcasts/transcript until it's ready. Its cost is kept in `call_costs` ("transcribe").
+         */
+        post: operations["start_transcribe_api_podcasts_transcribe_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/podcasts/transcript": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Transcript State */
+        get: operations["transcript_state_api_podcasts_transcript_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/podcasts/preview": {
         parameters: {
             query?: never;
@@ -2540,6 +2578,13 @@ export interface components {
             seconds: number | null;
             /** Transcript */
             transcript: boolean;
+            /**
+             * Transcribed
+             * @default false
+             */
+            transcribed: boolean;
+            /** Transcribe Usd */
+            transcribe_usd?: number | null;
         };
         /** EpisodesOut */
         EpisodesOut: {
@@ -3773,6 +3818,13 @@ export interface components {
             phrases?: components["schemas"]["GivenIn"][] | null;
             /** Shown */
             shown?: string[];
+        };
+        /** TranscriptStateOut */
+        TranscriptStateOut: {
+            /** State */
+            state: string;
+            /** Error */
+            error?: string | null;
         };
         /** TurnIn */
         TurnIn: {
@@ -8316,6 +8368,75 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EpisodesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    start_transcribe_api_podcasts_transcribe_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EpisodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscriptStateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    transcript_state_api_podcasts_transcript_get: {
+        parameters: {
+            query: {
+                feed: string;
+                guid: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TranscriptStateOut"];
                 };
             };
             /** @description Validation Error */

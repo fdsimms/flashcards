@@ -78,6 +78,7 @@ import { MakingCard } from '../MakingCard';
 import { textSteps } from '../../reader/making';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { PlayCircle } from '../PlayCircle';
+import { Figure } from '../Figure';
 
 /**
  * The reader: a text split into words by the server, a gloss on tap, audio line by line, and a
@@ -1518,8 +1519,7 @@ function Stat({ value, label }: { value: string; label: string }) {
   const c = useTheme();
   return (
     <View style={{ flex: 1, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, borderRadius: radius.m, ...smooth, padding: space.m }}>
-      <Text style={{ ...type.title, color: c.text }}>{value}</Text>
-      <Text style={{ ...type.caption, color: c.textSecondary }}>{label}</Text>
+      <Figure value={value} label={label} />
     </View>
   );
 }

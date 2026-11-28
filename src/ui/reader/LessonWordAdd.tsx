@@ -6,7 +6,7 @@ import { candidateWord, lessonWordHint, noCandidatesText, type LessonWordCandida
 import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Field, Help, Icon, Screen, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Field, Help, RemovableChip, Screen, Tappable } from '../kit';
 import { CandidateChips } from '../cram/CramBits';
 import { radius, smooth, readable, space, type, useTheme } from '../theme';
 import { useLessonWords } from './useLessonWords';
@@ -126,18 +126,7 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
             <Text style={{ ...type.subhead, color: c.textSecondary }}>Added by hand</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
               {typed.map((w) => (
-                <Tappable
-                  key={w.text}
-                  onPress={() => { haptic.tap(); remove(w.text); }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove ${w.text}, ${w.english}`}
-                  scaleTo={0.95}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, backgroundColor: c.accentFill, borderRadius: radius.pill, paddingVertical: space.xs + 2, paddingLeft: space.m, paddingRight: space.s }}
-                >
-                  <Text style={{ ...withThaiLineHeight(type.subhead, w.text), color: c.accentInk }}>{w.text}</Text>
-                  <Text style={{ ...type.caption, color: c.textSecondary }}>{w.english}</Text>
-                  <Icon name="xmark" size={11} color={c.textSecondary} />
-                </Tappable>
+                <RemovableChip key={w.text} label={w.text} detail={w.english} onRemove={() => remove(w.text)} />
               ))}
             </View>
           </View>

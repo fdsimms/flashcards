@@ -30,6 +30,8 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
   const router = useRouter();
   const [language, setLanguage] = useState<Language>(() => toolLanguage(tool, toolPrefs().language));
   const [choices, setChoices] = useState<Record<string, DrillState> | null>(null);
+  // Know it only by the catalog's default: listed, not drilled (`scheduledPoints`).
+  const [defaults, setDefaults] = useState<string[]>([]);
   const [answers, setAnswers] = useState<GrammarAnswer[]>([]);
   const [hour, setHour] = useState(4);
   // Your topics in the language; null until known, and after a failed request (a server older than topics has none).
@@ -55,7 +57,9 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
       setAnswers(mine);
       setHour(settings.dayStartsAtHour);
       if (!readerApi) return;
-      setChoices((await readerApi.grammarChoices()).choices);
+      const got = await readerApi.grammarChoices();
+      setChoices(got.choices);
+      setDefaults(got.defaults ?? []);
       readerApi.topics(language).then((r) => setTopics({ language, rows: r.topics })).catch(() => setTopics(null));
     } catch (e) {
       setError(e instanceof ApiError ? e.message : failureText(e, { what: "Couldn't load your grammar choices.", next: 'Try again.' }));
@@ -94,7 +98,7 @@ export function GrammarTool({ tool, repo, readerApi, params, onClose }: ToolScre
 
   const chooseLanguage = (l: Language) => { setLanguage(l); saveToolPrefs({ language: l }); };
   const now = new Date();
-  const groups = choices ? grammarListGroups(language, choices, answers, now, hour) : null;
+  const groups = choices ? grammarListGroups(language, choices, answers, now, hour, defaults) : null;
   const name = LANGUAGES[language].name;
   const open = (pointId: string) => router.push({ pathname: '/read-grammar-point', params: { id: pointId } });
   // Each point's state is a colored tag; `when` (Coming up's) follows it.

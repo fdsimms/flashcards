@@ -2,10 +2,9 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { DEFAULT_LISTEN_COUNT, LISTEN_COUNTS, LISTEN_MIN, listenMinutes, listenSummary, type ListenCount } from '../../core/listenWords';
 import { ApiError, type Api, type Language } from '../../reader/api';
-import { Button, Card, ErrorNote, Segments } from '../kit';
+import { Button, Card, ErrorNote, Segments, Tag } from '../kit';
 import { space, type, useTheme } from '../theme';
 import { useListenWords } from '../useListenWords';
-import { Chip } from './LessonReviewCard';
 
 /**
  * Your words on the Lessons tab, beside Lines from your reading (docs/read-and-listen/architecture.md,
@@ -50,7 +49,7 @@ export function YourWordsCard({ api, language, deck, narrator, particle, onMade 
     <Card>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: space.s }}>
         <Text style={{ ...type.headline, color: c.text, flex: 1 }}>Your words</Text>
-        <Chip label={`${listenMinutes(words)} min`} gold />
+        <Tag text={`${listenMinutes(words)} min`} color={c.accentInk} fill={c.accentFill} />
       </View>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>
         {`${words.length} words: ${listenSummary(words)}. ${meaningFirst ? 'Each meaning in English, a pause to say the word, then the word and an example.' : 'Each word, a pause to recall it, then its meaning and an example.'}`}

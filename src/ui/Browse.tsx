@@ -120,7 +120,6 @@ export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: No
   const foundIds = useMemo(() => found.map((n) => n.id), [found]);
   const sel = useSelection(foundIds);
   const deleteSelected = () => {
-    haptic.tap();
     const picked = [...sel.selected];
     const cardCount = picked.reduce((n, id) => n + (cards?.byNote.get(id)?.length ?? 0), 0);
     Alert.alert(deleteNotesTitle(picked.length), deleteNotesWarning(cardCount), [

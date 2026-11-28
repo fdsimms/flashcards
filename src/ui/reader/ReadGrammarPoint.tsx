@@ -3,7 +3,7 @@ import { ScrollView, Text, View } from 'react-native';
 import type { PracticeRecord } from '../../core/forms';
 import { grammarPoint } from '../../core/grammar';
 import { knowItReason, pointPractice, POINT_PRACTICE_DAYS, practiceSince, suggestKnowIt } from '../../core/grammarPage';
-import { dueWhen, isDrilled, pointSchedule, practiceKinds, type GrammarAnswer } from '../../core/grammarDrills';
+import { dueWhen, formsPracticeDetail, isDrilled, pointSchedule, practiceKinds, type GrammarAnswer } from '../../core/grammarDrills';
 import type { Note } from '../../core/types';
 import { ApiError, type Api, type GrammarChoice, type GrammarExample, type GrammarPointPage } from '../../reader/api';
 import { canShuffleExamples, DEFAULT_MAX_PRACTICE, EXAMPLES_SHOWN, grammarChoiceOptions, grammarStateWord, seenLine } from '../../reader/grammar';
@@ -69,12 +69,13 @@ export function ReadGrammarPoint({ api, glossing, practice: phone, id, dayStarts
   useEffect(() => { load(); }, [load]);
   useEffect(() => { phone.load().then(setLocal); }, [phone]);
 
-  const choose = async (state: GrammarChoice) => {
-    if (!page || choosing.current || page.state === state) return;
+  // `again`: set the choice it already shows, to make a default Know it the owner's own (and so drilled).
+  const choose = async (state: GrammarChoice, again = false) => {
+    if (!page || choosing.current || (page.state === state && !again)) return;
     choosing.current = true;
     const before = page;
     setChoiceError(null);
-    setPage({ ...page, state, choices: { ...page.choices, [id]: state } });
+    setPage({ ...page, state, default: false, choices: { ...page.choices, [id]: state } });
     try {
       await api.setGrammar(id, state);
       setChanged(true);
@@ -131,12 +132,15 @@ export function ReadGrammarPoint({ api, glossing, practice: phone, id, dayStarts
     { label: 'Lesson', detail: 'Example lines to hear, then a few questions.', onPress: () => onLesson(id) },
     ...(kinds.includes('questions') ? [{ label: 'Practice questions', detail: 'Name the grammar point in lines you read, and fill gaps.', onPress: () => onDrill(id) }] : []),
     ...(kinds.includes('contrast') ? [{ label: 'Which one fits?', detail: 'Choose between this word and similar ones.', onPress: () => onDrill(id) }] : []),
-    ...(kinds.includes('forms') && practiceDeck ? [{ label: 'Forms practice', detail: `Conjugate ${point.forms.join(' and ')} verbs.`, onPress: () => onPracticeForms(practiceDeck, point.forms) }] : []),
+    ...(kinds.includes('forms') && practiceDeck ? [{ label: 'Forms practice', detail: formsPracticeDetail(point.forms), onPress: () => onPracticeForms(practiceDeck, point.forms) }] : []),
+    ...(page?.default && kinds.some((k) => k !== 'forms') ? [{ label: 'Practice on a schedule', detail: 'Bring it back after 7, 14, 30 and 60 days, like other points you know.', onPress: () => choose('normal', true) }] : []),
   ];
   const spaced = kinds.some((k) => k !== 'forms');
   const nextLine = !page || !local || !spaced
     ? null
-    : !isDrilled(page.state)
+    : page.default
+      ? "Known by default, so it isn't practiced on a schedule."
+      : !isDrilled(page.state)
       ? 'Set it to Practice or Know it to have it come back on a schedule.'
       : ((when) => (when === 'Due today' ? 'Due for practice today.' : `Next practice: ${when.toLocaleLowerCase()}.`))(
         dueWhen(pointSchedule(id, page.state, local.drills, now, dayStartsAtHour).due, now, dayStartsAtHour));

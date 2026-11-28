@@ -1,5 +1,5 @@
 import { useFocusEffect, useRouter } from 'expo-router';
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { syncLine } from '../../../anki/sync/runSync';
 import { useConnectionProblem } from '../../../ui/connection';
 import { answersFromLog } from '../../../wanikani/log';
@@ -15,6 +15,8 @@ import { useTodayReady } from '../../../ui/useTodayReady';
 import { useTodaySummary } from '../../../ui/useTodaySummary';
 import { WaniKaniDeck } from '../../../ui/WaniKaniDeck';
 import { useReadWhileShown } from '../../../ui/useReadWhileShown';
+import { TodayPlanCard } from '../../../ui/TodayPlanCard';
+import { useTodayPlan } from '../../../ui/useTodayPlan';
 
 /** The Today tab: the first screen, with only what's for today. */
 export default function TodayRoute() {
@@ -34,17 +36,27 @@ export default function TodayRoute() {
   const openOptions = useCallback((deck: string) => router.push({ pathname: '/deck-options', params: { deck } }), [router]);
   const deckActions = useDeckActions(openOptions);
   const extras = useDailyExtras();
+  const plan = useTodayPlan(extras);
   const grammarDue = useGrammarDueState(reader.api, repo);
   const crams = useCrams(repo);
-  const ready = useTodayReady([loaded, studiedSettled, extras.ready, grammarDue.settled, crams.loaded]);
+  // Filtered decks (Custom Study Session) hold no notes, so an empty one isn't "a deck with no words yet".
+  const [filteredDecks, setFilteredDecks] = useState<ReadonlySet<string>>(new Set());
+  useEffect(() => {
+    let live = true;
+    repo.listDeckParams().then((all) => { if (live) setFilteredDecks(new Set([...all].filter(([, p]) => p.filtered).map(([d]) => d))); }).catch(() => undefined);
+    return () => { live = false; };
+  }, [repo, decks]);
+  const ready = useTodayReady([loaded, studiedSettled, extras.ready, plan.ready, grammarDue.settled, crams.loaded]);
   return (
     <Today
       decks={decks}
+      filteredDecks={filteredDecks}
       loaded={loaded}
       ready={ready}
       studied={studied}
       crams={<CramCards repo={repo} />}
-      extrasStrip={<ExtrasStrip extras={extras} grammarDue={grammarDue.due} />}
+      plan={<TodayPlanCard plan={plan} />}
+      extrasStrip={<ExtrasStrip extras={extras} grammarDue={grammarDue.due} inPlan={plan.on} />}
       backup={backup}
       loadProblem={loadProblem ? { text: loadProblem, onRetry: refresh } : undefined}
       onImport={() => router.push('/anki')}

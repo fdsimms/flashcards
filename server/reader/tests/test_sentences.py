@@ -222,6 +222,22 @@ def test_a_served_sentence_says_which_practiced_point_it_uses() -> None:
     assert sentences.grammar_of("ฉันกำลังกินครับ", FULL, ()) is None
 
 
+def test_a_practiced_case_or_aspect_point_is_named_too() -> None:
+    # They used to have no finder, so Sentences asked for them and never named one (#837).
+    from franki_reader.lexicon import lexicon_from
+
+    ru = lexicon_from([], "ru")
+    found = sentences.grammar_of("Я прочитал книгу.", ru, ("ru.genitive", "ru.accusative"))
+    assert found == {"id": "ru.accusative", "name": "Accusative"}
+    found = sentences.grammar_of("Я прочитал книгу.", ru, ("ru.perfective",))
+    assert found == {"id": "ru.perfective", "name": "Perfective verbs"}
+    # книги could be a genitive or a plural, so it isn't claimed.
+    assert sentences.grammar_of("Это книги.", ru, ("ru.genitive",)) is None
+    de = lexicon_from([], "de")
+    found = sentences.grammar_of("Ich helfe dem Mann.", de, ("de.dative",))
+    assert found == {"id": "de.dative", "name": "Dative"}
+
+
 def test_the_practiced_points_go_to_the_writer() -> None:
     conn = store.connect(":memory:")
     got: list[tuple[str, ...]] = []
