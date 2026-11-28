@@ -1,17 +1,19 @@
 import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import type { RegisterLevel } from '../../reader/registerLevel';
+import { LANGUAGES } from '../../reader/languages';
 import type { Partner, Rehearsal } from '../../reader/situations';
 import { haptic } from '../haptics';
 import { Button, Card, Help, Screen, Segments } from '../kit';
 import { RegisterPicker } from '../reader/RegisterPicker';
 import { Chip } from '../cram/CramThemes';
 import { radius, readable, smooth, space, type, useTheme } from '../theme';
+import { HandsFreeStart } from './HandsFreeBar';
 
 /**
  * Situations opened from a cram or a theme (Rehearse): the scene is the cram's, so there's nothing to
  * pick, and Claude is asked to work its words in where they fit (never to require them). Start begins
- * the conversation; Pick a different scene goes to the usual scene screen.
+ * the conversation (Talk hands-free, with the microphone opening by itself); Pick a different scene goes to the usual scene screen.
  */
 export function SituationRehearse({ title, rehearsal, register, settingsRegister, onRegister, partner, onPartner, onStart, onPickOther }: {
   title: string;
@@ -23,7 +25,8 @@ export function SituationRehearse({ title, rehearsal, register, settingsRegister
   /** Who Claude plays: the learner's tutor, or a person the scene calls for. */
   partner: Partner;
   onPartner: (partner: Partner) => void;
-  onStart: () => void;
+  /** `handsFree`: Talk hands-free was tapped rather than Start. */
+  onStart: (handsFree: boolean) => void;
   onPickOther: () => void;
 }) {
   const c = useTheme();
@@ -47,7 +50,8 @@ export function SituationRehearse({ title, rehearsal, register, settingsRegister
           <Help>{partner === 'tutor' ? `Claude is your tutor and asks you about "${rehearsal.scene}".` : `Claude plays a person from "${rehearsal.scene}", and you play the other part.`}</Help>
         </Card>
         <Card><RegisterPicker own={register} settings={settingsRegister} onChange={onRegister} /></Card>
-        <Button label="Start" onPress={() => { haptic.tap(); onStart(); }} />
+        <Button label="Start" onPress={() => { haptic.tap(); onStart(false); }} />
+        <HandsFreeStart speech={LANGUAGES[rehearsal.language].speech} onStart={() => onStart(true)} />
         <Button label="Pick a different scene" variant="secondary" onPress={() => { haptic.tap(); onPickOther(); }} />
       </ScrollView>
     </Screen>
