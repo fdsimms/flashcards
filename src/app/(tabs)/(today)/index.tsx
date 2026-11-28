@@ -51,7 +51,7 @@ export default function TodayRoute() {
       onBackup={() => router.push('/backup')}
       onSettings={() => router.push({ pathname: '/settings-page', params: { page: 'today' } })}
       onLookUp={() => router.push('/look-up')}
-      onOptions={openOptions}
+      onOptions={(deck) => deckActions.act(deck, 'options')}
       onDeckMenu={deckActions.menu}
       onDeckAction={deckActions.act}
       collapsed={collapse.collapsed}

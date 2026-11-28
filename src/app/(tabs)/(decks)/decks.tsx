@@ -36,8 +36,9 @@ export default function DecksRoute() {
       onBrowse={() => router.push('/browse')}
       onStats={() => router.push('/stats')}
       onLookUp={() => router.push('/look-up')}
-      onOptions={openOptions}
+      onOptions={(deck) => deckActions.act(deck, 'options')}
       onNewDeck={deckActions.create}
+      onNewFilteredDeck={() => router.push('/filtered-deck')}
       onQuickAdd={() => router.push('/quick-add')}
       onDeckMenu={deckActions.menu}
       onDeckAction={deckActions.act}

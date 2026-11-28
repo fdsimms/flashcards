@@ -488,6 +488,8 @@ export interface DeckRow extends DeckNode {
   totals?: DeckTotals;
   /** For a gated deck: cards in progress under it, and its cap. */
   gate?: { inProgress: number; cap: number };
+  /** An Anki filtered deck: its menu rebuilds and empties it, and its options are its searches. */
+  filtered?: boolean;
   /**
    * The deck's own daily new card limit, from its preset (or the app's default), not today's: no
    * Custom Study limit for today and no vacation scaling. With `unstudied`, how many days of new
@@ -600,7 +602,8 @@ export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], p
     const home: Card[] = [];
     for (const [deck, cards] of byHome) if (isInDeck(deck, node.deck)) for (const c of cards) home.push(c);
     const totals = deckTotals(home, input.skillCards, input.now ?? new Date(), input.dayStartsAtHour);
-    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, cards: all, totals, newPerDay, ...(gate ? { gate } : {}) };
+    const filtered = !!input.paramsFor?.(node.deck)?.filtered;
+    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, cards: all, totals, newPerDay, ...(gate ? { gate } : {}), ...(filtered ? { filtered } : {}) };
   });
 }
 

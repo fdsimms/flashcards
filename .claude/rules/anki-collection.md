@@ -96,6 +96,11 @@ Anki's sync protocol (v11), as an Anki client speaks it, against the user's own 
   Franki never adds, removes or renames a field or card type: that changes the schema (`scm`), and every
   device then has to replace its collection. Anki adds a card when a template edit makes a note generate
   one, which Franki doesn't yet, so such an edit is refused (`notesGainingCards`).
+- **A filtered deck is built as Anki builds it** (`filteredDeckWrites.ts`, through `filteredDeckService.ts`):
+  its search runs on the collection's own rows with Anki's SQL rules (`matchesAnkiRow`,
+  `src/core/ankiRowSearch.ts`), never Browse's looser reading of Franki's copy, since Anki rebuilds the
+  same deck from the same search; a card buried on an earlier day counts as unburied (`unburiedToday`), as
+  Anki unburies at the day's start; `make-filtered-vectors.py` holds every order to what Anki builds.
 - **Media made in Franki (a recording) is sent by the upload half of Anki's media sync**
   (`pushMedia` in `mediaSync.ts`). A file joins the pending list only once a note is saved with it,
   and a pending file the server also changed is settled by Anki's rules (`mediaAction`). The live
