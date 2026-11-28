@@ -30,6 +30,16 @@ export interface RenderContext {
   side: 'front' | 'back';
   /** The rendered front, for {{FrontSide}} on the back. */
   frontSide?: string;
+  /** The card being shown, for {{CardFlag}} and {{CardID}}; both render empty without one. */
+  card?: CardFields;
+}
+
+/** What a template reads from the card itself, rather than its note. */
+export interface CardFields {
+  /** Franki's id, used for {{CardID}} when the card has no Anki id yet. */
+  id: string;
+  ankiId?: string;
+  flag?: number;
 }
 
 /**
@@ -80,6 +90,9 @@ function specialField(name: string, ctx: RenderContext): string | undefined {
     case 'Deck': return ctx.note.deck;
     case 'Subdeck': return ctx.note.deck.split('::').pop() ?? '';
     case 'Card': return ctx.noteType.templates.find((t) => t.ord === templateOrd(ctx))?.name ?? '';
+    // As rslib's notetype/render.rs: "flag1" to "flag7", empty with no flag, for a template's CSS class.
+    case 'CardFlag': return ctx.card?.flag ? `flag${ctx.card.flag}` : '';
+    case 'CardID': return ctx.card ? ctx.card.ankiId ?? ctx.card.id : '';
     default: return undefined;
   }
 }
@@ -205,10 +218,10 @@ function typeAnswerAnswer(html: string, ask: TypeAnswer | undefined, typed: stri
  * Both sides of a card, as Anki would render them. A {{type:}} card also says what it asks for
  * (`typeAnswer`), and its back compares `typed` with it.
  */
-export function renderTemplateCard(note: Note, noteType: NoteType, ord: number, typed = ''): { front: string; back: string; typeAnswer?: TypeAnswer } {
+export function renderTemplateCard(note: Note, noteType: NoteType, ord: number, typed = '', card?: CardFields): { front: string; back: string; typeAnswer?: TypeAnswer } {
   const t = noteType.templates.find((x) => x.ord === (noteType.kind === 'cloze' ? 0 : ord)) ?? noteType.templates[0];
   if (!t) return { front: '', back: '' };
-  const base = { note, noteType, ord };
+  const base = { note, noteType, ord, card };
   const front = renderTemplate(t.front, { ...base, side: 'front' });
   // {{FrontSide}} on the back shows the question without its sounds or speech playing again (and
   // keeps its [[type:]], where Anki shows the comparison).
