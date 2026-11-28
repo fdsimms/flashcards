@@ -9,7 +9,7 @@ import {
 import { toneOfRoman, TONE_NAMES, type Tone } from '../../tools/thai/script';
 import { useLanguageFont } from '../AppFont';
 import { haptic } from '../haptics';
-import { Button, Card, Help, Icon, Tappable } from '../kit';
+import { Button, Card, Help, Icon, Meter, Tappable } from '../kit';
 import type { CardMotion } from '../SwipeCard';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import type { ToolScreenProps } from './index';
@@ -320,9 +320,7 @@ function RoundResults({ results, right, asked, weakest }: { results: SoundResult
                 <Text style={{ ...type.subhead, color: c.text, flex: 1 }}>{r.label}</Text>
                 <Text style={{ ...type.subhead, color: c.textSecondary, fontVariant: ['tabular-nums'] }}>{`${r.right} / ${r.asked}`}</Text>
               </View>
-              <View style={{ height: 8, borderRadius: 4, backgroundColor: c.fill, overflow: 'hidden' }}>
-                <View style={{ width: `${Math.round((r.right / r.asked) * 100)}%`, height: '100%', backgroundColor: r === weakest ? c.danger : c.countDue }} />
-              </View>
+              <Meter value={r.right / r.asked} color={r === weakest ? c.danger : c.countDue} />
             </View>
           ))}
         </View>

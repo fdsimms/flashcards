@@ -860,6 +860,29 @@ export function ProgressBar({ value, label = 'Progress through this session', st
 }
 
 /**
+ * A reading as a bar: a share known, a chance of remembering, how far a lesson has played. 6 high
+ * with round ends wherever it appears. `value` is 0 to 1. A session's or a drill's progress is
+ * `ProgressBar`. With `label`, VoiceOver reads it as a progress bar; leave it off where the
+ * surrounding row already says the number. `track` is for a bar on a tinted surface, where the
+ * usual fill wouldn't show.
+ */
+export function Meter({ value, color, width, track, label, style }: { value: number; color: string; width?: number; track?: string; label?: string; style?: StyleProp<ViewStyle> }) {
+  const c = useTheme();
+  const share = Math.max(0, Math.min(1, value));
+  return (
+    <View
+      accessible={label ? true : undefined}
+      accessibilityRole={label ? 'progressbar' : undefined}
+      accessibilityLabel={label}
+      accessibilityValue={label ? { min: 0, max: 100, now: Math.round(share * 100) } : undefined}
+      style={[{ height: 6, width, borderRadius: radius.pill, backgroundColor: track ?? c.fill, overflow: 'hidden' }, style]}
+    >
+      <View style={{ width: `${share * 100}%`, height: '100%', borderRadius: radius.pill, backgroundColor: color }} />
+    </View>
+  );
+}
+
+/**
  * A screen's title as a heading in its content, for a name the user wrote (a cram, a deck). The
  * native large title is one line and cuts a long name short; this wraps. Pass no `title` to `Screen`.
  */

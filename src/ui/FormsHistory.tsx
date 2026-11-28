@@ -4,8 +4,8 @@ import { failureText } from '../core/failure';
 import { CONFUSION_MISSES, CONFUSION_WORDS, FORM_CLEARED_AFTER } from '../core/forms';
 import { practiceStats, type PracticeStats, type WeakFormStat } from '../core/formsStats';
 import type { Repo } from '../db/repo';
-import { Card, Help, Loading, Screen, SectionTitle } from './kit';
-import { hairline, radius, space, type, useTheme, readable, smooth } from './theme';
+import { Card, Help, Loading, Meter, Screen, SectionTitle } from './kit';
+import { hairline, space, type, useTheme, readable } from './theme';
 
 /** How many forms "Still needs work" lists before "and N more". */
 const LISTED_FORMS = 10;
@@ -103,9 +103,7 @@ function Content({ stats }: { stats: PracticeStats }) {
             >
               <View style={{ flex: 1, gap: space.xs }}>
                 <Text style={{ ...type.headline, color: c.text }}>{g.group}</Text>
-                <View style={{ height: 8, borderRadius: radius.s, ...smooth, backgroundColor: c.fill, overflow: 'hidden' }}>
-                  <View style={{ width: `${p}%`, height: '100%', backgroundColor: c.chart }} />
-                </View>
+                <Meter value={p / 100} color={c.chart} />
               </View>
               <Text style={{ ...type.subhead, fontWeight: '600', color: c.text, minWidth: 48, textAlign: 'right', fontVariant: ['tabular-nums'] }}>{`${p}%`}</Text>
             </View>

@@ -10,7 +10,7 @@ import { LANGUAGES } from '../reader/languages';
 import { useApp } from './AppContext';
 import { endFromZero, hidePath, makePathLesson, openFirstWords } from './fromZeroActions';
 import { useFromZero } from './fromZeroStorage';
-import { Card, Icon, Tappable } from './kit';
+import { Card, Icon, Meter, Tappable } from './kit';
 import { LESSONS_PATH } from './tabPaths';
 import { radius, space, type, useTheme } from './theme';
 import { useCollection } from './useCrams';
@@ -95,9 +95,7 @@ function FromZeroCard({ path }: { path: FromZero }) {
               </Text>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>{step.detail}</Text>
               {step.progress !== undefined ? (
-                <View style={{ height: 6, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden', marginTop: space.xs }}>
-                  <View style={{ width: `${Math.round(step.progress * 100)}%`, height: '100%', backgroundColor: step.state === 'later' ? c.textDim : c.accent }} />
-                </View>
+                <Meter value={step.progress} color={step.state === 'later' ? c.textDim : c.accent} style={{ marginTop: space.xs }} />
               ) : null}
             </View>
             {onPress ? <Icon name="chevron.right" size={13} color={c.textDim} /> : null}
