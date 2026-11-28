@@ -14,6 +14,7 @@ describe('reading the share inbox', () => {
       { id: 'b', kind: 'words', text: 'kot', sharedAt: NOW, title: ' ' },
       { id: 'l', kind: 'lookup', text: 'kot', sharedAt: NOW },
       { id: 'v', kind: 'video', text: 'https://youtu.be/dQw4w9WgXcQ', url: 'https://youtu.be/dQw4w9WgXcQ', sharedAt: NOW },
+      { id: 'p', kind: 'podcast', text: 'https://podcasts.apple.com/pl/podcast/x/id1?i=2', sharedAt: NOW },
       { id: 'c', kind: 'other', text: 'x', sharedAt: NOW },
       { id: 'd', kind: 'read', text: '   ', sharedAt: NOW },
       { id: '', kind: 'read', text: 'x', sharedAt: NOW },
@@ -25,6 +26,7 @@ describe('reading the share inbox', () => {
       { id: 'b', kind: 'words', text: 'kot', sharedAt: NOW },
       { id: 'l', kind: 'lookup', text: 'kot', sharedAt: NOW },
       { id: 'v', kind: 'video', text: 'https://youtu.be/dQw4w9WgXcQ', url: 'https://youtu.be/dQw4w9WgXcQ', sharedAt: NOW },
+      { id: 'p', kind: 'podcast', text: 'https://podcasts.apple.com/pl/podcast/x/id1?i=2', sharedAt: NOW },
     ]);
     expect(parseShares({})).toEqual([]);
   });

@@ -2090,6 +2090,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/podcasts/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search
+         * @description Shows matching `term` in Apple's podcast directory, in the language's storefront.
+         */
+        get: operations["search_api_podcasts_search_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/podcasts/episodes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Episodes
+         * @description A show's episodes, newest first, from a feed's link or an Apple Podcasts link.
+         */
+        post: operations["episodes_api_podcasts_episodes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/podcasts/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview */
+        post: operations["preview_api_podcasts_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/podcasts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add */
+        post: operations["add_api_podcasts_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/videos/preview": {
         parameters: {
             query?: never;
@@ -2441,6 +2515,39 @@ export interface components {
              * @default 10
              */
             count: number;
+        };
+        /** EpisodeIn */
+        EpisodeIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            /** Feed */
+            feed: string;
+            /** Guid */
+            guid: string;
+        };
+        /** EpisodeOut */
+        EpisodeOut: {
+            /** Guid */
+            guid: string;
+            /** Title */
+            title: string;
+            /** Published */
+            published: string | null;
+            /** Seconds */
+            seconds: number | null;
+            /** Transcript */
+            transcript: boolean;
+        };
+        /** EpisodesOut */
+        EpisodesOut: {
+            show: components["schemas"]["ShowOut"];
+            /** Episodes */
+            episodes: components["schemas"]["EpisodeOut"][];
+            /** Picked */
+            picked: string | null;
         };
         /** ExpectOut */
         ExpectOut: {
@@ -2876,6 +2983,11 @@ export interface components {
             /** Lines */
             lines: components["schemas"]["SaidOut"][];
         };
+        /** LinkIn */
+        LinkIn: {
+            /** Link */
+            link: string;
+        };
         /** ListenIn */
         ListenIn: {
             /** Key */
@@ -3115,6 +3227,37 @@ export interface components {
             /** Phrases */
             phrases: components["schemas"]["PhraseOut"][];
         };
+        /** PodcastAddedOut */
+        PodcastAddedOut: {
+            /** Id */
+            id: number;
+        };
+        /**
+         * PodcastPreviewOut
+         * @description What adding an episode would give, before it's added.
+         */
+        PodcastPreviewOut: {
+            /** Title */
+            title: string;
+            /** Show */
+            show: string;
+            /** Artwork */
+            artwork: string;
+            /** Seconds */
+            seconds: number;
+            /** Coverage */
+            coverage: number;
+            /** Words */
+            words: number;
+            /** New Words */
+            new_words: string[];
+            /** New Count */
+            new_count: number;
+            /** Lines */
+            lines: number;
+            /** Cost Usd */
+            cost_usd: number;
+        };
         /** PoolIn */
         PoolIn: {
             /** Id */
@@ -3287,6 +3430,11 @@ export interface components {
             /** Missing */
             missing: components["schemas"]["WordOut"][];
         };
+        /** SearchOut */
+        SearchOut: {
+            /** Shows */
+            shows: components["schemas"]["ShowOut"][];
+        };
         /** SenseSentenceIn */
         SenseSentenceIn: {
             /** Ja */
@@ -3380,6 +3528,19 @@ export interface components {
             } | null;
             /** Register */
             register?: ("casual" | "everyday" | "formal") | null;
+        };
+        /** ShowOut */
+        ShowOut: {
+            /** Title */
+            title: string;
+            /** Author */
+            author: string;
+            /** Feed */
+            feed: string;
+            /** Artwork */
+            artwork: string;
+            /** Transcripts */
+            transcripts?: string | null;
         };
         /** SituationFocus */
         SituationFocus: {
@@ -8086,6 +8247,145 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    search_api_podcasts_search_get: {
+        parameters: {
+            query: {
+                language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+                term: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SearchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    episodes_api_podcasts_episodes_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LinkIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EpisodesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_podcasts_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EpisodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PodcastPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_api_podcasts_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EpisodeIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PodcastAddedOut"];
                 };
             };
             /** @description Validation Error */

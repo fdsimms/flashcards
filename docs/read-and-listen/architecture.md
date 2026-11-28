@@ -1838,8 +1838,40 @@ the YouTube app. A YouTube video's subtitles, read under the video as it plays (
   0.75× slows the video, Hide text listens first. A word's tap opens the reader's gloss popover with
   Add to deck. Finished logs it as read. A video its owner won't let play embedded says so, with Open
   in YouTube. The embed's own ads and tracking come with it, which the owner accepted in the mock.
-- Podcasts with a published transcript were picked to come next, in the same player; podcasts with
-  none would need Azure's transcription, a cost to ask about first.
+- Podcasts came next (below).
+
+## Podcasts
+
+Decided 28 November 2026, the owner choosing from a mock with each recommendation picked. A podcast
+episode's published transcript, read under the episode as it plays, on the same Watch screen as a
+video (`EpisodePane.tsx` in place of `VideoPane.tsx`).
+
+- **Off until turned on** (Settings, Reading and listening, Podcasts; `prefs.podcasts`), a switch of
+  its own since it reaches other places than Videos: the server asks Apple's directory and a show's
+  feed, and the phone plays the episode from the show's own site. With it on, New text has A podcast
+  (`ReadPodcast.tsx`), and an Apple Podcasts link shared to Franki opens it (`kind: 'podcast'`,
+  `ShareViewController.isPodcast`).
+- **Finding a show** (`podcast.py`): Apple's directory (the iTunes Search API, no key) searched in
+  the language's own storefront, the first eight results' feeds read to say whether their latest
+  episodes have transcripts; a feed's link; or an Apple Podcasts link, looked up to its feed, and to
+  its episode when the link names one. Feeds are kept 30 minutes in memory. Shows used before are
+  kept on the phone (`podcastStorage.ts`, at most eight) and listed first, with a note when one has a
+  newer episode with a transcript than when it was last used.
+- **Only an episode with a transcript with times can be added**: `<podcast:transcript>` as JSON,
+  WebVTT or SRT, the best kind first (HTML has no times). Every episode is listed, the others greyed
+  with No transcript. Transcribing those with Azure was left to be asked about with its price.
+  Episodes up to two hours.
+- **Feeds are untrusted.** Read with defusedxml (no entity expansion), size-capped (15 MB a feed, 5 MB
+  a transcript), and only from a public web address, redirects included (`public_url`), so a feed
+  can't be pointed at the server's own network.
+- **It's an own text** as a video's is (`Engine.add_podcast`, sharing `_add_timed` and
+  `timed_preview` with videos): cues joined into lines with their times (`video.lines_of`), kept in
+  `podcast_texts`, translated and glossed, not recorded (`_make_own_part` skips a text with a video or
+  an episode, retries included). Its cover says Podcast and the show; it opens on Watch and is left
+  out of the shelf's reading order and Up Next (`isWatched`).
+- **Playing**: `expo-audio`, with the lock screen's controls (back 15, forward 30) and playing on
+  with the screen locked while Watch is open; leaving Watch stops it, and opening Watch stops
+  whatever Up Next was playing (`claim`), for videos too.
 
 ## Stories
 

@@ -245,6 +245,15 @@ marked words, ideas) is in the current language, the `language` setting.
     POST  /api/videos                 {language, link} -> 202 {id}: the video's subtitles as a text
                                       on the own row, translated and glossed in the background, not
                                       recorded (the video is their sound)
+    GET   /api/podcasts/search        ?language&term shows in Apple's podcast directory (podcast.py),
+                                      the first few saying whether their episodes have transcripts
+    POST  /api/podcasts/episodes      {link} a show's episodes, newest first, from its feed or an
+                                      Apple Podcasts link (and the episode it names: `picked`)
+    POST  /api/podcasts/preview       {language, feed, guid} what adding an episode with a transcript
+                                      would give: coverage, new words, lines, length, cost. 422 when
+                                      it has no transcript with times, or is over two hours
+    POST  /api/podcasts               {language, feed, guid} -> 202 {id}: the episode's transcript as
+                                      a text on the own row, translated and glossed, not recorded
     POST  /api/native/find            {language, words} each word's native speakers' recordings on
                                       Wikimedia Commons (franki_speech.commons: Lingua Libre's,
                                       then Wiktionary's older files), each with its speaker,
@@ -457,6 +466,7 @@ from franki_reader import (
     meanings,
     note_queue,
     own_text,
+    podcast,
     production,
     rare_words,
     sentences,
@@ -569,6 +579,7 @@ def create_app(
     lessons_dir: Path | None = None,
     commons: Commons | None = None,
     fetch_captions: video.FetchCaptions | None = None,
+    podcasts: podcast.Podcasts | None = None,
     native_dir: Path | None = None,
     write_aspect: aspect.WriteAspect | None = None,
     ask_about_card: ask_card.AskCard | None = None,
@@ -679,6 +690,7 @@ def create_app(
         lessons_dir=lessons_dir,
         commons=commons,
         fetch_captions=fetch_captions,
+        podcasts=podcasts,
         native_dir=native_dir,
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
@@ -883,6 +895,9 @@ def production_app() -> FastAPI:
         # Videos ask YouTube for a video's subtitles only when the learner adds one, and the app's
         # own setting (off until turned on) decides whether anything is asked (video.py).
         fetch_captions=video.youtube_captions(httpx.AsyncClient(), "franki-reader-videos/1.0"),
+        # Podcasts ask Apple's directory and a show's feed only when the learner searches or opens a
+        # show, and the app's own setting (off until turned on) decides whether anything is asked.
+        podcasts=podcast.Podcasts(httpx.AsyncClient(), "franki-reader-podcasts/1.0"),
         native_dir=settings.audio_dir / "native",
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,

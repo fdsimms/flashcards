@@ -7309,6 +7309,253 @@
         }
       }
     },
+    "/api/podcasts/search": {
+      "get": {
+        "summary": "Search",
+        "description": "Shows matching `term` in Apple's podcast directory, in the language's storefront.",
+        "operationId": "search_api_podcasts_search_get",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "th",
+                "es",
+                "de",
+                "fr",
+                "ru",
+                "el",
+                "pl",
+                "nb",
+                "ja",
+                "en",
+                "tok"
+              ],
+              "type": "string",
+              "title": "Language"
+            }
+          },
+          {
+            "name": "term",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Term"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SearchOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/podcasts/episodes": {
+      "post": {
+        "summary": "Episodes",
+        "description": "A show's episodes, newest first, from a feed's link or an Apple Podcasts link.",
+        "operationId": "episodes_api_podcasts_episodes_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EpisodesOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/podcasts/preview": {
+      "post": {
+        "summary": "Preview",
+        "operationId": "preview_api_podcasts_preview_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PodcastPreviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/podcasts": {
+      "post": {
+        "summary": "Add",
+        "operationId": "add_api_podcasts_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EpisodeIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PodcastAddedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/videos/preview": {
       "post": {
         "summary": "Preview",
@@ -8328,6 +8575,125 @@
           "points"
         ],
         "title": "DrillsIn"
+      },
+      "EpisodeIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en",
+              "tok"
+            ],
+            "title": "Language"
+          },
+          "feed": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Feed"
+          },
+          "guid": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Guid"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "feed",
+          "guid"
+        ],
+        "title": "EpisodeIn"
+      },
+      "EpisodeOut": {
+        "properties": {
+          "guid": {
+            "type": "string",
+            "title": "Guid"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "published": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published"
+          },
+          "seconds": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Seconds"
+          },
+          "transcript": {
+            "type": "boolean",
+            "title": "Transcript"
+          }
+        },
+        "type": "object",
+        "required": [
+          "guid",
+          "title",
+          "published",
+          "seconds",
+          "transcript"
+        ],
+        "title": "EpisodeOut"
+      },
+      "EpisodesOut": {
+        "properties": {
+          "show": {
+            "$ref": "#/components/schemas/ShowOut"
+          },
+          "episodes": {
+            "items": {
+              "$ref": "#/components/schemas/EpisodeOut"
+            },
+            "type": "array",
+            "title": "Episodes"
+          },
+          "picked": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Picked"
+          }
+        },
+        "type": "object",
+        "required": [
+          "show",
+          "episodes",
+          "picked"
+        ],
+        "title": "EpisodesOut"
       },
       "ExpectOut": {
         "properties": {
@@ -9643,6 +10009,21 @@
         ],
         "title": "LinesOut"
       },
+      "LinkIn": {
+        "properties": {
+          "link": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Link"
+          }
+        },
+        "type": "object",
+        "required": [
+          "link"
+        ],
+        "title": "LinkIn"
+      },
       "ListenIn": {
         "properties": {
           "key": {
@@ -10309,6 +10690,81 @@
         ],
         "title": "PhrasesOut"
       },
+      "PodcastAddedOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "PodcastAddedOut"
+      },
+      "PodcastPreviewOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "show": {
+            "type": "string",
+            "title": "Show"
+          },
+          "artwork": {
+            "type": "string",
+            "title": "Artwork"
+          },
+          "seconds": {
+            "type": "integer",
+            "title": "Seconds"
+          },
+          "coverage": {
+            "type": "number",
+            "title": "Coverage"
+          },
+          "words": {
+            "type": "integer",
+            "title": "Words"
+          },
+          "new_words": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "New Words"
+          },
+          "new_count": {
+            "type": "integer",
+            "title": "New Count"
+          },
+          "lines": {
+            "type": "integer",
+            "title": "Lines"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "show",
+          "artwork",
+          "seconds",
+          "coverage",
+          "words",
+          "new_words",
+          "new_count",
+          "lines",
+          "cost_usd"
+        ],
+        "title": "PodcastPreviewOut",
+        "description": "What adding an episode would give, before it's added."
+      },
       "PoolIn": {
         "properties": {
           "id": {
@@ -10806,6 +11262,22 @@
         ],
         "title": "SaidOut"
       },
+      "SearchOut": {
+        "properties": {
+          "shows": {
+            "items": {
+              "$ref": "#/components/schemas/ShowOut"
+            },
+            "type": "array",
+            "title": "Shows"
+          }
+        },
+        "type": "object",
+        "required": [
+          "shows"
+        ],
+        "title": "SearchOut"
+      },
       "SenseSentenceIn": {
         "properties": {
           "ja": {
@@ -11269,6 +11741,45 @@
         },
         "type": "object",
         "title": "SettingsUpdate"
+      },
+      "ShowOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "author": {
+            "type": "string",
+            "title": "Author"
+          },
+          "feed": {
+            "type": "string",
+            "title": "Feed"
+          },
+          "artwork": {
+            "type": "string",
+            "title": "Artwork"
+          },
+          "transcripts": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transcripts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "author",
+          "feed",
+          "artwork"
+        ],
+        "title": "ShowOut"
       },
       "SituationFocus": {
         "properties": {

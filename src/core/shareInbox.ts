@@ -18,9 +18,10 @@ export interface SharedItem {
   id: string;
   /**
    * Chosen on the extension's card: read it in Read & Listen (Your own text), add it as words (Quick add), or look it up
-   * (Look up). A YouTube video's link is `video` without a choice (its `text` is the link), for Add a video.
+   * (Look up). A YouTube video's link is `video` without a choice (its `text` is the link), for Add a video, and an Apple
+   * Podcasts link `podcast`, for Add a podcast.
    */
-  kind: 'read' | 'words' | 'lookup' | 'video';
+  kind: 'read' | 'words' | 'lookup' | 'video' | 'podcast';
   text: string;
   /** A Safari page's title, when it came from one. */
   title?: string;
@@ -36,7 +37,7 @@ export function parseShares(raw: unknown): SharedItem[] {
   for (const x of raw) {
     if (!x || typeof x !== 'object') continue;
     const { id, kind, text, title, url, sharedAt } = x as Record<string, unknown>;
-    if (typeof id !== 'string' || !id || (kind !== 'read' && kind !== 'words' && kind !== 'lookup' && kind !== 'video')) continue;
+    if (typeof id !== 'string' || !id || (kind !== 'read' && kind !== 'words' && kind !== 'lookup' && kind !== 'video' && kind !== 'podcast')) continue;
     if (typeof text !== 'string' || !text.trim() || typeof sharedAt !== 'number' || !Number.isFinite(sharedAt)) continue;
     out.push({
       id, kind, text, sharedAt,

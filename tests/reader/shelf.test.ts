@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { GrammarList, ShelfText } from '../../src/reader/api';
-import { cardDetail, episodeLabel, grammarStepNote, hasPracticeRoom, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, upNextOrder, stepGrammarUses, stepLength, surprisePick, upNextSummary } from '../../src/reader/shelf';
+import { cardDetail, episodeLabel, grammarStepNote, hasPracticeRoom, isWatched, minutesFor, nextInOrder, playMinutes, playOrder, reasonLabel, upNextOrder, stepGrammarUses, stepLength, surprisePick, upNextSummary } from '../../src/reader/shelf';
 
 const text = (over: Partial<ShelfText> = {}): ShelfText => ({
   id: 1, title: 'At the stall', topic: 'Food stall', topic_id: 1, form: 'dialogue', lines: 8,
@@ -60,7 +60,12 @@ describe('the shelf', () => {
     expect(nextInOrder(playOrder(shelf), 11)).toBe(12);
     expect(upNextOrder(shelf)).toEqual([3]);
     expect(reasonLabel(text({ reason: 'own' }))).toBe('Your text');
+    // A video's or an episode's text opens on Watch, with no recordings to read through.
+    const watched = { ...shelf, own: [...shelf.own, text({ id: 13, reason: 'own', video: { id: 'dQw4w9WgXcQ', channel: '', generated: true } }), text({ id: 14, reason: 'own', podcast: { show: 'S', artwork: '' } })] };
+    expect(playOrder(watched)).toEqual([3, 11, 12]);
+    expect(isWatched(watched.own[3])).toBe(true);
     expect(reasonLabel(text({ reason: 'own', video: { id: 'dQw4w9WgXcQ', channel: 'Easy Polish', generated: false } }))).toBe('Video from Easy Polish');
+    expect(reasonLabel(text({ reason: 'own', podcast: { show: 'Polski z Anią', artwork: '' } }))).toBe('Podcast: Polski z Anią');
   });
 
   it('steps the length and holds it at the ends', () => {
