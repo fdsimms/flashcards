@@ -3,7 +3,7 @@ import { isOmnilanguage, NO_LANGUAGE, noteLanguageOfDeck, speechLangFor } from '
 import { htmlToText } from './html';
 import { isBuried } from './queue';
 import { isLeechNote } from './trouble';
-import { matchesSearch, parseSearch, rankedWords, type Glob } from './ankiSearch';
+import { browseProblem, matchesSearch, parseSearch, rankedWords, type Glob } from './ankiSearch';
 import { searchPlace, searchQuery, searchRank, type SearchPlace } from './searchRank';
 import type { Card, Note } from './types';
 
@@ -154,8 +154,15 @@ function textMatches(note: Note, text: Glob): boolean {
 /** Where a note found without holding any plain word of the search ranks: after every one that holds one. */
 const NOT_RANKED = 1e6;
 
-/** A note's cards, and the moment and study day Browse's search reads them at. */
-export type SearchCards = { byNote: Map<string, Card[]>; now: Date; dayStartsAtHour: number };
+/**
+ * A note's cards, and the moment and study day Browse's search reads them at; their answers for
+ * `rated:` (`readsAnswers`), and their retrievability for `prop:r`, when the caller has them.
+ */
+export type SearchCards = {
+  byNote: Map<string, Card[]>; now: Date; dayStartsAtHour: number;
+  answersOf?: (card: Card) => { at: number; ease: number }[];
+  retrievabilityOf?: (card: Card) => number | undefined;
+};
 
 /**
  * Notes matching a search in Anki's syntax (src/core/ankiSearch.ts), within a deck and its
@@ -169,11 +176,11 @@ export type SearchCards = { byNote: Map<string, Card[]>; now: Date; dayStartsAtH
  */
 export function searchNotes(notes: Note[], query: string, deck: string | null | undefined, cards: SearchCards): Note[] {
   const parsed = parseSearch(query);
-  if (!parsed.ok) return [];
+  if (!parsed.ok || browseProblem(parsed.node)) return [];
   const { node } = parsed;
   const words = rankedWords(node);
   const search = searchQuery(words.join(' '));
-  const ctx = { now: cards.now, dayStartsAtHour: cards.dayStartsAtHour, textMatches };
+  const ctx = { now: cards.now, dayStartsAtHour: cards.dayStartsAtHour, textMatches, answersOf: cards.answersOf, retrievabilityOf: cards.retrievabilityOf };
   const inDeck = (d: string) => !deck || d === deck || d.startsWith(`${deck}::`);
   const rank = new Map<string, number>();
   const out = notes.filter((n) => {
