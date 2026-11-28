@@ -144,6 +144,8 @@ def test_many_words_beyond_the_first_few_are_looked_up_in_the_background(tmp_pat
         "/api/native/find", json={"language": "de", "words": words}, headers=AUTH
     ).json()
     assert [r["word"] for r in again["results"]] == words and again["pending"] == []
+    # The three looked up while the request waited went in one query, and the three after in another.
+    assert wiki.asked.count("lingualibre.org") == 2
 
 
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="needs ffmpeg")
