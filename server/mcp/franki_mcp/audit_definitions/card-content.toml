@@ -1,0 +1,81 @@
+# A content audit: the checks Claude makes by reading a note, which no rule in omnilanguage.py can make
+# (add_notes, update_notes and lint_notes already hold the parts that need no judgment). audits.py reads
+# every file in this folder; the file's name is the audit's id.
+#
+# Raise a check's `version` when what it asks changes enough that a note it passed before should be
+# checked again. Rewording it without changing what it asks keeps the version. A new check starts at 1
+# and is due on every note; removing one drops it from what's due, and its old records are ignored.
+
+title = "Card content"
+about = """Whether a language note says the right thing about its word: the parts of note_guide that \
+need a reader's judgment. Read note_guide for the note's language first: these checks hold a note to \
+its rules, they don't restate them."""
+
+# Which notes: an Anki search. list_audits and next_audit_batch can narrow it to one deck.
+scope = "note:Omnilanguage -tag:skill"
+
+# The fields the checks read. A change to any of them makes the note due again; a change to any other
+# field (Audio, Pronunciation, a tag) doesn't.
+fields = [
+    "Entry", "Meaning", "Sense", "SenseContrast", "Context", "ContextTranslation", "ContextLiteral",
+    "ContextLabels", "Register", "Dialect", "PartOfSpeech", "Language", "Gender", "Plural", "Genitive",
+    "Classifier", "AspectPartner", "KeyForms", "VerbClass", "Auxiliary", "Notes", "Etymology", "Mnemonic",
+]
+
+# Each check's `flag_reason` is the reason a finding's card is flagged with, from Franki's flag sheet
+# (AGENT_FLAG_REASONS in src/core/agentFlag.ts): typo, audio, translation or other.
+
+[[checks]]
+id = "meaning"
+version = 1
+flag_reason = "translation"
+ask = """Meaning glosses the word correctly, and its lines follow note_guide's test: every gloss on a line \
+could translate the word in the same example sentence, distinct senses are numbered with the most common \
+first, and no sense worth being tested on is missing."""
+
+[[checks]]
+id = "sense"
+version = 1
+flag_reason = "translation"
+ask = """Sense is filled only when the word covers some, not all, of its gloss's most common senses, and \
+then says what the word does not cover without repeating the Meaning. It is empty when the word spans \
+the same senses as the gloss, and never beside a numbered Meaning. SenseContrast, when filled, names the \
+right word for the sense the Sense rules out."""
+
+[[checks]]
+id = "context"
+version = 1
+flag_reason = "typo"
+ask = """Context is a sentence a native speaker would say, correct in grammar and spelling, using the \
+word in the sense the Meaning gives (one line per numbered sense, in order, matching ContextLabels), with \
+the word in bold as the sentence spells it."""
+
+[[checks]]
+id = "translation"
+version = 1
+flag_reason = "translation"
+ask = """ContextTranslation says what Context says, line for line, in natural American English. \
+ContextLiteral, when filled, is a faithful word-for-word reading that teaches something the translation \
+doesn't."""
+
+[[checks]]
+id = "grammar"
+version = 1
+flag_reason = "typo"
+ask = """PartOfSpeech is right, and the grammar fields that are filled (Gender, Plural, Genitive, \
+Classifier, AspectPartner, KeyForms, VerbClass, Auxiliary) are correct for the word. A "-" is right only \
+when the word has no such form in normal use."""
+
+[[checks]]
+id = "register"
+version = 1
+flag_reason = "other"
+ask = """Register, and Dialect when filled, match how the word is actually used: slang or a regional word \
+isn't marked neutral, and an everyday word isn't marked formal or literary."""
+
+[[checks]]
+id = "notes"
+version = 1
+flag_reason = "other"
+ask = """Notes, Etymology and Mnemonic, when filled, are true: no invented origin or cognate, no false \
+claim about what the word takes or how it is used."""

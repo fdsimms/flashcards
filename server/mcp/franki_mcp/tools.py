@@ -16,7 +16,7 @@ import re
 import time
 import urllib.parse
 from datetime import date, datetime, timedelta
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from anki.collection import Collection  # first: the anki package's modules import each other
 from anki.cards import Card
@@ -40,6 +40,9 @@ from .native import NativeRecorder
 from .pronunciation import LANGUAGE_CODES
 from .presets import TIER_PRESET_KEY, share_params, tier_presets_for
 from .reader import ReaderClient
+
+if TYPE_CHECKING:
+    from .audits import AuditStore
 from .speech import (
     TARGET_LUFS,
     TOLERANCE_LU,
@@ -82,6 +85,9 @@ AUDIO_VOICES_KEY = "frankiAudioVoices"
 AGENT_FLAG = 7
 FLAG_TAG_PREFIX = "flag::"
 FLAG_NOTE_PREFIX = "flagnote::"
+# The reasons Franki's flag sheet offers, by their tag's last part (AGENT_FLAG_REASONS there; test_audits.py
+# checks the two match). An audit's checks flag what they find with one of these, so Franki names it.
+FLAG_REASONS = ("typo", "audio", "translation", "other")
 
 
 def _flag_note(tags: list[str]) -> str | None:
@@ -349,6 +355,9 @@ instructions off, so each tool's own description holds its details.
   the voice and text for a re-record) before calling update_notes or add_tts_audio. Only after they
   approve, and once the fix is made, call resolve_flag. Leave a flag in place when the user declines
   or you're unsure.
+- Content audits check what needs judgment (does Meaning gloss the right sense?) a batch at a
+  time: list_audits says what each has covered and when it last ran, next_audit_batch gives the
+  notes due, and record_audit saves what you checked and flags what you found, for flagged_cards.
 - Find notes with find_notes, using Anki's search syntax: words, "deck:Polski", "tag:travel",
   "note:Basic", "Front:kot", "is:due", "is:new", "added:7", "rated:1", combined with spaces (and),
   "or", "-" (not) and parentheses. Read them in full with get_notes.
@@ -380,10 +389,11 @@ instructions off, so each tool's own description holds its details.
 
 def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | None = None,
              reader: ReaderClient | None = None, downloads: AudioFetcher | None = None,
-             native: NativeRecorder | None = None) -> None:
+             native: NativeRecorder | None = None, audits: AuditStore | None = None) -> None:
     """Adds every tool to the server. Without `speech`, the audio tools say how to turn them on.
     `reader` (Read & Listen) says which Japanese words to record from their reading. `downloads`
-    fetches add_audio_from_url's links (tests pass one with a faked network)."""
+    fetches add_audio_from_url's links (tests pass one with a faked network). `audits` holds what
+    the content audits found, which flagged_cards shows and resolve_flag closes."""
     fetcher = downloads or AudioFetcher()
 
     # ---- what's in the collection ----
@@ -770,8 +780,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         """Cards the user flagged in Franki for an agent to check (the purple flag), oldest note
         first, with the reason they gave (typo, audio, translation, other), what they wrote about it
         (`note_from_user`, or null: do what it says, it is the actual request), the note's fields as
-        HTML and its tags. `deck` narrows it to one deck and its subdecks. Fix a card with
-        update_notes or add_tts_audio after the user approves, then clear it with resolve_flag."""
+        HTML and its tags. `deck` narrows it to one deck and its subdecks. `audit_findings` is what a
+        content audit (record_audit) found on the note: each problem, the check, and the fix it
+        suggested; show them to the user as you would their own note. Fix a card with update_notes or
+        add_tts_audio after the user approves, then clear it with resolve_flag."""
 
         def run(col: Collection) -> dict[str, Any]:
             query = f"flag:{AGENT_FLAG}"
@@ -779,6 +791,10 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 query += f' "deck:{search_text(_deck_name(col, _deck_id(col, deck)))}"'
             ids = list(col.find_cards(query))
             page = ids[: max(1, min(limit, 100))]
+            findings: dict[int, list[dict[str, Any]]] = {}
+            if audits is not None and page:
+                for f in audits.open_findings(sorted({col.get_card(cid).nid for cid in page})):
+                    findings.setdefault(f.pop("note_id"), []).append(f)
             out = []
             for cid in page:
                 card = col.get_card(cid)
@@ -786,7 +802,7 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 reasons = [t[len(FLAG_TAG_PREFIX):] for t in note.tags if t.lower().startswith(FLAG_TAG_PREFIX)]
                 out.append({
                     "card_id": cid, "card_type": card.template()["name"], "reason": reasons[0] if reasons else None,
-                    "note_from_user": _flag_note(note.tags),
+                    "note_from_user": _flag_note(note.tags), "audit_findings": findings.get(note.id, []),
                     **_note_dict(col, note, full=False), "fields": dict(note.items()),
                 })
             return {"total": len(ids), "cards": out}
@@ -797,7 +813,8 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
     async def resolve_flag(card_ids: list[int]) -> dict[str, Any]:
         """Clears the agent flag on `card_ids` once the user has approved the fix (or decided
         there's nothing to fix). A note's flag:: reason and flagnote:: tags go too when none of its
-        cards is still flagged."""
+        cards is still flagged, and so do its audit_findings: the note as it is then counts as checked
+        for the audit that found them."""
 
         def run(col: Collection) -> dict[str, Any]:
             cards = [_get_card(col, cid) for cid in card_ids]
@@ -806,19 +823,25 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
                 raise ToolError(f"Card {', '.join(map(str, not_flagged))} isn't flagged for an agent. flagged_cards lists the ones that are. Nothing was changed.")
             col.set_user_flag_for_cards(0, [c.id for c in cards])
             cleared = []
+            unflagged: dict[int, dict[str, str]] = {}
             for nid in {c.nid for c in cards}:
                 if col.find_cards(f"nid:{nid} flag:{AGENT_FLAG}"):
                     continue
                 note = col.get_note(nid)
+                unflagged[nid] = dict(note.items())
                 stale = [t for t in note.tags if _is_flag_tag(t)]
                 if stale:
                     for t in stale:
                         note.remove_tag(t)
                     col.update_note(note)
                     cleared.append(nid)
-            return {"resolved": len(cards), "notes_untagged": cleared}
+            return {"resolved": len(cards), "notes_untagged": cleared}, unflagged
 
-        return await cm.write(run)
+        result, unflagged = await cm.write(run)
+        if audits is not None:
+            closed = {nid: audits.close_findings(nid, fields, "resolved") for nid, fields in unflagged.items()}
+            result["audit_findings_closed"] = sorted(nid for nid, found in closed.items() if found)
+        return result
 
     # ---- studying ----
 
