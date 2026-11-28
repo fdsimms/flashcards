@@ -9,7 +9,7 @@ import { dayKeyOf, studyDayStart } from '../../core/day';
 import { failureText } from '../../core/failure';
 import type { AppRepo } from '../AppContext';
 import { haptic } from '../haptics';
-import { Button, Card, Field, Group, Help, Screen, Select, SwitchRow } from '../kit';
+import { Button, Card, ErrorNote, Field, Group, Help, Screen, Select, SwitchRow } from '../kit';
 import { LANGUAGES } from '../../reader/languages';
 import { readable, space, type, useTheme } from '../theme';
 import { capCramCards, deleteCram, saveCram, startCram, useCollection, useCramClock, useCrams } from '../useCrams';
@@ -56,6 +56,8 @@ export function CramEditor({ repo, id, canSuggest }: {
   // The footer's height: the scroll content is padded by it so Delete cram can scroll clear of Save.
   const [footerHeight, setFooterHeight] = useState(0);
   const [problem, setProblem] = useState<string>();
+  /** A failure, shown as an ErrorNote; `problem` is what to fix in what was typed. */
+  const [failed, setFailed] = useState<string>();
   const newId = useRef<string | undefined>(undefined);
   const picked = useRef(false);
 
@@ -90,7 +92,7 @@ export function CramEditor({ repo, id, canSuggest }: {
     if (wrong) { setProblem(wrong); return; }
     haptic.tap();
     setBusy(true);
-    setProblem(undefined);
+    setProblem(undefined); setFailed(undefined);
     try {
       if (editing) {
         // A name typed over the stand-in is the owner's: a theme no longer replaces it.
@@ -122,7 +124,7 @@ export function CramEditor({ repo, id, canSuggest }: {
       router.replace({ pathname: '/cram', params: { id: cram.id } });
       if (ideas) router.push({ pathname: '/cram-themes', params: { id: cram.id } });
     } catch (e) {
-      setProblem(failureText(e, { what: "Couldn't save the cram.", next: 'Try again.' }));
+      setFailed(failureText(e, { what: "Couldn't save the cram.", next: 'Try again.' }));
       setBusy(false);
     }
   };
@@ -140,7 +142,7 @@ export function CramEditor({ repo, id, canSuggest }: {
             await deleteCram(repo, editing, cramNotes(editing, collection.notes));
             leaveScreen(router, PRACTICE_PATH);
           } catch (e) {
-            setProblem(failureText(e, { what: "Couldn't delete the cram.", next: 'Try again.' }));
+            setFailed(failureText(e, { what: "Couldn't delete the cram.", next: 'Try again.' }));
             setBusy(false);
           }
         },
@@ -163,6 +165,7 @@ export function CramEditor({ repo, id, canSuggest }: {
       footer={(
         <>
           {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+          {failed ? <ErrorNote message={failed} /> : null}
           <Button label={editing ? 'Save' : 'Start cram'} onPress={() => void save()} busy={busy} disabled={!ready} />
         </>
       )}

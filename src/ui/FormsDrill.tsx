@@ -9,13 +9,14 @@ import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { practicingPoints } from '../reader/grammar';
 import { haptic } from './haptics';
-import { Button, Card, Field, HeaderAction, Help, Icon, Loading, ProgressBar, Screen, Segments, Tappable } from './kit';
+import { answerLook, Button, Card, EmptyState, Field, HeaderAction, Help, Icon, Loading, ProgressBar, Screen, Segments, Tappable } from './kit';
 import { Reveal } from './motion';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
+import { hairline, MIN_TAP, radius, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 import { TranslationRow } from './TranslationRow';
 import { stopSpeechIfRunning, usePhoneSpeech } from './usePhoneSpeech';
 import { READABLE_WIDTH } from '../core/wide';
+import { RoundScore } from './RoundScore';
 
 export type AnswerMode = 'pick' | 'type';
 
@@ -164,8 +165,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
     return (
       <Screen title="Practice forms" largeTitle={false} footer={<Button label="Done" onPress={onDone} />}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, padding: space.l, gap: space.m }}>
-          <Text style={{ ...type.headline, color: c.text }}>Nothing to practice</Text>
-          <Help>None of these words list forms that can be asked here. Forms come from each note's Forms field, one per line, like "present · yo: espero".</Help>
+          <EmptyState icon="textformat" title="Nothing to practice" body={'None of these words list forms that can be asked here. Forms come from each note\'s Forms field, one per line, like "present · yo: espero".'} />
           {notice ? <Help>{notice}</Help> : null}
         </ScrollView>
       </Screen>
@@ -175,7 +175,7 @@ export function FormsDrill({ repo, readerApi, request, onDone, onOpenGrammar }: 
   if (done) {
     return (
       <Screen
-        title={`${answered.filter(isRight).length} of ${answered.length} right`}
+        title="Round done"
         footer={
           <>
             {missed.length ? <Button label={missed.length === 1 ? 'Practice the missed one again' : 'Practice the missed ones again'} variant="secondary" onPress={again} /> : null}
@@ -264,13 +264,14 @@ function Question({ prompt, reveal, onPlay }: { prompt: FormPrompt; reveal?: str
       {prompt.gap ? (
         <Text
           accessibilityLabel={`${reveal ? reveal : 'blank'} ${prompt.headword}`}
+          accessibilityLanguage={prompt.say?.lang}
           style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}
         >
           <Text style={{ color: c.accent, textDecorationLine: 'underline' }}>{reveal ?? '___'}</Text>
           {` ${prompt.headword}`}
         </Text>
       ) : (
-        <Text style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{prompt.headword}</Text>
+        <Text accessibilityLanguage={prompt.say?.lang} style={{ ...type.cardFront, color: c.text, textAlign: 'center' }}>{prompt.headword}</Text>
       )}
       {prompt.meaning ? (
         showMeaning ? (
@@ -306,6 +307,7 @@ function Question({ prompt, reveal, onPlay }: { prompt: FormPrompt; reveal?: str
           <Text
             // VoiceOver reads the underscores of the gap badly: it says "blank" until the answer fills it.
             accessibilityLabel={reveal ? undefined : `${prompt.sentence.before} blank ${prompt.sentence.after}`}
+            accessibilityLanguage={prompt.say?.lang}
             style={{ ...type.title, fontWeight: '600', color: c.text, textAlign: 'center' }}
           >
             {prompt.sentence.before}
@@ -334,7 +336,6 @@ function choiceState(choice: string, prompt: FormPrompt, current?: Answered): Ch
 
 export function ChoiceButton({ label, state, onPress, speech }: { label: string; state: ChoiceState; onPress: () => void; /** The language's speech tag, so the choice draws in its font. */ speech?: string }) {
   const c = useTheme();
-  const border = state === 'right' ? c.good : state === 'wrongPick' ? c.danger : c.border;
   return (
     <Tappable
       onPress={onPress}
@@ -344,8 +345,8 @@ export function ChoiceButton({ label, state, onPress, speech }: { label: string;
       restOpacity={state === 'other' ? 0.6 : 1}
       style={{
         flexBasis: '48%', flexGrow: 1, minHeight: 64, paddingHorizontal: space.m, paddingVertical: space.m,
-        flexDirection: 'row', gap: space.s, alignItems: 'center', justifyContent: 'center', borderRadius: radius.m, ...smooth,
-        borderWidth: state === 'open' || state === 'other' ? hairline : 2, borderColor: border, backgroundColor: c.surface,
+        flexDirection: 'row', gap: space.s, alignItems: 'center', justifyContent: 'center',
+        ...answerLook(c, state === 'right' ? 'right' : state === 'wrongPick' ? 'wrong' : 'open'),
       }}
     >
       {state === 'right' ? <Icon name="checkmark" size={18} color={c.good} weight="bold" /> : null}
@@ -430,6 +431,7 @@ function Summary({ answered, notice }: { answered: Answered[]; notice?: string }
   const c = useTheme();
   return (
     <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.m }}>
+      <RoundScore right={answered.filter(isRight).length} asked={answered.length} what="right" />
       {summarySections(answered).map(({ title, rows }) => (
         <View key={title} style={{ gap: space.xs }}>
           {title ? <Text accessibilityRole="header" style={{ ...type.footnote, fontWeight: '600', color: c.textSecondary, paddingHorizontal: space.xs }}>{title}</Text> : null}

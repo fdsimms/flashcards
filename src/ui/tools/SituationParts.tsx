@@ -9,7 +9,7 @@ import { Button, Icon, Tappable } from '../kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { useSoundingButton } from '../useSoundingButton';
 import { TypedDiff } from '../TypedDiff';
-import { RoundRing } from './RoundRing';
+import { RoundScore } from '../RoundScore';
 
 type TextLook = { fontSize: number; lineHeight: number; fontFamily?: string };
 
@@ -139,11 +139,7 @@ export function SituationResult({ feedback, mine, look, lang, added, inDeck, onA
   return (
     <View style={{ gap: space.l, width: '100%' }}>
       {feedback.lines.length ? (
-        <View style={{ alignItems: 'center', gap: space.s }}>
-          <Text numberOfLines={2} style={{ ...type.overline, color: c.textSecondary, textAlign: 'center' }}>{scene}</Text>
-          <RoundRing right={right} asked={feedback.lines.length} what="lines right" />
-          <Text style={{ ...type.body, color: c.text }}>of your lines were right</Text>
-        </View>
+        <RoundScore heading={scene} right={right} asked={feedback.lines.length} what="lines right" />
       ) : null}
       <View style={{ gap: space.m }}>
         <Text style={{ ...type.overline, color: c.textSecondary }}>Your lines</Text>

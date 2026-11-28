@@ -22,7 +22,7 @@ import { makingSpoken, type StageStep } from '../reader/making';
 import { MakingProgress } from './MakingProgress';
 import { WorkingMark } from './WorkingMark';
 import { Hoverable } from './hover';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
+import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, type Colors } from './theme';
 
 /**
  * The shared pieces every screen is built from, so a header, a button or a card looks the same
@@ -505,7 +505,7 @@ export function HeaderAction({ label, onPress, accessibilityLabel, busy }: { lab
         backgroundColor: c.accentFill, borderWidth: hairline, borderColor: c.accent,
       }}
     >
-      {busy ? <ActivityIndicator color={c.accentInk} /> : <Text style={{ ...type.body, fontWeight: '600', color: c.accentInk }}>{label}</Text>}
+      {busy ? <ActivityIndicator color={c.accentInk} /> : <Text style={{ ...type.headline, color: c.accentInk }}>{label}</Text>}
     </Tappable>
   );
 }
@@ -707,7 +707,7 @@ export function Select({ label, options, value, onChange }: { label: string; opt
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
       <Hoverable effect="highlight">
       <Pressable
-        onPress={() => toggle(!open)}
+        onPress={() => { haptic.select(); toggle(!open); }}
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${value || 'none'}`}
         accessibilityState={{ expanded: open }}
@@ -812,7 +812,7 @@ function DrawnSegments<T extends string | number>({ options, value, onChange, st
 }) {
   const c = useTheme();
   return (
-    <View accessibilityRole="radiogroup" style={[{ flexDirection: 'row', backgroundColor: c.fill, borderRadius: radius.s, padding: 2 }, style]}>
+    <View accessibilityRole="radiogroup" style={[{ flexDirection: 'row', backgroundColor: c.fill, borderRadius: radius.s, ...smooth, padding: 2 }, style]}>
       {options.map((o) => {
         const selected = o.value === value;
         return (
@@ -824,7 +824,7 @@ function DrawnSegments<T extends string | number>({ options, value, onChange, st
             accessibilityState={{ selected, disabled: o.disabled }}
             accessibilityLabel={o.accessibilityLabel ?? o.label}
             hitSlop={{ top: 4, bottom: 4 }}
-            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 36, borderRadius: radius.s - 2, backgroundColor: selected ? c.surface : 'transparent', opacity: o.disabled ? 0.4 : 1 }}
+            style={{ flex: 1, alignItems: 'center', justifyContent: 'center', minHeight: 36, borderRadius: radius.s - 2, ...smooth, backgroundColor: selected ? c.surface : 'transparent', opacity: o.disabled ? 0.4 : 1 }}
           >
             <Text style={{ ...type.subhead, fontWeight: '600', color: selected ? c.text : c.textSecondary }}>{o.label}</Text>
           </Pressable>
@@ -856,6 +856,63 @@ export function ProgressBar({ value, label = 'Progress through this session', st
     >
       <Animated.View style={{ height: '100%', borderRadius: radius.pill, backgroundColor: c.accent, width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'], extrapolate: 'clamp' }) }} />
     </View>
+  );
+}
+
+/** Where an answer choice stands: not answered yet, the right one, the one picked wrongly, or another after answering. */
+export type AnswerState = 'open' | 'right' | 'wrong' | 'other';
+
+/**
+ * The box of a quiz's answer choice, spread into its style: the same in every quiz, a pill grid or
+ * a list of rows. The right answer is tinted green and the wrong pick red. The border is the same
+ * width in every state, so answering doesn't shift the choice's text.
+ */
+export function answerLook(c: Colors, state: AnswerState) {
+  return {
+    borderRadius: radius.m + 2, ...smooth, borderWidth: 1.5,
+    backgroundColor: state === 'right' ? c.goodFill : state === 'wrong' ? c.dangerFill : c.surface,
+    borderColor: state === 'right' ? c.countDue : state === 'wrong' ? c.danger : c.border,
+  } as const;
+}
+
+/**
+ * A reading as a bar: a share known, a chance of remembering, how far a lesson has played. 6 high
+ * with round ends wherever it appears. `value` is 0 to 1. A session's or a drill's progress is
+ * `ProgressBar`. With `label`, VoiceOver reads it as a progress bar; leave it off where the
+ * surrounding row already says the number. `track` is for a bar on a tinted surface, where the
+ * usual fill wouldn't show.
+ */
+export function Meter({ value, color, width, track, label, style }: { value: number; color: string; width?: number; track?: string; label?: string; style?: StyleProp<ViewStyle> }) {
+  const c = useTheme();
+  const share = Math.max(0, Math.min(1, value));
+  return (
+    <View
+      accessible={label ? true : undefined}
+      accessibilityRole={label ? 'progressbar' : undefined}
+      accessibilityLabel={label}
+      accessibilityValue={label ? { min: 0, max: 100, now: Math.round(share * 100) } : undefined}
+      style={[{ height: 6, width, borderRadius: radius.pill, backgroundColor: track ?? c.fill, overflow: 'hidden' }, style]}
+    >
+      <View style={{ width: `${share * 100}%`, height: '100%', borderRadius: radius.pill, backgroundColor: color }} />
+    </View>
+  );
+}
+
+/**
+ * What a list or a page shows when there's nothing in it yet: an icon, a title saying so, a line on
+ * how something gets there, and, as children, what to do about it (Buttons, a Help line). The same
+ * everywhere a screen's whole list is empty; a search that matches nothing, or one empty part of a
+ * page, says so in a line instead.
+ */
+export function EmptyState({ icon, title, body, children }: { icon: SFSymbol; title: string; body?: string; children?: React.ReactNode }) {
+  const c = useTheme();
+  return (
+    <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
+      <Icon name={icon} size={40} color={c.textTertiary} weight="regular" />
+      <Text accessibilityRole="header" style={{ ...type.title, color: c.text, marginTop: space.s, textAlign: 'center' }}>{title}</Text>
+      {body ? <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21, textAlign: 'center' }}>{body}</Text> : null}
+      {children ? <View style={{ alignSelf: 'stretch', gap: space.s, marginTop: space.m }}>{children}</View> : null}
+    </Card>
   );
 }
 

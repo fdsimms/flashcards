@@ -26,7 +26,7 @@ export function ReadKanji({ kanji }: { kanji: WordKanji[] }) {
           >
             <Text style={{ ...type.title, color: c.text, width: 36 }}>{k.char}</Text>
             <View style={{ flex: 1, gap: space.xs }}>
-              {k.meanings.length ? <Text style={{ ...type.body, fontWeight: '600', color: c.text }}>{meaningsLine(k)}</Text> : null}
+              {k.meanings.length ? <Text style={{ ...type.headline, color: c.text }}>{meaningsLine(k)}</Text> : null}
               {readingsLine(k) ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{readingsLine(k)}</Text> : null}
               {/* Under the text, not beside it: a third column in a row stretches to the row's height and leaves the text a sliver in a narrow popup. */}
               {levels?.get(k.char) ? (

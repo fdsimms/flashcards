@@ -4,7 +4,7 @@ import type { Word } from '../../reader/api';
 import { inDeck, meaningOf } from '../../reader/languages';
 import { haptic } from '../haptics';
 import { Icon, Tappable } from '../kit';
-import { hairline, lift, radius, smooth, space, type, useTheme } from '../theme';
+import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { RegisterChip } from './ReaderNatural';
 
 /**
@@ -54,15 +54,18 @@ function DeckMark({ onPress }: { onPress: () => void }) {
   return (
     <Tappable
       onPress={onPress}
-      hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel="In your deck"
       accessibilityHint="Shows what this icon means"
-      style={{ width: 24, height: 22, justifyContent: 'center' }}
+      // A full tap target around the 24 by 22 mark. The negative margins keep the line's height, and
+      // reach sideways only as far as the row's gap, so the target never lies on the chip beside it.
+      style={{ minWidth: MIN_TAP, minHeight: MIN_TAP, marginVertical: -(MIN_TAP - 22) / 2, marginHorizontal: -space.s, alignItems: 'center', justifyContent: 'center' }}
     >
-      <Icon name="rectangle.stack" size={19} color={c.goodInk} weight="medium" />
-      <View style={{ position: 'absolute', right: 0, bottom: 0, backgroundColor: c.surface, borderRadius: radius.pill }}>
-        <Icon name="checkmark.circle.fill" size={11} color={c.goodInk} weight="bold" />
+      <View style={{ width: 24, height: 22, justifyContent: 'center' }}>
+        <Icon name="rectangle.stack" size={19} color={c.goodInk} weight="medium" />
+        <View style={{ position: 'absolute', right: 0, bottom: 0, backgroundColor: c.surface, borderRadius: radius.pill }}>
+          <Icon name="checkmark.circle.fill" size={11} color={c.goodInk} weight="bold" />
+        </View>
       </View>
     </Tappable>
   );

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { noteWithExample } from '../../core/grammar';
 import { ApiError, type Api, type GrammarChoice, type TextGrammar } from '../../reader/api';
-import { HeaderAction } from '../kit';
+import { ErrorNote, HeaderAction } from '../kit';
 import { space, type, useTheme } from '../theme';
 
 /**
@@ -57,7 +57,7 @@ export function ReadGrammarNote({ grammar, api, chosen, onChosen }: {
           <HeaderAction label="I don't know it" accessibilityLabel={`I don't know the ${grammar.name}`} onPress={() => mark('avoid')} />
         </View>
       ) : null}
-      {error ? <Text style={{ ...type.footnote, color: c.danger }}>{error}</Text> : null}
+      {error ? <ErrorNote message={error} /> : null}
     </View>
   );
 }

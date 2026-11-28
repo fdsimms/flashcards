@@ -15,8 +15,8 @@ import { SKILL_WORD_NOTE_TYPE } from '../tools/skillWords';
 import { cleanWeeks, DRILL_STEPS, languageOfDeck, knownIn, missingByCard, SKILL_TAG, SKILLS_SUBDECK, skillGroups, skillSections, type SkillSection } from '../tools/skills';
 import { useApp } from './AppContext';
 import { haptic } from './haptics';
-import { Button, Card, Group, HeaderAction, Help, Icon, Screen, SECTION_GAP, Section, SwitchRow } from './kit';
-import { hairline, radius, readable, space, type, useTheme } from './theme';
+import { Button, Card, EmptyState, Group, HeaderAction, Help, Icon, Meter, Screen, Section, SECTION_GAP, SwitchRow } from './kit';
+import { hairline, readable, space, type, useTheme } from './theme';
 
 /**
  * Skill cards (src/tools/skills.ts, src/anki/skillCards.ts), from a deck's options: how the deck's
@@ -193,7 +193,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
         {!found ? (
           <Card><Help>{"This deck's name doesn't say which language it's in. Skill cards need a deck named after its language, e.g. Thai or Polski."}</Help></Card>
         ) : !groups.length ? (
-          <Card><Help>{`There are no skill cards for ${found.name} yet.`}</Help></Card>
+          <EmptyState icon="square.stack.3d.up" title={`No skill cards for ${found.name} yet`} />
         ) : (
           <>
             {sections.map((sec, si) => (
@@ -212,9 +212,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
                           onPress={() => void setStopped(row.action!.noteId, row.action!.kind === 'stop')}
                         />
                       ) : row.covered ? <Icon name="checkmark" size={14} color={c.textTertiary} /> : row.locked ? <Icon name="lock" size={14} color={c.textTertiary} /> : row.meter !== undefined ? (
-                        <View style={{ width: 64, height: 6, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
-                          <View style={{ width: `${row.meter}%`, height: '100%', borderRadius: radius.pill, backgroundColor: row.meter >= 80 ? c.good : c.warning }} />
-                        </View>
+                        <Meter width={64} value={row.meter / 100} color={row.meter >= 80 ? c.good : c.warning} />
                       ) : null}
                     </View>
                   ))}

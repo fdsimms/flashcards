@@ -10,7 +10,8 @@ import { markerText, noteMarkers, type NoteMarker } from '../core/noteMarkers';
 import type { Card, Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
-import { Chip, Divider, Icon, Loading, Screen, SwipeAction, SwipeToReveal } from './kit';
+import { Chip, Divider, EmptyState, ErrorNote, Icon, Loading, Screen, SwipeAction, SwipeToReveal } from './kit';
+import { haptic } from './haptics';
 import { SelectBar } from './SelectBar';
 import { useSelection } from './useSelection';
 import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
@@ -90,6 +91,7 @@ export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: No
   const foundIds = useMemo(() => found.map((n) => n.id), [found]);
   const sel = useSelection(foundIds);
   const deleteSelected = () => {
+    haptic.tap();
     const picked = [...sel.selected];
     const cardCount = picked.reduce((n, id) => n + (cards?.byNote.get(id)?.length ?? 0), 0);
     Alert.alert(deleteNotesTitle(picked.length), deleteNotesWarning(cardCount), [
@@ -155,11 +157,13 @@ export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: No
           </View>
         }
         ListEmptyComponent={!notes ? <Loading error={error} onRetry={load} /> : searchProblem ? (
-          <Text style={{ ...type.subhead, color: c.danger, paddingTop: space.xl }}>{`Couldn't read the search. ${searchProblem}`}</Text>
-        ) : (
+          <View style={{ paddingTop: space.xl }}><ErrorNote message={`Couldn't read the search. ${searchProblem}`} /></View>
+        ) : query.trim() || filter ? (
           <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center', paddingTop: space.xl }}>
-            {query.trim() ? `No notes match "${query.trim()}".\n${SYNTAX_HINT}` : filter ? 'No notes here match this filter.' : 'No notes yet. Tap + to add one.'}
+            {query.trim() ? `No notes match "${query.trim()}".\n${SYNTAX_HINT}` : 'No notes here match this filter.'}
           </Text>
+        ) : (
+          <View style={{ paddingTop: space.xl }}><EmptyState icon="rectangle.stack" title="No notes yet" body="Tap + to add one." /></View>
         )}
         renderItem={({ item, index }) => (
           <NoteRow
