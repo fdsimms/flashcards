@@ -1,7 +1,7 @@
 import React from 'react';
-import { ScrollView, Text, View } from 'react-native';
-import { Group, Help, Icon, Screen } from './kit';
-import { hairline, MIN_TAP, readable, space, type, useTheme } from './theme';
+import { ScrollView } from 'react-native';
+import { Group, Help, Screen, ValueRow } from './kit';
+import { readable, space, useTheme } from './theme';
 
 /**
  * What the header's Offline button (no Wi-Fi, or a cloud with a warning) opens (Screen in kit.tsx): what's waiting for the connection,
@@ -21,12 +21,7 @@ export function OfflineSheet({ problem, lines }: { problem: 'offline' | 'server'
         </Help>
         {lines.length ? (
           <Group accessibilityRole="list">
-            {lines.map((line, i) => (
-              <View key={line} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP, paddingVertical: space.m, paddingHorizontal: space.l, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}>
-                <Icon name="clock" size={18} color={c.textSecondary} />
-                <Text style={{ ...type.body, color: c.text, flex: 1 }}>{line}</Text>
-              </View>
-            ))}
+            {lines.map((line, i) => <ValueRow key={line} first={i === 0} label={line} icon={{ name: 'clock', color: c.textSecondary }} />)}
           </Group>
         ) : (
           <Help>Nothing is waiting to be sent.</Help>

@@ -1,11 +1,9 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Text, View } from 'react-native';
 import { activeMode, vacationNotice, type VacationNotice, type VacationPrefs } from '../core/vacation';
-import { haptic } from './haptics';
-import { Icon, Tappable } from './kit';
+import { Banner } from './kit';
 import { Reveal } from './motion';
-import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
+import { type, useTheme } from './theme';
 import { useStudyToday, useVacationPrefs } from './vacationPrefs';
 
 /** A study-day key as the phone writes dates, "Sat, Nov 28". */
@@ -44,26 +42,8 @@ export function VacationCard({ notice, due }: { notice: VacationNotice; due: num
     ? `${due.toLocaleString()} ${due === 1 ? 'card is' : 'cards are'} due. Until you've caught up, the ones you're likeliest to remember come first.`
     : notice.mode === 'light' ? 'Fewer new cards and reviews, weakest first.' : 'No cards are offered.';
   return (
-    <Reveal
-      style={{
-        flexDirection: 'row', alignItems: 'center', borderRadius: radius.l, ...smooth,
-        backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, ...lift(c, 'high'),
-      }}
-    >
-      <Tappable
-        onPress={() => { haptic.tap(); router.push('/vacation'); }}
-        accessibilityRole="button"
-        accessibilityLabel={`${title}. ${detail}`}
-        accessibilityHint="Opens Vacation mode"
-        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 56, paddingVertical: space.m, paddingHorizontal: space.l }}
-      >
-        <Icon name={away ? 'airplane' : 'house.fill'} size={22} color={c.accent} />
-        <View style={{ flex: 1 }}>
-          <Text style={{ ...type.callout, color: c.text }}>{title}</Text>
-          <Text style={{ ...type.footnote, color: c.textSecondary }}>{detail}</Text>
-        </View>
-        <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
-      </Tappable>
+    <Reveal>
+      <Banner icon={away ? 'airplane' : 'house.fill'} iconColor={c.accent} title={title} hint={detail} onPress={() => router.push('/vacation')} accessibilityHint="Opens Vacation mode" />
     </Reveal>
   );
 }

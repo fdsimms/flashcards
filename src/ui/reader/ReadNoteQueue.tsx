@@ -8,8 +8,8 @@ import { counts, droppedNotice, firstReady, isRetrying, isWorking, needsChoice }
 import type { DroppedWord } from '../../reader/noteQueueStore';
 import { haptic } from '../haptics';
 import type { Approval } from '../useApproveQueued';
-import { Button, EmptyState, ErrorNote, Group, HeaderAction, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
-import { hairline, MIN_TAP, space, type, useTheme, readable } from '../theme';
+import { Button, Divider, EmptyState, ErrorNote, Group, HeaderAction, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
+import { MIN_TAP, space, type, useTheme, readable } from '../theme';
 
 /** Time for one note editor to finish closing before the next opens over it. */
 const BETWEEN_EDITORS_MS = 400;
@@ -56,7 +56,8 @@ function NoteRow({ note, first, refusal, added, locked, pending, onOpen, onRetry
   // A word typed the way it sounds shows how it's really written beside it.
   const word = note.spelling ? `${note.entry} → ${note.spelling}` : note.entry;
   return (
-    <View style={{ borderTopWidth: first ? 0 : hairline, borderTopColor: c.border, opacity: added ? 0.55 : 1 }}>
+    <View style={{ opacity: added ? 0.55 : 1 }}>
+      {first ? null : <Divider inset={space.l} />}
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <Tappable
           onPress={() => { haptic.tap(); onOpen(); }}
@@ -108,7 +109,8 @@ function NoteRow({ note, first, refusal, added, locked, pending, onOpen, onRetry
 function HeldRow({ entry, meaning, deck, first, onRemove }: { entry: string; meaning: string; deck: string; first: boolean; onRemove: () => void }) {
   const c = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', borderTopWidth: first ? 0 : hairline, borderTopColor: c.border }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      {first ? null : <Divider inset={space.l} />}
       <View accessible accessibilityLabel={`${entry}. ${meaning ? `${meaning}. ` : ''}Not sent yet`} style={{ flex: 1, gap: space.xs, minHeight: MIN_TAP + space.l, paddingVertical: space.m, paddingLeft: space.l, justifyContent: 'center' }}>
         <Text style={{ ...withThaiLineHeight(type.headline, entry), color: c.text }}>{entry}</Text>
         {meaning ? <Text numberOfLines={1} style={{ ...type.subhead, color: c.textSecondary }}>{meaning}</Text> : null}

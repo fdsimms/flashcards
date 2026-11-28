@@ -4,8 +4,7 @@ import { WebView } from 'react-native-webview';
 import { JAPANESE_FONT } from '../core/script';
 import { chooseTier, fitShape, TIER_LAYOUT, type FitTier, type TierLayout } from '../wanikani/cardFit';
 import { mnemonicParts, mnemonicSections, otherMeanings, primaryMeaning, READING_TYPE_NAMES, readingGroups, shownSentences, SUBJECT_TYPE_NAMES, type Part, type Subject, type SubjectType } from '../wanikani/subjects';
-import { haptic } from './haptics';
-import { Icon, Tappable } from './kit';
+import { Icon, Tappable, TextButton } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, type Colors } from './theme';
 import { READABLE_WIDTH } from '../core/wide';
 
@@ -213,9 +212,7 @@ export function MnemonicsPanel({ subject, showMeaning, showReading, onClose }: {
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: MIN_TAP }}>
         <Text style={{ ...type.headline, color: c.text }}>Mnemonics</Text>
-        <Tappable onPress={() => { haptic.tap(); onClose(); }} accessibilityRole="button" accessibilityLabel="Close mnemonics" scaleTo={0.94} style={{ minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.s }}>
-          <Text style={{ ...type.callout, fontWeight: '600', color: c.accentInk }}>Close</Text>
-        </Tappable>
+        <TextButton label="Close" accessibilityLabel="Close mnemonics" onPress={onClose} style={{ paddingHorizontal: space.s }} />
       </View>
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: space.s, paddingBottom: space.m }}>
         {mnemonicSections(subject, showMeaning, showReading).map((m, i) => <Mnemonic key={i} title={m.title} markup={m.markup} onCard={false} />)}

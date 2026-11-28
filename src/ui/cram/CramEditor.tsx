@@ -9,11 +9,11 @@ import { dayKeyOf, studyDayStart } from '../../core/day';
 import { failureText } from '../../core/failure';
 import type { AppRepo } from '../AppContext';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Field, Group, Help, Screen, Select, SwitchRow } from '../kit';
+import { Button, Card, CheckboxRow, ErrorNote, Field, Group, Help, Screen, Select, SwitchRow } from '../kit';
 import { LANGUAGES } from '../../reader/languages';
 import { readable, space, type, useTheme } from '../theme';
 import { capCramCards, deleteCram, saveCram, startCram, useCollection, useCramClock, useCrams } from '../useCrams';
-import { CheckRow, Pill } from './CramBits';
+import { Pill } from './CramBits';
 import { useMissedLately } from './useMissedLately';
 import { leaveScreen } from '../leaveScreen';
 import { PRACTICE_PATH } from '../tabPaths';
@@ -216,7 +216,7 @@ export function CramEditor({ repo, id, canSuggest }: {
             <Text style={{ ...type.subhead, color: c.textSecondary }}>Start with</Text>
             <Group>
               {carried ? (
-                <CheckRow
+                <CheckboxRow
                   first
                   label={`${carried.noteIds.length === 1 ? '1 word' : `${carried.noteIds.length} words`} you didn't use last time`}
                   detail={`From ${carried.from.name}`}
@@ -225,7 +225,7 @@ export function CramEditor({ repo, id, canSuggest }: {
                 />
               ) : null}
               {missedIds.length ? (
-                <CheckRow
+                <CheckboxRow
                   first={!carried}
                   label={`${missedIds.length === 1 ? '1' : missedIds.length} ${languageName ?? ''} ${missedIds.length === 1 ? 'word' : 'words'} you missed recently`.replace(/\s+/g, ' ')}
                   detail="Answered Again in Review, most missed first"

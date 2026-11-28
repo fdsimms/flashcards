@@ -5,7 +5,7 @@ import type { SituationFeedback, SituationTurn } from '../../reader/api';
 import { needsMeaning } from '../../reader/languages';
 import { lineParts } from '../../reader/situations';
 import { haptic } from '../haptics';
-import { Button, Icon, Tappable } from '../kit';
+import { Button, Icon, Tappable, TextButton } from '../kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { useSoundingButton } from '../useSoundingButton';
 import { TypedDiff } from '../TypedDiff';
@@ -68,9 +68,7 @@ export function TheirLine({ turn, name, look, lang, heardOnly, onPlay, lookup }:
             ))) : turn.line}
           </Text>
         ) : (
-          <Tappable onPress={() => { haptic.select(); setShown(true); }} accessibilityRole="button" style={{ flexShrink: 1, minHeight: MIN_TAP, justifyContent: 'center' }}>
-            <Text style={{ ...type.callout, color: c.accent }}>Show the text</Text>
-          </Tappable>
+          <TextButton label="Show the text" onPress={() => setShown(true)} style={{ flexShrink: 1 }} />
         )}
         {onPlay ? (
           <Tappable
@@ -91,9 +89,7 @@ export function TheirLine({ turn, name, look, lang, heardOnly, onPlay, lookup }:
         </Text>
       ) : null}
       {english ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{turn.english}</Text> : (
-        <Tappable onPress={() => { haptic.select(); setEnglish(true); }} accessibilityRole="button" hitSlop={{ top: space.s, bottom: space.s }} style={{ alignSelf: 'flex-start', minHeight: 28, justifyContent: 'center' }}>
-          <Text style={{ ...type.footnote, color: c.accent }}>Show English</Text>
-        </Tappable>
+        <TextButton label="Show English" onPress={() => setEnglish(true)} style={{ alignSelf: 'flex-start' }} />
       )}
     </View>
   );

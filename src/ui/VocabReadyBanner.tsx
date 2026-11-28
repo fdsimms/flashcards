@@ -1,15 +1,14 @@
 import { usePathname, useRouter } from 'expo-router';
 import React, { useEffect, useSyncExternalStore } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LANGUAGES } from '../reader/languages';
 import { vocabWatch, watchStateOf } from '../reader/vocabWatch';
 import { useApp } from './AppContext';
-import { haptic } from './haptics';
-import { Icon, Tappable } from './kit';
+import { Banner } from './kit';
 import { Reveal } from './motion';
 import { TODAY_PATH } from './tabPaths';
-import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
+import { space, useTheme } from './theme';
 
 const POLL_MS = 3000;
 const CHECK_PATH = '/read-vocab-check';
@@ -38,8 +37,8 @@ export function useVocabReady() {
       ready,
       message: ready ? `The ${name} vocabulary check is ready` : `Couldn't write the ${name} questions`,
       hint: ready ? 'Tap to start' : 'Tap to see why and try again',
-      open: () => { haptic.tap(); vocabWatch.clear(); router.push(CHECK_PATH); },
-      dismiss: () => { haptic.tap(); vocabWatch.clear(); },
+      open: () => { vocabWatch.clear(); router.push(CHECK_PATH); },
+      dismiss: () => vocabWatch.clear(),
     },
   };
 }
@@ -49,32 +48,8 @@ export function VocabReadyCard({ banner }: { banner: NonNullable<ReturnType<type
   const c = useTheme();
   const { ready, message, hint } = banner;
   return (
-    <Reveal
-      style={{
-        flexDirection: 'row', alignItems: 'center', borderRadius: radius.l, ...smooth,
-        backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, ...lift(c, 'high'),
-      }}
-    >
-      <Tappable
-        onPress={banner.open}
-        accessibilityRole="button"
-        accessibilityLabel={`${message}. ${hint}`}
-        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 56, paddingVertical: space.m, paddingLeft: space.l }}
-      >
-        <Icon name={ready ? 'checkmark.circle.fill' : 'exclamationmark.triangle.fill'} size={22} color={ready ? c.good : c.warning} />
-        <View style={{ flex: 1 }}>
-          <Text style={{ ...type.callout, color: c.text }}>{message}</Text>
-          <Text style={{ ...type.footnote, color: c.textSecondary }}>{hint}</Text>
-        </View>
-      </Tappable>
-      <Tappable
-        onPress={banner.dismiss}
-        accessibilityRole="button"
-        accessibilityLabel="Dismiss"
-        style={{ width: 44, height: 44, marginRight: space.xs, alignItems: 'center', justifyContent: 'center' }}
-      >
-        <Icon name="xmark" size={14} color={c.textSecondary} />
-      </Tappable>
+    <Reveal>
+      <Banner icon={ready ? 'checkmark.circle.fill' : 'exclamationmark.triangle.fill'} iconColor={ready ? c.good : c.warning} title={message} hint={hint} onPress={banner.open} onDismiss={banner.dismiss} />
     </Reveal>
   );
 }

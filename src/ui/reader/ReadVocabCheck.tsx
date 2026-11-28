@@ -343,14 +343,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
             <Button label={asked.length + 1 >= QUESTIONS ? 'See result' : 'Next'} onPress={next} />
           </Reveal>
         ) : (
-          <Tappable
-            onPress={() => answer('skipped')}
-            accessibilityRole="button"
-            accessibilityLabel="I don't know this word"
-            style={{ minHeight: 52, alignItems: 'center', justifyContent: 'center', paddingHorizontal: space.l, paddingVertical: space.m }}
-          >
-            <Text style={{ ...type.body, color: c.accentInk, fontWeight: '600' }}>I don't know this word</Text>
-          </Tappable>
+          <Button variant="tinted" label="I don't know this word" onPress={() => answer('skipped')} />
         )}
       </ScrollView>
     </Screen>

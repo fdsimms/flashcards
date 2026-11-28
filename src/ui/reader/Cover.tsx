@@ -2,8 +2,8 @@ import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { deckTint } from '../../core/deckBadge';
 import { haptic } from '../haptics';
-import { Meter, Tappable } from '../kit';
-import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { Meter, TextButton } from '../kit';
+import { radius, smooth, space, type, useTheme } from '../theme';
 import { HoverPressable } from '../hover';
 
 /** A cover's kind, small over its title ("Story", "Series"). */
@@ -85,14 +85,7 @@ export function CoverRow({ title, action, children }: {
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.m, paddingHorizontal: space.l }}>
         <Text accessibilityRole="header" style={{ ...type.title, fontSize: 20, color: c.text, flexShrink: 1 }}>{title}</Text>
         {action ? (
-          <Tappable
-            onPress={() => { haptic.tap(); action.onPress(); }}
-            accessibilityRole="button"
-            accessibilityLabel={action.accessibilityLabel ?? action.label}
-            style={{ minHeight: MIN_TAP, justifyContent: 'center' }}
-          >
-            <Text style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>{action.label}</Text>
-          </Tappable>
+          <TextButton label={action.label} accessibilityLabel={action.accessibilityLabel ?? action.label} onPress={action.onPress} />
         ) : null}
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: space.l, gap: space.s + 2 }}>

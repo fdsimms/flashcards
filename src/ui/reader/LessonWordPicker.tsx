@@ -4,18 +4,16 @@ import { FlatList, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { LESSON_MAX_WORDS } from '../../core/cram';
 import { failureText } from '../../core/failure';
-import { withThaiLineHeight } from '../../core/script';
 import { hasLessonWord, pickerWords, PICKER_ROWS, WORD_FILTERS, type WordFilter } from '../../core/lessonWords';
 import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Divider, ErrorNote, Field, Icon, Loading, Screen, Segments } from '../kit';
-import { MIN_TAP, readable, space, type, useTheme } from '../theme';
+import { CheckboxRow, ErrorNote, Field, Loading, Screen, Segments } from '../kit';
+import { readable, space, type, useTheme } from '../theme';
 import { useCollection, useCramClock } from '../useCrams';
 import { useLessonWords } from './useLessonWords';
 import { leaveScreen } from '../leaveScreen';
 import { LESSONS_PATH } from '../tabPaths';
-import { HoverPressable } from '../hover';
 
 /**
  * Choose words for an audio lesson from the decks: the language's notes, most recently added first
@@ -72,23 +70,7 @@ export function LessonWordPicker({ repo, language }: { repo: NoteStore; language
         renderItem={({ item, index }) => {
           const on = hasLessonWord(words, item.text);
           return (
-            <HoverPressable
-              onPress={() => toggle(item)}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: on }}
-              accessibilityLabel={`${item.text}, ${item.english}`}
-              style={({ pressed }) => ({
-                minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, paddingHorizontal: space.m,
-                backgroundColor: pressed ? c.fill : c.surface,
-              })}
-            >
-              {index === 0 ? null : <Divider inset={space.m} />}
-              <Icon name={on ? 'checkmark.circle.fill' : 'circle'} size={22} color={on ? c.accent : c.textTertiary} weight="regular" />
-              <View style={{ flex: 1, gap: space.xs }}>
-                <Text style={{ ...withThaiLineHeight(type.body, item.text), color: c.text }}>{item.text}</Text>
-                <Text numberOfLines={1} style={{ ...type.footnote, color: c.textSecondary }}>{item.english}</Text>
-              </View>
-            </HoverPressable>
+            <CheckboxRow first={index === 0} checked={on} onPress={() => toggle(item)} label={item.text} detail={item.english} />
           );
         }}
         ListEmptyComponent={<Text style={{ ...type.footnote, color: c.textSecondary }}>{empty}</Text>}

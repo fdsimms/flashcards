@@ -11,9 +11,9 @@ import { STROKE_CREDIT, type StrokeOrder } from '../../tools/strokeOrder';
 import { WRITING } from '../../tools/tools';
 import { CURSIVE_LANGUAGES, writingHint, writingKind, writingKinds, writingStyle, type WritingItem, type WritingKind, type WritingMode, type WritingStyle } from '../../tools/writing';
 import { haptic } from '../haptics';
-import { Button, Tappable } from '../kit';
+import { Button, TextButton } from '../kit';
 import { CardSurface, type CardMotion } from '../SwipeCard';
-import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { radius, smooth, space, type, useTheme } from '../theme';
 import { useWritingKanji } from '../useWritingKanji';
 import type { ToolScreenProps } from './index';
 import { Glyph, InkCopy, InkPad } from './InkPad';
@@ -212,9 +212,7 @@ function Compare({ item, kind, language, strokes, pad, face, order }: { item: Wr
     </View>
     {order ? (
       <View style={{ alignItems: 'center', gap: space.xs }}>
-        <Tappable onPress={() => { haptic.select(); setPlays((n) => n + 1); }} accessibilityRole="button" style={{ minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.l }}>
-          <Text style={{ ...type.body, color: c.accentInk }}>Play the strokes</Text>
-        </Tappable>
+        <TextButton label="Play the strokes" onPress={() => setPlays((n) => n + 1)} style={{ paddingHorizontal: space.l }} />
         <Text style={{ ...type.caption, color: c.textSecondary, textAlign: 'center' }}>{STROKE_CREDIT}</Text>
       </View>
     ) : null}

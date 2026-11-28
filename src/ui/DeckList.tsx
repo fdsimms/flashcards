@@ -247,7 +247,7 @@ export function WarningBanner({ title, detail, action, hint, onPress }: { title:
         <View style={{ flex: 1, gap: space.xs }}>
           <Text style={{ ...type.headline, color: c.warning }}>{title}</Text>
           <Text style={{ ...type.subhead, color: c.textSecondary }}>{detail}</Text>
-          <Text style={{ ...type.subhead, color: c.accent, fontWeight: '600' }}>{action}</Text>
+          <Text style={{ ...type.subhead, color: c.accentInk, fontWeight: '600' }}>{action}</Text>
         </View>
       </View>
     </Tappable>

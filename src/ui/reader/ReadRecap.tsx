@@ -7,10 +7,9 @@ import { useReadingFont } from './useReadingFont';
 import { glossInfo } from '../../reader/languages';
 import { prefs } from '../../reader/storage';
 import { wrapGroups } from '../../reader/wordLayout';
-import { haptic } from '../haptics';
-import { Help, Icon, Tappable } from '../kit';
+import { Help, TextButton } from '../kit';
 import { WordView } from './ReadWord';
-import { hairline, MIN_TAP, space, type, useTheme } from '../theme';
+import { hairline, space, type, useTheme } from '../theme';
 
 /**
  * Last time, on a story's page and at the top of an episode in the reader: what happened in the episode just read. An episode written since
@@ -40,16 +39,7 @@ export function ReadRecap({ recap, line, language, tapped, onTap }: {
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.m }}>
         <Text style={{ ...type.overline, color: c.textSecondary }}>Last time</Text>
         {line ? (
-          <Tappable
-            onPress={() => { haptic.select(); setEnglish(!english); }}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: english }}
-            accessibilityLabel={english ? 'Hide English' : 'Show English'}
-            style={{ minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.xs }}
-          >
-            <Text style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>{english ? 'Hide English' : 'Show English'}</Text>
-            <Icon name={english ? 'chevron.up' : 'chevron.down'} size={12} color={c.accent} weight="semibold" />
-          </Tappable>
+          <TextButton label={english ? 'Hide English' : 'Show English'} chevron={english ? 'up' : 'down'} accessibilityState={{ expanded: english }} onPress={() => setEnglish(!english)} />
         ) : null}
       </View>
       {line ? (
