@@ -2,7 +2,7 @@ import React, { useEffect, useMemo } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { problemText } from '../wanikani/api';
 import { answerSummary, comingUp, STAGE_GROUPS, startedTotal, type LevelProgress } from '../wanikani/stats';
-import { Card, Group, Help, Loading, NavRow, Screen } from './kit';
+import { Card, Group, Help, Loading, Meter, NavRow, Screen } from './kit';
 import type { WaniKaniState } from './useWaniKani';
 import { stageColors } from './WaniKaniStageBar';
 import { space, type, useTheme, readable } from './theme';
@@ -43,7 +43,7 @@ export function WaniKaniStats({ wanikani, onStats }: { wanikani: WaniKaniState; 
           <Text style={{ ...type.title, color: c.text }}>Level {level}</Text>
           {stats.progress && stats.progress.level === level ? (
             <>
-              <Bar share={stats.progress.kanjiPassed / stats.progress.needed} color={colors.guru} label={`${stats.progress.kanjiPassed} of ${stats.progress.needed} kanji needed at Guru`} />
+              <Meter value={stats.progress.kanjiPassed / stats.progress.needed} color={colors.guru} label={`${stats.progress.kanjiPassed} of ${stats.progress.needed} kanji needed at Guru`} />
               <Help>{levelHelp(stats.progress)}</Help>
             </>
           ) : level >= 60 ? <Help>This is WaniKani's last level.</Help> : null}
@@ -55,7 +55,7 @@ export function WaniKaniStats({ wanikani, onStats }: { wanikani: WaniKaniState; 
             <View key={g.key} accessible accessibilityLabel={`${g.label}: ${stats.stages[g.key]}`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
               <Text style={{ ...type.callout, color: c.text, width: 100 }}>{g.label}</Text>
               <View style={{ flex: 1 }}>
-                <Bar share={stats.stages[g.key] / biggest} color={colors[g.key]} />
+                <Meter value={stats.stages[g.key] / biggest} color={colors[g.key]} />
               </View>
               <Text style={{ ...type.callout, fontWeight: '600', color: c.text, width: 48, textAlign: 'right', fontVariant: ['tabular-nums'] }}>{stats.stages[g.key].toLocaleString()}</Text>
             </View>
@@ -102,15 +102,5 @@ export function WaniKaniStats({ wanikani, onStats }: { wanikani: WaniKaniState; 
 function levelHelp(p: LevelProgress): string {
   const have = `${p.kanjiPassed} of ${p.kanjiTotal} kanji are at Guru.`;
   return p.remaining === 0 ? `${have} That's enough for level ${p.level + 1}.` : `${have} ${p.remaining} more to reach level ${p.level + 1}.`;
-}
-
-/** A bar filled to `share` (0 to 1) of its width. */
-function Bar({ share, color, label }: { share: number; color: string; label?: string }) {
-  const c = useTheme();
-  return (
-    <View accessible={!!label} accessibilityLabel={label} style={{ height: 10, borderRadius: 5, backgroundColor: c.fill, overflow: 'hidden' }}>
-      <View style={{ width: `${Math.min(1, Math.max(0, share)) * 100}%`, height: '100%', borderRadius: 5, backgroundColor: color }} />
-    </View>
-  );
 }
 
