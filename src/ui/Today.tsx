@@ -11,6 +11,7 @@ import type { StudiedToday } from './useTodaySummary';
 import { NewWordsCards } from './NewWordsCard';
 import { FromZeroCards } from './FromZeroCards';
 import { NoteQueueCard, useNoteQueueBanner } from './NoteQueueBanner';
+import { QuietCard } from './QuietCard';
 import { SharedCard, useSharedBanner } from './SharedBanner';
 import { SyncingPill, useSyncTap, type SyncProp } from './syncTap';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
@@ -201,6 +202,7 @@ export function Today(props: {
                 <FromZeroCards />
                 <NewWordsCards />
                 {vacation ? <VacationCard notice={vacation} due={totals.due} /> : null}
+                <QuietCard />
               </>
             )}
             crams={props.crams}

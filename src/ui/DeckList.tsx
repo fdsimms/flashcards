@@ -135,7 +135,7 @@ export function DeckRowView({ row, first, picked = false, toggleSlot = false, de
   const parts = row.deck.split('::');
   const inDeck = row.depth >= (editing ? 1 : 2) ? `in ${parts[parts.length - 2]}` : '';
   // A detail line (WaniKani's level) goes under the name too; the card counts were dropped to save space.
-  const line = detail ? detail.text : [inDeck, row.totals ? totalsLine(row.totals) : ''].filter(Boolean).join(' · ');
+  const line = detail ? detail.text : [inDeck, row.totals ? totalsLine(row.totals) : '', row.setAside ? `${row.setAside.toLocaleString()} listening ${row.setAside === 1 ? 'card' : 'cards'} set aside` : ''].filter(Boolean).join(' · ');
   const badge = leadingEmoji(row.name);
   // The line stays short; at the cap it turns warning-colored, and VoiceOver also hears that new cards wait.
   const gateLine = row.gate ? `${row.gate.inProgress} of ${row.gate.cap} in progress` : null;

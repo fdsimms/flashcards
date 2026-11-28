@@ -4,6 +4,7 @@ import { ankiToday, compareDeckNames, DEFAULT_ORDER, gatherNew, inFilteredOrder,
 import { aspectPartners, groupPartners } from './aspectPairs';
 import { boostCap, type Boost } from './priority';
 import { deckTotals, type DeckTotals } from './deckTotals';
+import { isListeningCard } from './quietMode';
 import { isInProgress } from './progress';
 import { isSkillsDeck, skillCardIds } from './skillTag';
 import { dueMs, isBuried, isDue, isInterdayLearning, isLearning, studiable, type Queue, type StudiedToday } from './queue';
@@ -148,6 +149,8 @@ export interface TreeQueueInput {
    * and Review cards are ever held; learning cards keep their steps.
    */
   held?: Set<string>;
+  /** Whether Quiet mode is on (`quietMode.ts`). Its listening cards are already in `held`; this lets `deckRows` say how many it set aside. */
+  quiet?: boolean;
   /** Tagged cards that come first when `root` is studied (`boostFor`, priority.ts). */
   boostFor?: (root: string) => Boost | undefined;
   /** A deck's own daily new card limit, not today's: its preset's, else its own from Deck options (`DeckRow.newPerDay`). */
@@ -431,8 +434,10 @@ export function queueInput(a: {
   gateFor?: (deck: string) => number | undefined;
   collection: CollectionSettings;
   now: Date;
-  /** Lookalikes held back (`heldCards`). */
+  /** Lookalikes held back (`heldCards`), and Quiet mode's listening cards when it's on. */
   held?: Set<string>;
+  /** Whether Quiet mode is on, for the deck list's "set aside" line (`TreeQueueInput.quiet`). */
+  quiet?: boolean;
   /**
    * A deck's own limits from Deck options, for a deck with no Anki preset to take them from
    * (`DeckSettings.newPerDay` / `reviewsPerDay`). Required, so every caller decides.
@@ -469,6 +474,7 @@ export function queueInput(a: {
     ankiToday: ankiToday(a.now, a.collection.dayStartsAtHour, a.collection.collectionCreated, a.collection.creationOffset),
     now: a.now,
     held: a.held,
+    quiet: a.quiet,
     boostFor: a.boostFor,
     vacation,
     batchBySubdeck: a.batchBySubdeck,
@@ -487,6 +493,8 @@ export interface DeckRow extends DeckNode {
   cards?: number;
   /** The deck's and its subdecks' cards and notes by state (`deckTotals`). Missing from a row kept from before it was counted. */
   totals?: DeckTotals;
+  /** While Quiet mode is on: the listening cards due in the deck and its subdecks that it's holding back. Missing when none, or Quiet mode is off. */
+  setAside?: number;
   /** For a gated deck: cards in progress under it, and its cap. */
   gate?: { inProgress: number; cap: number };
   /**
@@ -587,12 +595,14 @@ export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], p
     let total = 0;
     let unstudied = 0;
     let all = 0;
+    let setAside = 0;
     for (const [deck, cards] of input.cardsByDeck) {
       if (!isInDeck(deck, node.deck)) continue;
       all += cards.filter((c) => !c.retired).length;
       const open = studiable(cards);
       total += open.length;
       unstudied += open.filter((c) => c.sched.state === 0 && !input.skillCards.has(c.id)).length;
+      if (input.quiet) setAside += open.filter((c) => isListeningCard(c) && c.sched.state !== 0 && !isBuried(c, input.now ?? new Date(), input.dayStartsAtHour) && isDue(c, input.now ?? new Date(), input.dayStartsAtHour)).length;
     }
     const cap = input.gateFor?.(node.deck);
     const gate = cap === undefined ? undefined : { inProgress: inProgressCount(node.deck, input.cardsByDeck, input.skillCards), cap };
@@ -601,7 +611,7 @@ export function deckRows(input: TreeQueueInput, listed: Iterable<string> = [], p
     const home: Card[] = [];
     for (const [deck, cards] of byHome) if (isInDeck(deck, node.deck)) for (const c of cards) home.push(c);
     const totals = deckTotals(home, input.skillCards, input.now ?? new Date(), input.dayStartsAtHour);
-    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, cards: all, totals, newPerDay, ...(gate ? { gate } : {}) };
+    return { ...node, due: q.due.length, fresh: q.fresh.length, total, unstudied, cards: all, totals, newPerDay, ...(setAside ? { setAside } : {}), ...(gate ? { gate } : {}) };
   });
 }
 
