@@ -42,6 +42,14 @@ describe('renderTemplate', () => {
     expect(renderTemplate('{{#Country}}[{{#Capital}}{{Capital}}{{/Capital}}]{{/Country}}', ctx)).toBe('[Lima]');
     expect(renderTemplate('{{Card}} / {{Type}} / {{Subdeck}} / {{Tags}}', ctx)).toBe('Flag - Country / Ultimate Geography / Geo / americas');
   });
+  it('fills {{CardFlag}} and {{CardID}} from the card, as Anki does', () => {
+    const ctx = { note: peru, noteType: geo, ord: 1, side: 'front' as const };
+    const tpl = '<div class="{{CardFlag}}">{{CardID}}</div>{{#CardFlag}}flagged{{/CardFlag}}';
+    expect(renderTemplate(tpl, { ...ctx, card: { id: 'n1:t1', ankiId: '1700000000000', flag: 3 } })).toBe('<div class="flag3">1700000000000</div>flagged');
+    expect(renderTemplate(tpl, { ...ctx, card: { id: 'n1:t1' } })).toBe('<div class="">n1:t1</div>');
+    expect(renderTemplate(tpl, ctx)).toBe('<div class=""></div>');
+    expect(renderTemplateCard(peru, { ...geo, templates: [{ ...geo.templates[0], front: '{{CardFlag}}' }] }, 0, '', { id: 'x', flag: 1 }).front).toBe('flag1');
+  });
   it('applies filters: hint, text, type, furigana, tts', () => {
     const note: Note = { ...peru, fields: { ...peru.fields, Reading: '日本[にほん]', Html: '<b>bold</b>' } };
     const ctx = { note, noteType: geo, ord: 0, side: 'front' as const };
