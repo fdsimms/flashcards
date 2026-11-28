@@ -1730,8 +1730,6 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               {reminder ? <MissReminder text={reminder} /> : null}
               {senseCountOn && !senseMarks.reminder && !revealed && senseCountLabel(senseMarks.count) ? <SenseCount text={senseCountLabel(senseMarks.count)!} /> : null}
               {senseMarks.reminder && !revealed ? <SenseReminder key={current.id} {...senseMarks.reminder} /> : null}
-              {/* On the card, not in the footer: the footer holds the tallest height it has shown (ReviewFooter.tsx). */}
-              {typing ? null : <AspectQuestion check={aspectCheck} revealed={revealed} />}
               {canRecordYourself(rendered) && !idleRecording(self) ? (
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: space.s }}>
                   <RecordYourself rec={self} label="Record" size="card" />
@@ -1749,11 +1747,14 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
               </Reveal>
             ) : null}
           </ScrollView>
+          {/* A band along the card's foot, not in the footer: the footer holds the tallest height it has shown (ReviewFooter.tsx). */}
+          {typing ? null : <AspectQuestion check={aspectCheck} revealed={revealed} />}
           </Pressable>
         </SwipeCard>
         {/* Fixed in the card's bottom right corner, so it's under the thumb whatever the card's length. */}
         {playbackFor(rendered, revealed) ? (
           <PlayButton
+            lift={typing ? 0 : aspectCheck.bandHeight}
             onPlay={() => speak(playbackFor(rendered, revealed))}
             speech={rendered.speechLang}
           />
