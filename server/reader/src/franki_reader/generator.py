@@ -1370,7 +1370,8 @@ def _quote_issues(
         for name, text in quotation_texts(ln.text, ln.quotes):
             if (key := find(cast, name)) is not None:
                 quotations.append((name, cast[key].gender, text))
-    return problems, quote_gender_problems(request.language, quotations), quotations
+    said: list[tuple[str, str, str]] = list(quotations)
+    return problems, quote_gender_problems(request.language, quotations), said
 
 
 def _choices(draft: dict[str, Any], request: TextRequest) -> tuple[Choice, ...]:

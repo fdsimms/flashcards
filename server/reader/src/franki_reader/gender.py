@@ -111,7 +111,9 @@ def polite_i_problems(language: Code, said: Sequence[tuple[str, str, str]]) -> l
     for who, gender, text in said:
         if gender != "male":
             continue
-        tokens = [t.strip(_PUNCTUATION) for t in _SPLIT.split(text.replace("*", "").replace("~", ""))]
+        tokens = [
+            t.strip(_PUNCTUATION) for t in _SPLIT.split(text.replace("*", "").replace("~", ""))
+        ]
         if "ฉัน" in tokens and any("ครับ" in t for t in tokens):
             problems.append(
                 f"{who} is a man and ends with ครับ, so he says ผม, not ฉัน, in: {text}. "

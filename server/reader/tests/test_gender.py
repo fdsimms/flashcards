@@ -107,12 +107,15 @@ def test_a_man_who_ends_with_khrap_is_sent_back_for_saying_chan() -> None:
     [problem] = polite_i_problems("th", [("Speaker A", "male", "ฉัน|ดีใจ|มาก|ครับ")])
     assert "Speaker A is a man" in problem and "ผม" in problem
     # ฉัน without ครับ, ผม with it, and a woman's ฉัน are all fine.
-    assert polite_i_problems(
-        "th",
-        [
-            ("Speaker A", "male", "ฉัน|ไป|ก่อน|นะ"),
-            ("Speaker A", "male", "ผม|ดีใจ|มาก|ครับ"),
-            ("Speaker B", "female", "ฉัน|ดีใจ|มาก|ค่ะ"),
-        ],
-    ) == []
+    assert (
+        polite_i_problems(
+            "th",
+            [
+                ("Speaker A", "male", "ฉัน|ไป|ก่อน|นะ"),
+                ("Speaker A", "male", "ผม|ดีใจ|มาก|ครับ"),
+                ("Speaker B", "female", "ฉัน|ดีใจ|มาก|ค่ะ"),
+            ],
+        )
+        == []
+    )
     assert polite_i_problems("fr", [("Speaker A", "male", "ฉัน|ครับ")]) == []
