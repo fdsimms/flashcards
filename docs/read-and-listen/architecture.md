@@ -479,7 +479,9 @@ Wikimedia Commons where there is one, in place of an Azure one; a sentence keeps
   it can't fetch anything else. Words beyond the first three of a request are looked up in the
   background and come back `pending`.
 - **New notes** get one as they're recorded (`recordNote` asks `RecordDeps.native` before Azure;
-  Commons out of reach falls back to Azure); the MCP's `add_notes` does the same. **A note being
+  Commons out of reach falls back to Azure); the MCP's `add_notes` does the same, looking a call's
+  words up together (`Commons.find_many`: one Lingua Libre query and one Commons request for up to
+  50 words, then a download for each recording kept). **A note being
   edited** has Another speaker, Use Azure voice, or Find a native recording. **Words already in a
   deck**: Deck options' Native recordings looks them up, shows each to play and untick, and replaces
   the Azure recordings only on Use these (`replaceWithNative`, which leaves a note changed meanwhile

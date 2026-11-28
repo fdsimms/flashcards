@@ -125,15 +125,27 @@ class NativeRecorder:
             return rows
 
         rows = await self.cm.read(plan)
+        # Every word of a language looked up at once (Commons.find_many): one Lingua Libre query and
+        # one Commons request for the call rather than both for each note.
+        words: dict[str, list[str]] = {}
+        for row in rows:
+            if "word" in row:
+                words.setdefault(row["language"], []).append(row["word"])
+        looked_up: dict[str, dict[str, list[Recording]] | CommonsUnavailable] = {}
+        for language, asked in words.items():
+            try:
+                looked_up[language] = await commons.find_many(language, asked)
+            except CommonsUnavailable as e:
+                looked_up[language] = e
         files: dict[int, tuple[str, bytes, Recording]] = {}
         for i, row in enumerate(rows):
             if "word" not in row:
                 continue
-            try:
-                found = await commons.find(row["language"], row["word"])
-            except CommonsUnavailable as e:
-                row["error"] = f"Couldn't look it up: {e}"
+            answer = looked_up[row["language"]]
+            if isinstance(answer, CommonsUnavailable):
+                row["error"] = f"Couldn't look it up: {answer}"
                 continue
+            found = answer[row["word"]]
             if not found:
                 row["skipped"] = "No native recording on Wikimedia Commons."
                 continue
