@@ -22,7 +22,7 @@ import { makingSpoken, type StageStep } from '../reader/making';
 import { MakingProgress } from './MakingProgress';
 import { WorkingMark } from './WorkingMark';
 import { Hoverable } from './hover';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, type Colors } from './theme';
+import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, type Colors } from './theme';
 
 /**
  * The shared pieces every screen is built from, so a header, a button or a card looks the same
@@ -635,6 +635,59 @@ export function TextButton({ label, onPress, icon, chevron, disabled, busy, busy
         </>
       )}
     </Tappable>
+  );
+}
+
+/**
+ * A lifted card that says something has happened and opens it: a deck shared to Franki, new words
+ * running low, notes ready from Claude, vacation, reviews to do first. An icon, the news, a line
+ * on what a tap does, then a close button when it can be dismissed or a chevron when it can't.
+ * The caller wraps it in `Reveal` where it should fade in.
+ */
+export function Banner({ icon, iconColor, title, hint, onPress, onDismiss, dismissLabel = 'Dismiss', accessibilityHint }: {
+  icon: SFSymbol;
+  iconColor: string;
+  title: string;
+  hint: string;
+  onPress: () => void;
+  onDismiss?: () => void;
+  /** What VoiceOver says for the close button ("Dismiss until tomorrow"). */
+  dismissLabel?: string;
+  accessibilityHint?: string;
+}) {
+  const c = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: 'row', alignItems: 'center', borderRadius: radius.l, ...smooth,
+        backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, ...lift(c, 'high'),
+      }}
+    >
+      <Tappable
+        onPress={() => { haptic.tap(); onPress(); }}
+        accessibilityRole="button"
+        accessibilityLabel={`${title}. ${hint}`}
+        accessibilityHint={accessibilityHint}
+        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 56, paddingVertical: space.m, paddingLeft: space.l, paddingRight: onDismiss ? 0 : space.l }}
+      >
+        <Icon name={icon} size={22} color={iconColor} />
+        <View style={{ flex: 1 }}>
+          <Text numberOfLines={2} style={{ ...type.callout, color: c.text }}>{title}</Text>
+          <Text style={{ ...type.footnote, color: c.textSecondary }}>{hint}</Text>
+        </View>
+        {onDismiss ? null : <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />}
+      </Tappable>
+      {onDismiss ? (
+        <Tappable
+          onPress={() => { haptic.tap(); onDismiss(); }}
+          accessibilityRole="button"
+          accessibilityLabel={dismissLabel}
+          style={{ minWidth: MIN_TAP, minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center', marginRight: space.xs }}
+        >
+          <Icon name="xmark" size={14} color={c.textTertiary} weight="semibold" />
+        </Tappable>
+      ) : null}
+    </View>
   );
 }
 
