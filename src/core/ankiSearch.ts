@@ -42,7 +42,13 @@ export interface Glob {
   source: string;
 }
 
-export type CardStateWord = 'due' | 'new' | 'learn' | 'review' | 'suspended' | 'buried';
+export type CardStateWord = 'due' | 'new' | 'learn' | 'review' | 'suspended' | 'buried' | 'buried-manually' | 'buried-sibling';
+
+/** A comparison in a `prop:` or Anki's own form of `rated:`. */
+export type CompareOp = '<' | '<=' | '>' | '>=' | '=' | '!=';
+
+/** The card properties `prop:` compares (Anki's parse_prop): interval, due, reps, lapses, ease, new-card position, FSRS stability, difficulty and retrievability. */
+export type PropName = 'ivl' | 'due' | 'reps' | 'lapses' | 'ease' | 'pos' | 's' | 'd' | 'r';
 
 export type SearchNode =
   | { kind: 'and' | 'or'; parts: SearchNode[] }
@@ -53,15 +59,51 @@ export type SearchNode =
   | { kind: 'field'; field: Glob; value: Glob }
   | { kind: 'is'; state: CardStateWord }
   | { kind: 'flag'; flag: number }
-  | { kind: 'added'; days: number };
+  | { kind: 'added'; days: number }
+  /**
+   * Answered in a span of days, as Anki's `write_rated(op, days, ease)` reads it: an answer whose time
+   * compares by `op` with the start of the study day `days` from the next one (`rated:7` is `>` with
+   * -7). `ease` is a button (1-4), any button, or a manual reschedule (Set Due Date, Forget: `resched:`).
+   */
+  | { kind: 'rated'; op: CompareOp; days: number; ease: number | 'any' | 'manual' }
+  | { kind: 'prop'; prop: PropName; op: CompareOp; value: number };
 
 /** A search read: its tree (none when nothing was typed), or why it couldn't be read. */
 export type ParsedSearch = { ok: true; node?: SearchNode } | { ok: false; error: string };
 
-const STATES: CardStateWord[] = ['due', 'new', 'learn', 'review', 'suspended', 'buried'];
+const STATES: CardStateWord[] = ['due', 'new', 'learn', 'review', 'suspended', 'buried', 'buried-manually', 'buried-sibling'];
 
 /** Anki's searches this doesn't read yet; refused by name instead of being searched as a field. */
-export const UNSUPPORTED = ['rated', 'prop', 're', 'nc', 'w', 'dupe', 'cid', 'nid', 'mid', 'did', 'card', 'resched', 'introduced', 'edited', 'preset'];
+export const UNSUPPORTED = ['re', 'nc', 'w', 'dupe', 'cid', 'nid', 'mid', 'did', 'card', 'introduced', 'edited', 'preset'];
+
+/** Whole numbers only, as Anki parses these (u32, or i32 for due). */
+const WHOLE_PROPS = new Set<PropName>(['ivl', 'reps', 'lapses', 'pos']);
+
+/** An answer button in `rated:N:B`: 1 to 4, or any when there's none. */
+function answerButton(text: string | undefined, example: string): number | 'any' {
+  if (text === undefined) return 'any';
+  if (!/^[1-4]$/.test(text)) throw new SearchError(`The answer button in ${example} is 1 (Again) to 4 (Easy).`);
+  return Number(text);
+}
+
+/** `prop:<name><op><value>`, as Anki's parse_prop reads it. */
+function propNode(text: string): SearchNode {
+  const m = /^(ivl|due|reps|lapses|ease|pos|rated|resched|s|d|r)(<=|>=|!=|=|<|>)(.*)$/i.exec(text);
+  if (!m) throw new SearchError('prop: takes a property, a comparison and a number, e.g. prop:ivl>=21 or prop:due<=3.');
+  const name = m[1].toLowerCase();
+  const op = m[2] as CompareOp;
+  const num = m[3];
+  if (name === 'rated' || name === 'resched') {
+    const [d, button] = num.split(':', 2);
+    if (!/^-?\d+$/.test(d)) throw new SearchError(`prop:${name} takes a number of days, e.g. prop:${name}>-7.`);
+    if (name === 'resched' && button !== undefined) throw new SearchError('prop:resched takes a number of days, e.g. prop:resched>-7.');
+    return { kind: 'rated', op, days: Number(d), ease: name === 'resched' ? 'manual' : answerButton(button, `prop:rated${op}${num}`) };
+  }
+  const prop = name as PropName;
+  const pattern = WHOLE_PROPS.has(prop) ? /^\d+$/ : prop === 'due' ? /^-?\d+$/ : /^-?\d+(\.\d+)?$/;
+  if (!pattern.test(num)) throw new SearchError(`prop:${prop} needs a ${WHOLE_PROPS.has(prop) || prop === 'due' ? 'whole number' : 'number'} after ${op}, e.g. prop:${prop}${op}${prop === 'due' ? '1' : prop === 'r' || prop === 'd' ? '0.9' : prop === 'ease' ? '2.5' : '3'}.`);
+  return { kind: 'prop', prop, op, value: Number(num) };
+}
 
 class SearchError extends Error {}
 
@@ -151,7 +193,16 @@ function leaf(raw: string): SearchNode {
   const valueRaw = raw.slice(colon + 1);
   const value = glob(valueRaw);
   const name = key.text.toLowerCase();
-  if (UNSUPPORTED.includes(name)) throw new SearchError(`Browse can't search by ${name}: yet. Take it out to search by the rest.`);
+  if (UNSUPPORTED.includes(name)) throw new SearchError(`Franki can't search by ${name}: yet. Take it out to search by the rest.`);
+  if (name === 'rated' || name === 'resched') {
+    const [d, button, extra] = value.text.split(':');
+    if (!/^\d+$/.test(d ?? '') || extra !== undefined || (name === 'resched' && button !== undefined)) {
+      throw new SearchError(name === 'rated' ? 'rated: takes a number of days and an optional answer button, e.g. rated:7 or rated:7:1.' : 'resched: takes a number of days, e.g. resched:7.');
+    }
+    const days = Math.max(1, Number(d));
+    return { kind: 'rated', op: '>', days: -days, ease: name === 'resched' ? 'manual' : answerButton(button, `rated:${value.text}`) };
+  }
+  if (name === 'prop') return propNode(value.text);
   if (name === 'deck' || name === 'note' || name === 'tag') {
     if (!value.text) {
       const example = name === 'deck' ? 'a deck name, e.g. deck:Polski' : name === 'tag' ? 'a tag, e.g. tag:verb' : 'a note type, e.g. note:Basic';
@@ -162,7 +213,7 @@ function leaf(raw: string): SearchNode {
   }
   if (name === 'is') {
     const state = value.text.toLowerCase() as CardStateWord;
-    if (!STATES.includes(state)) throw new SearchError('is: takes due, new, learn, review, suspended or buried.');
+    if (!STATES.includes(state)) throw new SearchError('is: takes due, new, learn, review, suspended, buried, buried-manually or buried-sibling.');
     return { kind: 'is', state };
   }
   if (name === 'flag') {
@@ -258,7 +309,70 @@ export interface SearchContext {
   dayStartsAtHour: number;
   /** Whether a note holds a plain word of the search (`text`), as Browse matches one. */
   textMatches: (note: Note, text: Glob) => boolean;
+  /** A card's answers (time in ms, button pressed), for `rated:`; without it nothing was answered. */
+  answersOf?: (card: Card) => { at: number; ease: number }[];
+  /** A card's retrievability now, for `prop:r`; undefined when it has no memory state. */
+  retrievabilityOf?: (card: Card) => number | undefined;
 }
+
+/**
+ * The parts of a search Browse can't answer from Franki's own copy of a card, with the reason: Anki's
+ * ease (FSRS doesn't keep one), manual reschedules (`resched:`, which Franki's answers don't log) and
+ * which kind of bury a card is under. A filtered deck reads them from the collection
+ * (`matchesAnkiRow`, ankiRowSearch.ts), so only Browse refuses them.
+ */
+export function browseProblem(node: SearchNode | undefined): string | undefined {
+  if (!node) return undefined;
+  switch (node.kind) {
+    case 'and': case 'or': for (const p of node.parts) { const e = browseProblem(p); if (e) return e; } return undefined;
+    case 'not': return browseProblem(node.part);
+    case 'prop': return node.prop === 'ease' ? "Browse can't search by prop:ease: Franki schedules with FSRS, which keeps no ease. A filtered deck can use it." : undefined;
+    case 'rated': return node.ease === 'manual' ? "Browse can't search by resched: yet. A filtered deck can use it." : undefined;
+    case 'is': return node.state === 'buried-manually' || node.state === 'buried-sibling'
+      ? `Browse can't search by is:${node.state} yet. Use is:buried, or a filtered deck.` : undefined;
+    default: return undefined;
+  }
+}
+
+/** Whether a search reads cards' answers (`rated:`), so a caller loads them only then. */
+export function readsAnswers(node: SearchNode | undefined): boolean {
+  if (!node) return false;
+  if (node.kind === 'and' || node.kind === 'or') return node.parts.some(readsAnswers);
+  if (node.kind === 'not') return readsAnswers(node.part);
+  return node.kind === 'rated';
+}
+
+/** `a op b`. */
+export function compare(a: number, op: CompareOp, b: number): boolean {
+  switch (op) {
+    case '<': return a < b;
+    case '<=': return a <= b;
+    case '>': return a > b;
+    case '>=': return a >= b;
+    case '=': return a === b;
+    case '!=': return a !== b;
+  }
+}
+
+/**
+ * Whether an answer at `atMs` falls in `rated:`'s span, as Anki's write_rated compares the review
+ * log's id with the start of the study day `days` days from the next one (`nextDayAtMs`).
+ */
+export function ratedSpan(atMs: number, op: CompareOp, days: number, nextDayAtMs: number): boolean {
+  const target = nextDayAtMs + 86_400_000 * days;
+  const dayBefore = nextDayAtMs + 86_400_000 * (days - 1);
+  switch (op) {
+    case '>': return atMs >= target;
+    case '>=': return atMs >= dayBefore;
+    case '<': return atMs < dayBefore;
+    case '<=': return atMs < target;
+    case '=': return atMs >= dayBefore && atMs <= target - 1;
+    case '!=': return !(atMs >= dayBefore && atMs <= target - 1);
+  }
+}
+
+/** Whether a button pressed matches `rated:`'s: that button, any (not a manual reschedule), or a manual reschedule. */
+export const ratedEase = (ease: number, want: number | 'any' | 'manual') => (want === 'any' ? ease > 0 : want === 'manual' ? ease === 0 : ease === want);
 
 const whole = (g: Glob) => new RegExp(`^${g.source}$`, 'isu');
 /** A deck's or tag's name, or one under it (`Polski` holds `Polski::Odmiana`). */
@@ -304,6 +418,42 @@ function evaluate(node: SearchNode, note: Note, card: Card | undefined, ctx: Sea
     }
     case 'flag': return !!card && (card.flag ?? 0) === node.flag;
     case 'is': return !!card && cardIs(node.state, card, ctx);
+    case 'rated': {
+      if (!card || !ctx.answersOf) return false;
+      const next = nextStudyDayStart(ctx.now, ctx.dayStartsAtHour).getTime();
+      return ctx.answersOf(card).some((a) => ratedEase(a.ease, node.ease) && ratedSpan(a.at, node.op, node.days, next));
+    }
+    case 'prop': return !!card && cardProp(node, card, ctx);
+  }
+}
+
+/** `prop:` on Franki's copy of a card, read as Anki reads the same columns (sqlwriter.rs, write_prop). */
+function cardProp(node: Extract<SearchNode, { kind: 'prop' }>, card: Card, ctx: SearchContext): boolean {
+  const s = card.sched;
+  const { op, value } = node;
+  switch (node.prop) {
+    case 'ivl': return compare(s.state === 2 || s.state === 3 ? s.scheduledDays : 0, op, value);
+    case 'reps': return compare(s.reps, op, value);
+    case 'lapses': return compare(s.lapses, op, value);
+    case 'pos': return s.state === 0 && card.position !== undefined && compare(card.position, op, value);
+    case 'due': {
+      if (card.suspended || s.state === 0) return false;
+      const due = new Date(s.due);
+      // A review (or a step on a later day) by study days from today; a step today by whole days from the next day's start, as Anki's integer division gives.
+      if (s.state === 2 || (s.state !== 1 && s.state !== 3)) {
+        const days = Math.round((studyDayStart(due, ctx.dayStartsAtHour).getTime() - studyDayStart(ctx.now, ctx.dayStartsAtHour).getTime()) / 86_400_000);
+        return compare(days, op, value);
+      }
+      return compare(Math.trunc((due.getTime() - nextStudyDayStart(ctx.now, ctx.dayStartsAtHour).getTime()) / 86_400_000), op, value);
+    }
+    case 's': return s.state !== 0 && compare(s.stability, op, value);
+    case 'd': return s.state !== 0 && compare(s.difficulty, op, value * 9 + 1);
+    case 'r': {
+      if (s.state === 0) return false;
+      const r = ctx.retrievabilityOf?.(card);
+      return r !== undefined && compare(r, op, value);
+    }
+    case 'ease': return false; // refused in Browse (browseProblem)
   }
 }
 
@@ -321,7 +471,7 @@ function cardIs(state: CardStateWord, card: Card, ctx: SearchContext): boolean {
     case 'learn': return s === 1 || s === 3;
     case 'review': return s === 2 || s === 3;
     case 'suspended': return card.suspended;
-    case 'buried': return !card.suspended && isBuried(card, ctx.now, ctx.dayStartsAtHour);
+    case 'buried': case 'buried-manually': case 'buried-sibling': return !card.suspended && isBuried(card, ctx.now, ctx.dayStartsAtHour);
     case 'due': {
       if (card.suspended || s === 0 || isBuried(card, ctx.now, ctx.dayStartsAtHour)) return false;
       return new Date(card.sched.due).getTime() < nextStudyDayStart(ctx.now, ctx.dayStartsAtHour).getTime();

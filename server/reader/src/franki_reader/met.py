@@ -4,7 +4,8 @@ A word outside the deck is met once, in the text that needed it, and then never 
 unless the learner makes a card of it. Picking a word up from reading takes several meetings, and
 the ones the learner tapped are the ones they wanted to know. So a word looked up in a text read to
 the end, and still not known, is offered to the next texts until it has been met on `MET_DAYS`
-different study days (the day it was looked up included), fewest meetings first.
+different study days (the day it was looked up included), fewest meetings first. A meeting is
+counted by the word's dictionary form, so a form other than the one looked up counts too.
 
 It stays a word outside the list: it counts against the coverage target as any unfamiliar word
 does, is glossed, and takes the place of another one rather than adding to them. The model uses one
@@ -51,6 +52,18 @@ def pick_met(
     """The looked-up words to offer a text written on `today`, from `readings` oldest first. A word
     is left out once the deck knows it, once it has been met on `MET_DAYS` days, and on a day it
     was already met, so two texts in a day don't both carry it."""
+    # A word is counted by its dictionary form, so it's met again when it comes back in another
+    # form (Hund looked up, Hunde in a later text); one with none (Thai) by itself. Imported here:
+    # reader imports generator, which imports this module.
+    from franki_reader.reader import lemma_for
+
+    forms: dict[str, str] = {}
+
+    def key_of(word: str) -> str:
+        if word not in forms:
+            forms[word] = (lemma_for(word, lexicon) or word).casefold()
+        return forms[word]
+
     meanings: dict[str, MetWord] = {}
     days: dict[str, set[date]] = {}
     for reading in readings:
@@ -58,10 +71,11 @@ def pick_met(
         unknown = {t.text.casefold(): t.text for t in tokens if t.status != "known"}
         glosses = {word.casefold(): meaning for word, meaning in reading.glosses.items()}
         for word in reading.looked_up:
-            key = word.casefold()
-            if key in unknown and glosses.get(key) and key not in meanings:
-                meanings[key] = MetWord(unknown[key], glosses[key])
-        for key in {t.text.casefold() for t in tokens}:
+            looked = word.casefold()
+            key = key_of(word)
+            if looked in unknown and glosses.get(looked) and key not in meanings:
+                meanings[key] = MetWord(unknown[looked], glosses[looked])
+        for key in {key_of(t.text) for t in tokens}:
             days.setdefault(key, set()).add(reading.day)
     offered = [key for key in meanings if len(days[key]) < MET_DAYS and today not in days[key]]
     # Stable: among words met equally often, the one looked up first comes first.

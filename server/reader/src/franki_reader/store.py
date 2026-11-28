@@ -440,6 +440,17 @@ CREATE TABLE IF NOT EXISTS podcast_texts (
     times TEXT NOT NULL
 );
 
+-- An episode's transcript made by Azure (podcast.py, Transcribe), kept so it's never paid for twice:
+-- its cues as JSON [[start, end, text], ...], and what it cost.
+CREATE TABLE IF NOT EXISTS podcast_transcripts (
+    feed TEXT NOT NULL,
+    guid TEXT NOT NULL,
+    cues TEXT NOT NULL,
+    cost_usd REAL NOT NULL,
+    made_at TEXT NOT NULL,
+    PRIMARY KEY (feed, guid)
+);
+
 -- Your level's figure for each study day (level.py, level_store.py), for its trend: how many of
 -- the 2,000 most common words are known and the share of everyday speech they make up.
 CREATE TABLE IF NOT EXISTS level_days (
@@ -668,9 +679,13 @@ def connect(path: Path | str) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(_SCHEMA)
-    if "key" not in {r[1] for r in conn.execute("PRAGMA table_info(listens)")}:
+    listen_columns = {r[1] for r in conn.execute("PRAGMA table_info(listens)")}
+    if "key" not in listen_columns:
         # The app's own id for a listen, so one sent twice is counted once; none before it sent one.
         conn.execute("ALTER TABLE listens ADD COLUMN key TEXT")
+    if "seconds" not in listen_columns:
+        # How long the listen played, for the week's listening time; none before the app sent it.
+        conn.execute("ALTER TABLE listens ADD COLUMN seconds INTEGER")
     if "roles" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
         # Texts written before speakers had roles have none, and show only A and B.
         conn.execute("ALTER TABLE texts ADD COLUMN roles TEXT NOT NULL DEFAULT '{}'")
@@ -1938,8 +1953,8 @@ def input_time(conn: sqlite3.Connection, since: datetime) -> list[InputTime]:
     """Each language's time since `since`, for every language with a text ever read: reading is the
     time logged on texts read (`readings.seconds`), listening the time on texts played with their
     words hidden (`listen_only`) plus the length of each audio lesson played to the end
-    (`lessons.heard_at`). A text heard again (`listens`) has no time kept, so it isn't counted.
-    Only reports: nothing reads it to steer a text or grade a card."""
+    (`lessons.heard_at`), plus each text heard again (`listens.seconds`; one sent by an app older
+    than that has none, and isn't counted). Only reports: nothing reads it to steer a text or grade a card."""
     times: dict[str, list[int]] = {}
     last: dict[str, datetime] = {}
     for language, seconds, listen_only, logged_at, finished in conn.execute(
@@ -1957,6 +1972,12 @@ def input_time(conn: sqlite3.Connection, since: datetime) -> list[InputTime]:
         (since.isoformat(),),
     ):
         times.setdefault(language, [0, 0])[1] += int(duration_ms) // 1000
+    for language, seconds in conn.execute(
+        """SELECT x.language, l.seconds FROM listens l JOIN texts x ON x.id = l.text_id
+           WHERE l.seconds IS NOT NULL AND l.listened_at >= ?""",
+        (since.isoformat(),),
+    ):
+        times.setdefault(language, [0, 0])[1] += int(seconds)
     return [
         InputTime(language, reading, listening, last.get(language))
         for language, (reading, listening) in times.items()
@@ -2213,6 +2234,7 @@ CallFeature = Literal[
     "grammar_lessons",
     "written_points",
     "journal",
+    "transcribe",
 ]
 
 
@@ -2513,7 +2535,11 @@ def previous_check(
 
 
 def log_listen(
-    conn: sqlite3.Connection, text_id: int, now: datetime, key: str | None = None
+    conn: sqlite3.Connection,
+    text_id: int,
+    now: datetime,
+    key: str | None = None,
+    seconds: int | None = None,
 ) -> bool:
     """Counts a text read to the end as heard again. False for a text that was never read to the
     end (there's nothing to hear again), and nothing is kept. `key` is the app's id for this listen:
@@ -2530,8 +2556,8 @@ def log_listen(
         return True
     with conn:
         conn.execute(
-            "INSERT INTO listens (text_id, listened_at, key) VALUES (?, ?, ?)",
-            (text_id, now.isoformat(), key or None),
+            "INSERT INTO listens (text_id, listened_at, key, seconds) VALUES (?, ?, ?, ?)",
+            (text_id, now.isoformat(), key or None, seconds),
         )
     return True
 
@@ -2631,10 +2657,22 @@ def load_grammar(conn: sqlite3.Connection) -> dict[str, GrammarState]:
     Grammar). Before 12 November 2026 normal ("Know it") wasn't stored either, so a point the owner
     set to it then reads as not set. A point the catalog marks `known` reads as Know it until the
     owner chooses otherwise."""
-    raw = _get_meta(conn, "grammar")
-    chosen: dict[str, GrammarState] = json.loads(raw) if raw else {}
     defaults: dict[str, GrammarState] = {p.id: "normal" for p in grammar.POINTS.values() if p.known}
-    return {**defaults, **chosen}
+    return {**defaults, **_chosen_grammar(conn)}
+
+
+def _chosen_grammar(conn: sqlite3.Connection) -> dict[str, GrammarState]:
+    """The choices the owner made, without the catalog's `known` defaults."""
+    raw = _get_meta(conn, "grammar")
+    return json.loads(raw) if raw else {}
+
+
+def default_grammar(conn: sqlite3.Connection) -> frozenset[str]:
+    """The points that read as Know it only because the catalog marks them `known`: the owner
+    hasn't chosen. They aren't drilled on a schedule until the owner sets them (docs/grammar.md,
+    "Case and aspect")."""
+    chosen = _chosen_grammar(conn)
+    return frozenset(p.id for p in grammar.POINTS.values() if p.known and p.id not in chosen)
 
 
 def set_grammar(conn: sqlite3.Connection, point_id: str, state: GrammarState) -> None:
@@ -2647,11 +2685,13 @@ def set_grammar_many(
     """Several points' choices in one write, so a level that sets ten of them never half applies.
     None takes a point back to not set. A point that starts being practiced is stamped with `at`
     (now when not given), so rotation counts only the texts written since (`practice_since`)."""
-    choices = load_grammar(conn)
+    # Only what the owner chose is stored, so a `known` default stays a default (default_grammar).
+    merged = load_grammar(conn)
+    choices = _chosen_grammar(conn)
     since = practice_since(conn)
     stamp = (at or datetime.now(UTC).replace(tzinfo=None)).isoformat()
     for pid, state in changes.items():
-        if state == "practice" and choices.get(pid) != "practice":
+        if state == "practice" and merged.get(pid) != "practice":
             since[pid] = stamp
         elif state != "practice":
             since.pop(pid, None)

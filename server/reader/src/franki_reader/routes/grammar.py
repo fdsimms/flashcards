@@ -130,7 +130,11 @@ def router(ctx: AppContext) -> APIRouter:
     async def get_grammar_choices() -> dict[str, Any]:
         # Every language's, not just the one being read: Forms practice asks for the deck's.
         choices = store.load_grammar(engine.conn)
-        return {"choices": {pid: state for pid, state in choices.items() if pid in grammar.POINTS}}
+        return {
+            "choices": {pid: state for pid, state in choices.items() if pid in grammar.POINTS},
+            # Know it only by the catalog's default: not drilled until the owner chooses.
+            "defaults": sorted(store.default_grammar(engine.conn)),
+        }
 
     async def top_up_drills(point_ids: tuple[str, ...]) -> None:
         if write_drills is not None:
@@ -286,6 +290,8 @@ def router(ctx: AppContext) -> APIRouter:
         return {
             "id": point.id,
             "state": choices.get(point.id, "unset"),
+            # Know it by the catalog's default rather than the owner's choice.
+            "default": point.id in store.default_grammar(engine.conn),
             "max_practice": grammar.MAX_PRACTICE,
             "seen": seen_json(engine.grammar_exposure(point.language)[point.id]),
             "choices": {

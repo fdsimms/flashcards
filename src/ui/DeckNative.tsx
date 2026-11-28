@@ -9,10 +9,11 @@ import { nativeCandidates, nativeName, type NativeCandidate } from '../core/nati
 import { mediaFileUri } from '../media/mediaFiles';
 import type { Api, NativeRecordingFound } from '../reader/api';
 import { useApp } from './AppContext';
-import { Button, ErrorNote, Group, Help, Icon, Loading, Screen, SwitchRow, Tappable } from './kit';
+import { Button, ErrorNote, Group, Help, Loading, Screen, SwitchRow } from './kit';
 import { haptic } from './haptics';
-import { radius, readable, space, type, useTheme } from './theme';
+import { readable, space, type, useTheme } from './theme';
 import { useOutputWake } from './useOutputWake';
+import { PlayDot } from './PlayCircle';
 
 /** Words asked about at once (the server's `MAX_WORDS`). */
 const BATCH = 50;
@@ -139,15 +140,7 @@ export function DeckNative({ deck, api, recorder }: { deck: string; api: Api; re
               <Group>
                 {state.rows.map((row, i) => (
                   <View key={row.noteId} style={{ flexDirection: 'row', alignItems: 'center', paddingLeft: space.l }}>
-                    <Tappable
-                      onPress={() => { haptic.tap(); void play(row); }}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Play ${row.word}`}
-                      hitSlop={space.xs}
-                      style={{ width: 36, height: 36, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <Icon name="play.fill" size={13} color={c.accent} />
-                    </Tappable>
+                    <PlayDot label={`Play ${row.word}`} onPress={() => { haptic.tap(); void play(row); }} />
                     <View style={{ flex: 1 }}>
                       <SwitchRow
                         first={i === 0}

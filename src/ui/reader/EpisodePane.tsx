@@ -4,7 +4,7 @@ import { Image, Text, View } from 'react-native';
 import type { PodcastRef } from '../../reader/api';
 import { videoLength } from '../../reader/video';
 import { haptic } from '../haptics';
-import { Icon, Tappable } from '../kit';
+import { Icon, Meter, Tappable } from '../kit';
 import { IDLE_MODE, LISTENING_MODE } from '../listeningAudio';
 import { radius, space, type, useTheme } from '../theme';
 import { useOutputWake } from '../useOutputWake';
@@ -75,9 +75,7 @@ export function EpisodePane({ episode, title, bind, onTime, onPlaying }: {
       ) : null}
       <Text style={{ ...type.footnote, color: c.textSecondary }}>{episode.show}</Text>
       <View style={{ width: '100%', gap: 4 }}>
-        <View accessible accessibilityRole="progressbar" accessibilityLabel={`${videoLength(status.currentTime)} of ${videoLength(status.duration)}`} style={{ height: 4, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }}>
-          <View style={{ width: `${Math.round(share * 1000) / 10}%`, height: 4, backgroundColor: c.accent }} />
-        </View>
+        <Meter value={share} color={c.accent} label={`${videoLength(status.currentTime)} of ${videoLength(status.duration)}`} />
         <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
           <Text style={{ ...type.caption, color: c.textTertiary, fontVariant: ['tabular-nums'] }}>{videoLength(status.currentTime)}</Text>
           <Text style={{ ...type.caption, color: c.textTertiary, fontVariant: ['tabular-nums'] }}>{status.duration ? videoLength(status.duration) : ''}</Text>

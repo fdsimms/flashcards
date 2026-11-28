@@ -10,7 +10,7 @@ import { rankFrequency } from '../../reader/frequency';
 import { connection } from '../connection';
 import { haptic } from '../haptics';
 import { FrequencyMeter } from './FrequencyMeter';
-import { Button, Divider, EmptyState, ErrorNote, Group, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
+import { Button, CloseButton, Divider, EmptyState, ErrorNote, Group, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
 import { readable, space, type, useTheme } from '../theme';
 
 /**
@@ -151,14 +151,7 @@ export function SuggestedWords({ deck, name, language, perDay, tick, api, loadDe
                         </View>
                         <FrequencyMeter frequency={frequency} />
                       </Tappable>
-                      <Tappable
-                        onPress={() => void dismiss(w.word)}
-                        accessibilityRole="button"
-                        accessibilityLabel={`Not interested in ${w.word}`}
-                        style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        <Icon name="xmark" size={13} color={c.textTertiary} />
-                      </Tappable>
+                      <CloseButton label={`Not interested in ${w.word}`} onPress={() => void dismiss(w.word)} />
                     </View>
                   );
                 })}

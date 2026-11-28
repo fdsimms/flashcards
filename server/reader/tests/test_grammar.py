@@ -502,15 +502,30 @@ def test_at_most_two_points_are_practiced_at_once() -> None:
 
 def test_every_languages_choices_are_listed_for_forms_practice() -> None:
     c, engine = client("th")
-    # Japanese's ます and past read as Know it until chosen (the catalog's `known`).
-    known = {"ja.masu": "normal", "ja.past": "normal"}
-    assert c.get("/api/grammar/choices", headers=AUTH).json() == {"choices": known}
+    # Japanese's ます and past, and every case and aspect point, read as Know it until chosen
+    # (the catalog's `known`), and are listed as defaults, which the app doesn't drill.
+    known = {p.id: "normal" for p in POINTS.values() if p.known}
+    assert {"ja.masu", "ja.past", "ru.genitive", "pl.perfective", "de.dative"} <= set(known)
+    body = c.get("/api/grammar/choices", headers=AUTH).json()
+    assert body == {"choices": known, "defaults": sorted(known)}
     c.put("/api/grammar/es.preterite", json={"state": "practice"}, headers=AUTH)
     c.put("/api/grammar/th.ever", json={"state": "avoid"}, headers=AUTH)
     store.set_grammar(engine.conn, "es.gone", "practice")  # a point since taken out of the catalog
     body = c.get("/api/grammar/choices", headers=AUTH).json()
-    assert body == {"choices": {**known, "es.preterite": "practice", "th.ever": "avoid"}}
+    assert body["choices"] == {**known, "es.preterite": "practice", "th.ever": "avoid"}
+    # Setting other points keeps a default a default, rather than storing it as the owner's.
+    assert body["defaults"] == sorted(known)
     assert c.get("/api/grammar/choices").status_code == 401
+
+
+def test_a_default_know_it_becomes_the_owners_once_set() -> None:
+    c, _ = client("ru")
+    assert c.get("/api/grammar/ru.genitive", headers=AUTH).json()["default"] is True
+    c.put("/api/grammar/ru.genitive", json={"state": "normal"}, headers=AUTH)
+    assert c.get("/api/grammar/ru.genitive", headers=AUTH).json()["default"] is False
+    assert "ru.genitive" not in c.get("/api/grammar/choices", headers=AUTH).json()["defaults"]
+    assert c.get("/api/grammar/ru.dative", headers=AUTH).json()["default"] is True
+    assert c.get("/api/grammar/ru.past", headers=AUTH).json()["default"] is False
 
 
 def test_choices_reach_the_request_for_their_own_language_only() -> None:

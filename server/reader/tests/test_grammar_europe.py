@@ -4,6 +4,7 @@ sentence that uses it, and left alone in look-alikes."""
 from typing import Any
 
 import pytest
+from test_grammar_morph import CASE_AND_ASPECT
 
 from franki_reader.grammar import POINTS, points_for, words
 from franki_reader.languages import LANGUAGES, Code
@@ -260,7 +261,10 @@ PLAIN = {
 
 @pytest.mark.parametrize("language", list(PLAIN))
 def test_a_plain_present_tense_text_uses_no_point(language: Code) -> None:
-    assert found(PLAIN[language], language) == {}
+    # Case and aspect are in every text, tense or not (test_grammar_morph.py has theirs).
+    assert {
+        pid: m for pid, m in found(PLAIN[language], language).items() if pid not in CASE_AND_ASPECT
+    } == {}
 
 
 def test_a_participle_after_its_auxiliary_is_a_verb_even_when_it_is_also_a_noun() -> None:

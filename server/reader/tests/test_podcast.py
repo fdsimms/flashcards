@@ -3,11 +3,13 @@
 import asyncio
 import json
 import random
+import time
 from typing import Any
 
 import httpx
 import pytest
 from fastapi.testclient import TestClient
+from franki_speech.transcribe import Phrase, TranscribeFailed, Transcription
 from scripted import ENTRIES
 from test_own_text import AUTH, NOW, Translator, settle
 
@@ -266,3 +268,81 @@ def test_the_routes_list_preview_add_and_send_the_episode_with_the_text() -> Non
 def test_without_podcasts_set_up_it_says_so() -> None:
     with TestClient(create_app(engine(), "open sesame", None)) as c:
         assert c.get("/api/podcasts/search?language=pl&term=x", headers=AUTH).status_code == 503
+
+
+class Azure:
+    """Azure's fast transcription, scripted: what it was asked, and what it answers."""
+
+    def __init__(self, fail: str = "") -> None:
+        self.asked: list[tuple[str, str]] = []
+        self.fail = fail
+
+    async def __call__(self, audio_url: str, locale: str) -> Transcription:
+        self.asked.append((audio_url, locale))
+        if self.fail:
+            raise TranscribeFailed(self.fail)
+        return Transcription(
+            600_000, (Phrase(1000, 3000, "Dzień dobry."), Phrase(4000, 6000, "Poproszę kawę."))
+        )
+
+
+def wait_state(c: TestClient, guid: str) -> dict[str, Any]:
+    for _ in range(200):
+        got: dict[str, Any] = c.get(
+            "/api/podcasts/transcript", params={"feed": FEED, "guid": guid}, headers=AUTH
+        ).json()
+        if got["state"] != "transcribing":
+            return got
+        time.sleep(0.01)
+    raise AssertionError("still transcribing")
+
+
+def test_an_episode_without_a_transcript_is_transcribed_once_and_kept() -> None:
+    e = engine()
+    azure = Azure()
+    body: dict[str, Any] = {"language": "pl", "feed": FEED, "guid": "bare"}
+    feed = rss(
+        item("new", "Mon, 24 Nov 2026 08:00:00 GMT", VTT_TAG),
+        item("bare", "Mon, 03 Nov 2026 08:00:00 GMT", duration="31:00"),
+    )
+    with TestClient(
+        create_app(e, "open sesame", None, podcasts=source(Web(feed)), transcribe=azure)
+    ) as c:
+        listed = c.post("/api/podcasts/episodes", json={"link": FEED}, headers=AUTH).json()
+        bare = next(x for x in listed["episodes"] if x["guid"] == "bare")
+        assert bare["transcript"] is False and bare["transcribe_usd"] == 0.52
+        assert next(x for x in listed["episodes"] if x["guid"] == "new")["transcribe_usd"] is None
+        started = c.post("/api/podcasts/transcribe", json=body, headers=AUTH)
+        assert started.status_code == 202 and started.json()["state"] == "transcribing"
+        assert wait_state(c, "bare") == {"state": "ready", "error": None}
+        assert azure.asked == [("https://cdn.example.com/bare.mp3", "pl-PL")]
+        # Kept: asked again, it's ready without paying twice, and the list says so.
+        again = c.post("/api/podcasts/transcribe", json=body, headers=AUTH).json()
+        assert again["state"] == "ready" and len(azure.asked) == 1
+        relisted = c.post("/api/podcasts/episodes", json={"link": FEED}, headers=AUTH).json()
+        bare = next(x for x in relisted["episodes"] if x["guid"] == "bare")
+        assert bare["transcript"] and bare["transcribed"] and bare["transcribe_usd"] is None
+        preview = c.post("/api/podcasts/preview", json=body, headers=AUTH)
+        assert preview.status_code == 200 and preview.json()["lines"] == 2
+    (cost,) = e.conn.execute(
+        "SELECT cost_usd FROM call_costs WHERE feature = 'transcribe'"
+    ).fetchone()
+    assert cost == 0.17  # ten minutes at the estimate
+
+
+def test_a_failed_transcription_says_why_and_without_azure_it_says_so() -> None:
+    e = engine()
+    body: dict[str, Any] = {"language": "pl", "feed": FEED, "guid": "bare"}
+    azure = Azure(fail="Azure is busy transcribing. Try again in a minute.")
+    with TestClient(
+        create_app(e, "open sesame", None, podcasts=source(Web(FEED_BODY)), transcribe=azure)
+    ) as c:
+        c.post("/api/podcasts/transcribe", json=body, headers=AUTH)
+        assert wait_state(c, "bare") == {
+            "state": "failed",
+            "error": "Azure is busy transcribing. Try again in a minute.",
+        }
+    with TestClient(create_app(e, "open sesame", None, podcasts=source(Web(FEED_BODY)))) as c:
+        assert c.post("/api/podcasts/transcribe", json=body, headers=AUTH).status_code == 503
+        listed = c.post("/api/podcasts/episodes", json={"link": FEED}, headers=AUTH).json()
+        assert all(x["transcribe_usd"] is None for x in listed["episodes"])

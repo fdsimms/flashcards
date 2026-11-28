@@ -56,6 +56,8 @@ class ChoiceIn(BaseModel):
 class ListenIn(BaseModel):
     # The app's own id for this listen, sent again with it if the listen is sent again.
     key: str | None = Field(default=None, min_length=1, max_length=64)
+    # How long it played, for the week's listening time; missing from an app older than it.
+    seconds: int | None = Field(default=None, ge=0, le=86_400)
 
 
 class ReadingIn(BaseModel):
@@ -153,7 +155,13 @@ def router(ctx: AppContext) -> APIRouter:
         """A finished text heard again with its words hidden. Only counted: no reading, no
         difficulty change. 404 for a text that wasn't read to the end. With a `key`, a listen
         already counted under it isn't counted twice."""
-        if not store.log_listen(engine.conn, text_id, engine.clock(), body.key if body else None):
+        if not store.log_listen(
+            engine.conn,
+            text_id,
+            engine.clock(),
+            body.key if body else None,
+            body.seconds if body else None,
+        ):
             raise HTTPException(404, "No such text.")
         return Response(status_code=204)
 

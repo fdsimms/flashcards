@@ -5,10 +5,9 @@ import { ApiError, type GlossLanguage, type ReadingLine, type Word } from '../re
 import { glossInfo } from '../reader/languages';
 import { canAdd, formOf, lookedUpWords, lookUpStatus, wordIn } from '../reader/lookUp';
 import { saidAs } from '../reader/wordAudio';
-import { haptic } from './haptics';
-import { Button, Card, ErrorNote, Field, Help, Icon, Screen, Select, Tappable } from './kit';
+import { Button, Card, ErrorNote, Field, Help, Screen, Select } from './kit';
 import { glossText } from './lookUpCache';
-import { radius, readable, smooth, space, type, useTheme } from './theme';
+import { radius, readable, space, type, useTheme } from './theme';
 import type { CardGlossing } from './useCardGlosses';
 import { IpaPill } from './IpaPill';
 import { ipaGuideFor } from '../tools/ipaGuide';
@@ -154,26 +153,12 @@ function WordCard({ word, language, glossing }: { word: Word; language: GlossLan
       </View>
       {line ? <Help>{`From your reading, ${line.title}: ${line.line}`}</Help> : null}
       <View style={{ flexDirection: 'row', gap: space.s }}>
-        <Action icon="play.fill" label="Hear it" onPress={() => glossing.onPlayWord(word.text, language, saidAs(language, word.text, word.translit))} />
+        <Button size="small" variant="secondary" icon="play.fill" label="Hear it" style={{ flex: 1 }} onPress={() => glossing.onPlayWord(word.text, language, saidAs(language, word.text, word.translit))} />
         {canAdd(word) ? (
-          <Action icon="plus.circle" label="Add to deck" primary onPress={() => void glossing.onAddWord(word.text, meaning ?? '', language, { ipa: word.ipa, ipa_source: word.ipa_source, translit: word.translit })} />
+          <Button size="small" icon="plus.circle" label="Add to deck" style={{ flex: 1 }} onPress={() => void glossing.onAddWord(word.text, meaning ?? '', language, { ipa: word.ipa, ipa_source: word.ipa_source, translit: word.translit })} />
         ) : null}
       </View>
     </Card>
   );
 }
 
-function Action({ icon, label, primary, onPress }: { icon: 'play.fill' | 'plus.circle'; label: string; primary?: boolean; onPress: () => void }) {
-  const c = useTheme();
-  return (
-    <Tappable
-      onPress={() => { haptic.tap(); onPress(); }}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={{ flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: space.xs, borderRadius: radius.m, ...smooth, backgroundColor: primary ? c.accent : c.fill }}
-    >
-      <Icon name={icon} size={15} color={primary ? c.onAccent : c.text} />
-      <Text style={{ ...type.subhead, fontWeight: '600', color: primary ? c.onAccent : c.text }}>{label}</Text>
-    </Tappable>
-  );
-}

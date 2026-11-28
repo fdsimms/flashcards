@@ -8,9 +8,10 @@ import { SOUND_GUIDES } from '../tools/soundGuides';
 import { TOOLS } from '../tools/tools';
 import { markSoundsSeen } from './fromZeroActions';
 import { IpaSoundRow } from './IpaSoundRow';
-import { Card, Group, Help, Icon, NavRow, Screen, Segments, Tappable } from './kit';
-import { MIN_TAP, radius, readable, space, type, useTheme } from './theme';
+import { Card, Group, Help, NavRow, Screen, Segments, Tappable } from './kit';
+import { readable, space, type, useTheme } from './theme';
 import { TOOL_SCREENS } from './tools';
+import { PlayDot } from './PlayCircle';
 
 /** The tools that teach a language's letters one by one, offered after its guide where they come in it. */
 const LETTER_TOOLS = ['script', 'hearing', 'writing'] as const;
@@ -81,9 +82,7 @@ export function SoundGuide({ language, onSay, initialTab = 'spelling' }: { langu
                   <Text style={{ ...type.headline, color: c.text }} accessibilityLanguage={info.speech}>{row.example}</Text>
                   <Text style={{ ...type.subhead, color: c.textSecondary }}>{row.hint}</Text>
                 </View>
-                <View style={{ width: MIN_TAP * 0.8, height: MIN_TAP * 0.8, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name="play.fill" size={14} color={c.accent} />
-                </View>
+                <PlayDot />
               </Tappable>
             ))}
           </Card>

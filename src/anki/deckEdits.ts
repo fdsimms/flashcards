@@ -38,7 +38,7 @@ const isFiltered = (kind: Uint8Array) => decodeMessage(kind).has(KIND.filtered);
 interface DeckRowRaw { id: number; name: string; kind: Uint8Array }
 
 /** A deck by its name as Anki finds one: through the collation, so case doesn't matter. */
-const deckNamed = (db: SyncDb, native: string) => db.first<DeckRowRaw>('SELECT id, name, kind FROM decks WHERE name = ?', native);
+export const deckNamed = (db: SyncDb, native: string) => db.first<DeckRowRaw>('SELECT id, name, kind FROM decks WHERE name = ?', native);
 /** A deck by its exact name, as Franki has it from the collection. Read by scanning: no collation needed. */
 async function deckExactly(db: SyncDb, native: string): Promise<DeckRowRaw | null> {
   return (await db.all<DeckRowRaw>('SELECT id, name, kind FROM decks NOT INDEXED')).find((d) => d.name === native) ?? null;
@@ -51,14 +51,14 @@ function cleaned(name: string): string {
   return r.name;
 }
 
-async function requireCollation(db: SyncDb, what: string) {
+export async function requireCollation(db: SyncDb, what: string) {
   if (!(await hasUnicase(db))) {
     throw new DeckRefused(`This build of Franki can't ${what} in your Anki collection. Rebuild the app, or do it in Anki and sync.`);
   }
 }
 
 /** A new deck's id as Anki's storage gives one (alloc_id.sql): now in milliseconds, or past the largest id when that's taken. */
-async function newDeckId(db: SyncDb, nowMs: number): Promise<number> {
+export async function newDeckId(db: SyncDb, nowMs: number): Promise<number> {
   const r = await db.first<{ id: number }>('SELECT CASE WHEN ? IN (SELECT id FROM decks) THEN (SELECT MAX(id) + 1 FROM decks) ELSE ? END AS id', nowMs, nowMs);
   return Number(r!.id);
 }
@@ -81,7 +81,7 @@ async function createMissingParents(db: SyncDb, native: string, now: Date): Prom
  * `native` with its nearest existing parent's spelling, and the parents missing below that one
  * made, as Anki's `match_or_create_parents` does. A filtered deck can't be a parent.
  */
-async function matchOrCreateParents(db: SyncDb, native: string, now: Date): Promise<string> {
+export async function matchOrCreateParents(db: SyncDb, native: string, now: Date): Promise<string> {
   const parts = native.split('\x1f');
   for (let i = parts.length - 1; i >= 1; i--) {
     const parent = await deckNamed(db, parts.slice(0, i).join('\x1f'));

@@ -95,6 +95,25 @@ def test_a_hint_in_plain_english_is_kept_though_the_fix_shares_its_little_words(
     assert cleaned is not None and cleaned["hints"] == ["A verb is missing."]
 
 
+def test_a_hint_that_gives_the_fix_away_is_dropped_in_thai_and_japanese_too() -> None:
+    thai = AttemptRequest("th", "sentence", "ฉันไปตลาดพรุ่งนี้", "ตลาด", "market")
+    hints = [
+        "Something about the future is missing.",
+        "Put จะ before the verb.",  # the fix, inside no spaces at all
+        "The word ไป is fine here.",  # the learner's own word
+    ]
+    cleaned = clean_attempt({**JUDGED, "corrected": "ฉันจะไปตลาดพรุ่งนี้", "hints": hints}, thai)
+    assert cleaned is not None
+    assert cleaned["hints"] == [
+        "Something about the future is missing.",
+        "The word ไป is fine here.",
+    ]
+    japanese = AttemptRequest("ja", "sentence", "私は本読みます", "本", "book")
+    hints = ["A particle is missing after the book.", "Add を after 本."]
+    cleaned = clean_attempt({**JUDGED, "corrected": "私は本を読みます", "hints": hints}, japanese)
+    assert cleaned is not None and cleaned["hints"] == ["A particle is missing after the book."]
+
+
 def test_a_right_answer_has_no_hints_and_a_missing_list_is_none() -> None:
     right = clean_attempt({**JUDGED, "verdict": "right"}, SENTENCE)
     assert right is not None and right["hints"] == []

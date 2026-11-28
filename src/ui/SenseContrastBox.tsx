@@ -2,7 +2,7 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import type { ContrastRow } from '../core/senseContrast';
 import { hasThai, thaiTextStyle, type ThaiTextSize } from '../core/script';
-import { Icon, Tappable, TextButton } from './kit';
+import { CloseButton, TextButton } from './kit';
 import { MIN_TAP, hairline, radius, smooth, space, type, useTheme } from './theme';
 
 /** What the box's rows do, from `useSenseContrast`. Without it the pairs are shown as text only (a cram round). */
@@ -42,9 +42,7 @@ export function SenseContrastBox({ pairs, actions, thaiSize }: { pairs: { label:
           {row.state === 'new' && actions ? (
             <>
               <TextButton label="Add" accessibilityLabel={`Add ${row.word} to your deck`} onPress={() => actions.onAdd(row)} style={{ paddingHorizontal: space.s }} />
-              <Tappable accessibilityRole="button" accessibilityLabel={`Remove ${row.word} from this card`} onPress={() => actions.onRemove(row)} hitSlop={{ right: space.s }} scaleTo={0.9} style={{ minHeight: MIN_TAP, minWidth: MIN_TAP - space.s, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name="xmark" size={13} color={c.textSecondary} weight="semibold" />
-              </Tappable>
+              <CloseButton label={`Remove ${row.word} from this card`} onPress={() => actions.onRemove(row)} />
             </>
           ) : null}
         </View>

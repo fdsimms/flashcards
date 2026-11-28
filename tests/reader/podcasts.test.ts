@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { episodeDetail, hasNewEpisode, isLink, newestWithTranscript, parseShows, REMEMBERED_SHOWS, rememberShow, transcriptsLabel, type RememberedShow } from '../../src/reader/podcasts';
+import { canPick, episodeDetail, episodeRowDetail, hasNewEpisode, isLink, newestWithTranscript, parseShows, REMEMBERED_SHOWS, rememberShow, transcribeAsk, transcriptsLabel, type RememberedShow } from '../../src/reader/podcasts';
 
 const show = (feed: string, usedAt = 1): RememberedShow => ({ title: feed, author: '', feed, artwork: '', usedAt });
 
@@ -42,5 +42,24 @@ describe('podcasts', () => {
   it('tells a link from words to search for', () => {
     expect(isLink(' https://podcasts.apple.com/pl/podcast/x/id1 ')).toBe(true);
     expect(isLink('polski z anią')).toBe(false);
+  });
+});
+
+describe('transcribing an episode', () => {
+  const now = new Date(2026, 10, 28, 12);
+  const published = new Date(2026, 10, 10, 9).toISOString();
+  it('says its price, or that it has none, in the list', () => {
+    expect(episodeRowDetail({ published, seconds: 1860, transcript: false, transcribe_usd: 0.52 }, now)).toBe('Transcribe · $0.52 · 10 Nov · 31 min');
+    expect(episodeRowDetail({ published, seconds: 1860, transcript: false, transcribe_usd: null }, now)).toBe('No transcript · 10 Nov · 31 min');
+    expect(episodeRowDetail({ published, seconds: 1860, transcript: true }, now)).toBe('10 Nov · 31 min');
+    expect(canPick({ transcript: false, transcribe_usd: 0.1 })).toBe(true);
+    expect(canPick({ transcript: false })).toBe(false);
+  });
+
+  it('asks with the length and the price', () => {
+    expect(transcribeAsk({ seconds: 1860, transcript: false, transcribe_usd: 0.52 })).toBe(
+      "31 minutes of audio, about $0.52 with Azure. Then you'll see how much of it you'd understand before adding it. A transcript is made once and kept.",
+    );
+    expect(transcribeAsk({ transcript: false, transcribe_usd: 0.2 }).startsWith('About $0.20')).toBe(true);
   });
 });

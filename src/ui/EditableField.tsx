@@ -2,7 +2,7 @@ import React, { useEffect, useState, type ReactNode } from 'react';
 import { Text, TextInput, useColorScheme, View } from 'react-native';
 import { failureText } from '../core/failure';
 import { haptic } from './haptics';
-import { Button, Icon, Tappable } from './kit';
+import { Button, ErrorNote, Icon, Tappable } from './kit';
 import { MIN_TAP, hairline, radius, smooth, space, type, useTheme } from './theme';
 
 /**
@@ -90,7 +90,7 @@ export function EditableField({ label, text, onSave, onEditing, children }: {
           borderWidth: hairline, borderColor: c.accent, paddingHorizontal: space.m, paddingVertical: space.s + 2, minHeight: MIN_TAP, textAlignVertical: 'top',
         }}
       />
-      {error ? <Text style={{ ...type.footnote, color: c.danger }}>{error}</Text> : null}
+      {error ? <ErrorNote message={error} /> : null}
       <Text style={{ ...type.caption, color: c.textSecondary }}>Saved to the note, so every card of this word shows it.</Text>
       <View style={{ flexDirection: 'row', gap: space.s }}>
         <Button label="Cancel" variant="secondary" disabled={saving} onPress={() => setEditing(false)} style={{ flex: 1 }} />

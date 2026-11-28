@@ -3,8 +3,9 @@ import { Text, View } from 'react-native';
 import type { Language } from '../reader/api';
 import { LANGUAGES } from '../reader/languages';
 import { exampleSpans, type IpaSound } from '../tools/ipaGuide';
-import { Icon, Tappable } from './kit';
-import { MIN_TAP, radius, space, type, useTheme } from './theme';
+import { Tappable } from './kit';
+import { PlayDot } from './PlayCircle';
+import { space, type, useTheme } from './theme';
 
 /**
  * One IPA sound with its word: the symbol, the word with the letters that make the sound in gold, and the
@@ -45,9 +46,7 @@ export function IpaSoundRow({ written, sound, language, first, onSay }: {
         </Text>
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{sound.hint}</Text>
       </View>
-      <View style={{ width: MIN_TAP * 0.8, height: MIN_TAP * 0.8, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}>
-        <Icon name="play.fill" size={14} color={c.accent} />
-      </View>
+      <PlayDot />
     </Tappable>
   );
 }
