@@ -994,11 +994,12 @@ export function Select({ label, options, value, onChange }: { label: string; opt
 }
 
 /** A choice among a few (a deck, a note type): pill-shaped, filled when chosen. */
-export function Chip({ label, selected = false, onPress, accessibilityLabel, accessibilityLanguage, accessibilityState }: {
+export function Chip({ label, selected = false, onPress, disabled, accessibilityLabel, accessibilityLanguage, accessibilityState }: {
   label: string;
   /** A choice that's on. Leave it off for a suggestion that fills something in when tapped (a topic, a question to ask). */
   selected?: boolean;
   onPress: () => void;
+  disabled?: boolean;
   accessibilityLabel?: string;
   /** The label's language, for a word in the language being learned (it also picks the font). */
   accessibilityLanguage?: string;
@@ -1008,9 +1009,11 @@ export function Chip({ label, selected = false, onPress, accessibilityLabel, acc
   return (
     <Tappable
       onPress={() => { haptic.select(); onPress(); }}
+      disabled={disabled}
+      restOpacity={disabled ? 0.45 : 1}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ ...accessibilityState, selected }}
+      accessibilityState={{ ...accessibilityState, selected, disabled: !!disabled }}
       scaleTo={0.95}
       hitSlop={{ top: 4, bottom: 4 }}
       style={{
