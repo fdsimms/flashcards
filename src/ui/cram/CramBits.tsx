@@ -1,9 +1,8 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { candidateChips, type LessonWordCandidate } from '../../core/lessonWords';
-import { Divider, Icon, Tappable } from '../kit';
+import { Icon, Tappable } from '../kit';
 import { MIN_TAP, radius, space, type, useTheme } from '../theme';
-import { HoverPressable } from '../hover';
 
 /**
  * The small pieces the cram screens share: a pill to tap (a day on the new cram's sheet, a
@@ -39,46 +38,6 @@ export function Pill({ label, selected, onPress, ink, fill, icon, accessibilityL
       {icon ? <Icon name={icon} size={14} color={color} weight="semibold" /> : null}
       <Text style={{ ...type.subhead, color, fontWeight: selected || ink ? '600' : '400' }}>{label}</Text>
     </Tappable>
-  );
-}
-
-/** A row in a `Group` with a check circle: tapping it checks it or takes the check off. `big` is lesson mode's, for a glance mid-conversation. */
-export function CheckRow({ label, detail, checked, onPress, first, big, color, trailing, disabled, labelSize }: {
-  label: string;
-  detail?: string;
-  checked: boolean;
-  onPress: () => void;
-  first?: boolean;
-  big?: boolean;
-  /** The check's fill when on: the accent, unless this says otherwise (lesson mode's green). */
-  color?: string;
-  /** Something small after the text ("Saving"). */
-  trailing?: React.ReactNode;
-  disabled?: boolean;
-  /** Replaces the label's size and line height (a cram's text size, for a label in the cram's language). */
-  labelSize?: { fontSize: number; lineHeight: number };
-}) {
-  const c = useTheme();
-  return (
-    <HoverPressable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked, disabled: !!disabled }}
-      accessibilityLabel={detail ? `${label}, ${detail}` : label}
-      style={({ pressed }) => ({
-        minHeight: MIN_TAP + (big ? space.l : space.m), flexDirection: 'row', alignItems: 'center', gap: space.m,
-        paddingVertical: big ? space.m : space.s + 2, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : 'transparent',
-      })}
-    >
-      {first ? null : <Divider inset={space.l} />}
-      <Icon name={checked ? 'checkmark.circle.fill' : 'circle'} size={big ? 26 : 22} color={checked ? color ?? c.accent : c.textTertiary} weight="regular" />
-      <View style={{ flex: 1, gap: space.xs }}>
-        <Text style={{ ...(big ? type.headline : type.body), ...labelSize, color: checked && big ? c.textSecondary : c.text }}>{label}</Text>
-        {detail ? <Text numberOfLines={2} style={{ ...(big ? type.subhead : type.footnote), color: c.textSecondary }}>{detail}</Text> : null}
-      </View>
-      {trailing}
-    </HoverPressable>
   );
 }
 

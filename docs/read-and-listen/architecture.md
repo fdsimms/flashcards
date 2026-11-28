@@ -487,6 +487,29 @@ Wikimedia Commons where there is one, in place of an Azure one; a sentence keeps
   the Azure recordings only on Use these (`replaceWithNative`, which leaves a note changed meanwhile
   alone), as the MCP's `add_native_recordings` does with a preview.
 
+## Your level
+
+Decided 28 November 2026, the owner choosing from a mock with each recommendation picked. A card at
+the top of a language's Read & Listen settings, and its page (`ReadLevel.tsx`, the `read-level`
+route): how many of the 2,000 most common words are studied, the bands they fall in, the share of
+everyday speech they make up, and the trend.
+
+- **Known is what a text counts as known, less the common-words setting** (`level.py`): a deck entry
+  with a studied card, young or mature, and for Japanese the WaniKani words. The setting counts words
+  nobody studied, so the figure would say only what the setting says. Each entry is placed by
+  `frequency.entry_place`, as tiering places it, so an article or a reflexive marker doesn't hide it.
+- **The share of speech is measured, not estimated from ranks.** `scripts/build_common.py` writes
+  `data/<code>_shares.txt` beside each list, each family's summed wordfreq frequency per million words
+  (Thai's from its subtitles alone), so the sum over the known families is the share of running
+  speech they cover. The 90% and 98% marks are the usual figures for following the gist and for
+  reading without a dictionary.
+- **One figure a study day is kept** (`level_days`, `level_store.py`), for a year: by the page, and by
+  the top-up pass for the current language (`Engine.note_level`), so the trend fills in on days the
+  page isn't opened. There's no history from before it shipped. The change line compares with the
+  latest figure from four weeks back or more, and says nothing under a week.
+- Toki Pona has no level (its list is particles that all count): `GET /api/level` is 404 and the card
+  isn't shown. Before a language's deck has been read it's 409, and the page says so.
+
 ## Situations
 
 Decided 14 November 2026, the owner choosing from a mock (active learning, phase 2): the brief's
@@ -700,6 +723,19 @@ aloud is never heard by the phone.
   through it, the most recent texts first, none drilled in the last 7 days; offered on the Lessons tab
   beside Review once there are 4. It's a lesson, so it plays locked, downloads, and takes the lesson
   microphone settings and Again marks, and it never grades a card.
+- **Your words** (28 November 2026, the owner, from a mock; `src/core/listenWords.ts`,
+  `lesson.build_words`, `YourWordsCard.tsx`): the deck's words to hear with the screen locked. The
+  phone picks them, since it has the freshest answers: notes with a card due today, soonest due first,
+  then notes with a card first answered in the last 14 days, newest first, up to 10, 30 or 60, skill
+  cards and suspended cards left out. It sends each word, its Meaning and its first example with the
+  translation (`POST /api/lessons/your-words`), and the server makes a lesson of them, with no Claude
+  call: each word, a pause of at least 3 seconds to recall it (a turn, so Wait for my answer stops
+  there), its meaning, then the example and its English; or with Meaning first, the meaning, a pause to
+  say the word, then the word. Played once through, since the deck brings the words back. The mock had
+  it play on the phone from the cards' own recordings and the phone's voice; the owner chose the
+  server-made lesson instead, so it plays, downloads and queues like any lesson rather than as a third
+  kind of Up Next item. Azure speaks the words too, so a card's native recording isn't used here. It
+  never grades a card: hearing a word isn't answering it.
 
 ## Cram themes
 

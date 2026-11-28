@@ -237,6 +237,7 @@ export type WritingRequest =
 export type NativeRecordingFound = Schemas['NativeRecordingOut'];
 export type NativeFind = Schemas['NativeFindOut'];
 export type VideoPreview = Schemas['VideoPreviewOut'];
+export type Level = Schemas['LevelOut'];
 // The writing journal (server/reader journal.py): an entry checked by Claude sentence by sentence and kept on
 // the server. A mistake's `kind` is a grammar point's id or a general kind ("case", "word_order"); `case` and
 // `governor` say which case a case ending should be and the word that decides it. Never graded.
@@ -852,6 +853,19 @@ export function createApi(
       const response = await send('POST', '/api/lessons/lines', { language, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}), ...(slow ? { slow } : {}) });
       return ((await response.json()) as { id: number }).id;
     },
+    // Makes Your words: words picked from the deck on the phone (src/core/listenWords.ts), each said with a pause to recall
+    // it, then its meaning and an example; with `meaningFirst`, the meaning then a pause to say the word (no Claude call).
+    makeYourWords: async (language: Language, words: { text: string; english: string; example?: string; exampleEnglish?: string }[], meaningFirst: boolean, narrator?: string, particle?: 'khrap' | 'kha') => {
+      const body = {
+        language,
+        words: words.map((w) => ({ text: w.text, english: w.english, ...(w.example ? { example: w.example, example_english: w.exampleEnglish ?? '' } : {}) })),
+        meaning_first: meaningFirst,
+        ...(narrator ? { narrator } : {}),
+        ...(particle ? { particle } : {}),
+      };
+      const response = await send('POST', '/api/lessons/your-words', body);
+      return ((await response.json()) as { id: number }).id;
+    },
     // A phrase of the lesson as said at normal speed, cut out for a card's Audio field.
     lessonPhraseAudio: async (id: number, index: number): Promise<Uint8Array> => {
       const response = await send('GET', `/api/lessons/${id}/phrases/${index}/audio`);
@@ -918,6 +932,10 @@ export function createApi(
     // recordings, Lingua Libre's first, with the credit to keep; words beyond the first few come back
     // `pending`, to ask again. Then one recording's audio, trimmed and leveled, as MP3 bytes.
     nativeFind: (language: Language, words: string[]) => call<NativeFind>('POST', '/api/native/find', { language, words }),
+    // Your level (server/reader level.py): the language's studied words by frequency band, the share of
+    // everyday speech they make up, and one figure a study day for the trend. 404 for Toki Pona, 409
+    // before the language's deck has been read.
+    level: (language: GlossLanguage) => call<Level>('GET', `/api/level?language=${language}`),
     nativeAudio: async (title: string) =>
       new Uint8Array(await (await send('GET', `/api/native/audio?title=${encodeURIComponent(title)}`)).arrayBuffer()),
     speech: async (text: string, voice: string, rate = 1, language?: string, reading?: string, ipa?: string) =>

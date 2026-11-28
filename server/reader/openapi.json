@@ -4951,6 +4951,65 @@
         }
       }
     },
+    "/api/lessons/your-words": {
+      "post": {
+        "summary": "Make Words Route",
+        "description": "Your words (lesson.build_words): the words the app sends, each said with a pause to\nrecall it, its meaning and an example. Made in the background like a review. Never grades a\ncard: hearing a word isn't answering it.",
+        "operationId": "make_words_route_api_lessons_your_words_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/YourWordsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Make Words Route Api Lessons Your Words Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/lessons/{lesson_id}/phrases/{index}/audio": {
       "get": {
         "summary": "Phrase Audio Route",
@@ -5101,6 +5160,75 @@
         "responses": {
           "204": {
             "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/level": {
+      "get": {
+        "summary": "Get Level",
+        "description": "The language's level from its last snapshot of the deck: known words by frequency band\n(`bands`, each `start` to `end` places in the list), how many of the `top` most common are\nknown, the share of everyday speech they make up (`speech`, 0 to 1, null without\nfrequencies), and `history`, one figure a study day, oldest first, today's included. 404 for\na language with no frequency list (Toki Pona), 409 before its deck has been read.",
+        "operationId": "get_level_api_level_get",
+        "parameters": [
+          {
+            "name": "language",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "enum": [
+                "th",
+                "es",
+                "de",
+                "fr",
+                "ru",
+                "el",
+                "pl",
+                "nb",
+                "ja",
+                "en",
+                "tok"
+              ],
+              "type": "string",
+              "title": "Language"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LevelOut"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
@@ -9236,6 +9364,110 @@
         ],
         "title": "LessonIn"
       },
+      "LevelBand": {
+        "properties": {
+          "start": {
+            "type": "integer",
+            "title": "Start"
+          },
+          "end": {
+            "type": "integer",
+            "title": "End"
+          },
+          "known": {
+            "type": "integer",
+            "title": "Known"
+          }
+        },
+        "type": "object",
+        "required": [
+          "start",
+          "end",
+          "known"
+        ],
+        "title": "LevelBand"
+      },
+      "LevelDayOut": {
+        "properties": {
+          "day": {
+            "type": "string",
+            "title": "Day"
+          },
+          "known_top": {
+            "type": "integer",
+            "title": "Known Top"
+          },
+          "speech": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speech"
+          }
+        },
+        "type": "object",
+        "required": [
+          "day",
+          "known_top",
+          "speech"
+        ],
+        "title": "LevelDayOut"
+      },
+      "LevelOut": {
+        "properties": {
+          "top": {
+            "type": "integer",
+            "title": "Top"
+          },
+          "known_top": {
+            "type": "integer",
+            "title": "Known Top"
+          },
+          "speech": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Speech"
+          },
+          "studied": {
+            "type": "integer",
+            "title": "Studied"
+          },
+          "bands": {
+            "items": {
+              "$ref": "#/components/schemas/LevelBand"
+            },
+            "type": "array",
+            "title": "Bands"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/LevelDayOut"
+            },
+            "type": "array",
+            "title": "History"
+          }
+        },
+        "type": "object",
+        "required": [
+          "top",
+          "known_top",
+          "speech",
+          "studied",
+          "bands",
+          "history"
+        ],
+        "title": "LevelOut"
+      },
       "LineOut": {
         "properties": {
           "text": {
@@ -12287,6 +12519,120 @@
           "name"
         ],
         "title": "WriteIn"
+      },
+      "YourWordIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "english": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "English"
+          },
+          "example": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example"
+          },
+          "example_english": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example English"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "english"
+        ],
+        "title": "YourWordIn"
+      },
+      "YourWordsIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en",
+              "tok"
+            ],
+            "title": "Language"
+          },
+          "narrator": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Narrator"
+          },
+          "particle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "khrap",
+                  "kha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Particle"
+          },
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/YourWordIn"
+            },
+            "type": "array",
+            "maxItems": 60,
+            "minItems": 3,
+            "title": "Words"
+          },
+          "meaning_first": {
+            "type": "boolean",
+            "title": "Meaning First",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "words"
+        ],
+        "title": "YourWordsIn"
       }
     }
   }

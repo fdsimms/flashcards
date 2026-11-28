@@ -12,8 +12,8 @@ import { sendGrammarAnswers } from '../reader/useGrammarRotation';
 import { LANGUAGES } from '../../reader/languages';
 import { ChoiceButton, type ChoiceState } from '../FormsDrill';
 import { haptic } from '../haptics';
-import { Button, Card, EmptyState, ErrorNote, Field, Help, Loading, ProgressBar, Screen, Segments, Tappable } from '../kit';
-import { hairline, MIN_TAP, radius, space, type, useTheme, readable } from '../theme';
+import { Button, Card, EmptyState, ErrorNote, Field, Help, Loading, ProgressBar, Screen, Segments, TextButton } from '../kit';
+import { hairline, radius, space, type, useTheme, readable } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { PlayPill } from '../PlayButton';
 import { TranslationRow } from '../TranslationRow';
@@ -202,14 +202,7 @@ export function GrammarDrill({ api, repo, points, count = DRILL_QUESTIONS, onDon
               <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{prompt.english}</Text>
             </TranslationRow>
           ) : (
-            <Tappable
-              accessibilityRole="button"
-              accessibilityLabel="Show translation"
-              onPress={() => { haptic.tap(); setTranslated(index); }}
-              style={{ minHeight: MIN_TAP, justifyContent: 'center' }}
-            >
-              <Text style={{ ...type.subhead, color: c.accent }}>Show translation</Text>
-            </Tappable>
+            <TextButton label="Show translation" onPress={() => setTranslated(index)} style={{ alignSelf: 'flex-start' }} />
           )}
           {prompt.source ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{prompt.source}</Text> : null}
           {current ? (

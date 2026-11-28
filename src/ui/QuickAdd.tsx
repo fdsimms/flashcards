@@ -11,7 +11,7 @@ import {
 import { QUEUED_MODEL } from '../reader/noteQueue';
 import { deckShortName } from './deckShortName';
 import { haptic } from './haptics';
-import { Button, Card, Chip, Divider, ErrorNote, Field, Group, Help, Icon, Screen, Segments, Select, Tappable } from './kit';
+import { Button, Card, Chip, Divider, ErrorNote, Field, Group, Help, Icon, Screen, Segments, Select, Tappable, TextButton } from './kit';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { MIN_TAP, readable, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
@@ -270,13 +270,7 @@ export function QuickAdd({ decks, initial, initialWords, note, collection, onQue
             ) : null}
             {spoken.listening || spoken.problem ? <ListeningNote spoken={spoken} language={language ?? 'the word'} /> : null}
             {canLookUp ? (
-              <Tappable
-                onPress={() => { haptic.tap(); setLookingUp((l) => !l); setFound(null); setText(''); }}
-                accessibilityRole="button"
-                style={{ alignSelf: 'flex-start', minHeight: MIN_TAP, justifyContent: 'center' }}
-              >
-                <Text style={{ ...type.subhead, color: c.accentInk, fontWeight: '600' }}>{lookingUp ? 'Type the word instead' : "Don't know the word?"}</Text>
-              </Tappable>
+              <TextButton label={lookingUp ? 'Type the word instead' : "Don't know the word?"} onPress={() => { setLookingUp((l) => !l); setFound(null); setText(''); }} style={{ alignSelf: 'flex-start' }} />
             ) : null}
           </Card>
         ) : (
@@ -375,9 +369,7 @@ function WordRow({ word, first, state, filled, language, inDeck, refusal, onRemo
         <Text style={{ ...withThaiLineHeight(type.body, word.entry), color: c.text }}>{word.entry}</Text>
         {line ? <Text style={{ ...type.footnote, color }}>{line}</Text> : null}
         {state === 'inDeck' && !refusal ? (
-          <Tappable onPress={onAnyway} accessibilityRole="button" accessibilityLabel={`Add ${word.entry} anyway`} style={{ alignSelf: 'flex-start', paddingVertical: space.xs }}>
-            <Text style={{ ...type.footnote, color: c.accentInk, fontWeight: '600' }}>Add anyway</Text>
-          </Tappable>
+          <TextButton label="Add anyway" accessibilityLabel={`Add ${word.entry} anyway`} onPress={onAnyway} style={{ alignSelf: 'flex-start' }} />
         ) : null}
       </View>
       <Tappable

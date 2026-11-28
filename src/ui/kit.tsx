@@ -3,7 +3,7 @@ import { SymbolView, type SFSymbol } from 'expo-symbols';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, Switch, Text, TextInput, useColorScheme, View,
-  type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type ViewStyle,
+  type AccessibilityState, type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type ViewStyle,
 } from 'react-native';
 import { Host, Picker, Text as SwiftText } from '@expo/ui/swift-ui';
 import { accessibilityLabel, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useConnectionProblem } from './connection';
 import { splitFailure } from '../core/failure';
+import { withThaiLineHeight } from '../core/script';
 import { haptic } from './haptics';
 import { showsHomeButton } from './homeButton';
 import { useKeyboardLanguage } from './useKeyboardLanguage';
@@ -21,8 +22,8 @@ import { useReduceMotion } from './motion';
 import { makingSpoken, type StageStep } from '../reader/making';
 import { MakingProgress } from './MakingProgress';
 import { WorkingMark } from './WorkingMark';
-import { Hoverable } from './hover';
-import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, type Colors } from './theme';
+import { Hoverable, HoverPressable } from './hover';
+import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, type Colors } from './theme';
 
 /**
  * The shared pieces every screen is built from, so a header, a button or a card looks the same
@@ -234,7 +235,7 @@ export function Divider({ inset }: { inset: number }) {
  * `icon`, a colored tile holds the symbol, as in iOS Settings; `icon.color` should be a theme
  * color that white reads on (the rating colors are).
  */
-export function NavRow({ label, detail, badge, facts, loading, making, onPress, onLongPress, first, icon, disabled, action, indent = 0 }: {
+export function NavRow({ label, detail, badge, facts, loading, making, working, onPress, onLongPress, first, icon, disabled, action, indent = 0 }: {
   label: string;
   detail?: string;
   /** A colored `Tag` at the start of the line under the name, before `detail` (a grammar point's state). */
@@ -245,6 +246,8 @@ export function NavRow({ label, detail, badge, facts, loading, making, onPress, 
   loading?: boolean;
   /** Something is being made in the background: the step under way and a bar of its steps stand in for `detail`, and a turning mark for the chevron. The row should be `disabled`. */
   making?: StageStep[];
+  /** Something is being made for it in the background, with no steps to show (a series' next episode): a turning mark for the chevron, `detail` saying what. The row stays tappable. */
+  working?: boolean;
   onPress: () => void;
   /** A menu of more things to do with it (Up Next's Play Next and Play Later). */
   onLongPress?: () => void;
@@ -306,7 +309,7 @@ export function NavRow({ label, detail, badge, facts, loading, making, onPress, 
           <Icon name={action.icon} size={18} color={c.accent} weight="semibold" />
         </Tappable>
       ) : null}
-      {making ? <WorkingMark /> : <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />}
+      {making || working ? <WorkingMark /> : <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />}
     </Pressable>
     </Hoverable>
   );
@@ -354,7 +357,7 @@ export function CheckRow({ label, hint, selected, onPress, first }: { label: str
 }
 
 /** A row in a `Group` with an on/off switch. The whole row is labelled for VoiceOver, which flips it. */
-export function SwitchRow({ label, hint, value, onValueChange, first }: { label: string; hint?: string; value: boolean; onValueChange: (on: boolean) => void; first?: boolean }) {
+export function SwitchRow({ label, hint, value, onValueChange, first, style }: { label: string; hint?: string; value: boolean; onValueChange: (on: boolean) => void; first?: boolean; /** For a switch inside a `Card` rather than a `Group`: `{ paddingVertical: 0, paddingHorizontal: 0, minHeight: 0 }` keeps the card's own padding. */ style?: StyleProp<ViewStyle> }) {
   const c = useTheme();
   return (
     <View
@@ -364,7 +367,7 @@ export function SwitchRow({ label, hint, value, onValueChange, first }: { label:
       accessibilityState={{ checked: value }}
       accessibilityActions={[{ name: 'activate' }]}
       onAccessibilityAction={() => { haptic.select(); onValueChange(!value); }}
-      style={{ minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l }}
+      style={[{ minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.m, paddingHorizontal: space.l }, style]}
     >
       {first ? null : <Divider inset={space.l} />}
       <View style={{ flex: 1, gap: space.xs }}>
@@ -539,8 +542,12 @@ export function SheetHeader({ children, onClose, disabled }: { children: React.R
 export function Button(props: {
   label: string;
   onPress: () => void;
-  /** `destructive` is for what deletes or switches something off: quiet until pressed, red text. */
-  variant?: 'primary' | 'secondary' | 'destructive';
+  /**
+   * `destructive` is for what deletes or switches something off: quiet until pressed, red text.
+   * `tinted` is a way out beside a question's answers (I don't know): gold-tinted, so it reads as
+   * neither an answer nor the screen's main action.
+   */
+  variant?: 'primary' | 'secondary' | 'destructive' | 'tinted';
   disabled?: boolean;
   /** Shows a spinner in place of the label, and can't be pressed. */
   busy?: boolean;
@@ -553,7 +560,7 @@ export function Button(props: {
   const c = useTheme();
   const variant = props.variant ?? 'primary';
   const off = props.disabled || props.busy;
-  const fg = variant === 'primary' ? c.onAccent : variant === 'destructive' ? c.danger : c.text;
+  const fg = variant === 'primary' ? c.onAccent : variant === 'destructive' ? c.danger : variant === 'tinted' ? c.accentInk : c.text;
   return (
     <Tappable
       onPress={() => { haptic.tap(); props.onPress(); }}
@@ -568,9 +575,9 @@ export function Button(props: {
         {
           minHeight: 52, borderRadius: radius.m + 2, ...smooth, paddingHorizontal: space.l, paddingVertical: space.m,
           alignItems: 'center', justifyContent: 'center',
-          backgroundColor: variant === 'primary' ? c.accent : c.fill,
+          backgroundColor: variant === 'primary' ? c.accent : variant === 'tinted' ? c.accentFill : c.fill,
           // The fill alone is 1.1:1 on the screen in light mode, so the button needs an edge to read as one. Inside the box: the size is the same.
-          ...(variant === 'primary' ? null : { borderWidth: 1, borderColor: c.controlEdge }),
+          ...(variant === 'primary' || variant === 'tinted' ? null : { borderWidth: 1, borderColor: c.controlEdge }),
         },
         props.style,
       ]}
@@ -582,6 +589,173 @@ export function Button(props: {
         </View>
       ) : props.busy ? <ActivityIndicator color={fg} /> : <Text style={{ ...type.headline, color: fg }}>{props.label}</Text>}
     </Tappable>
+  );
+}
+
+/**
+ * A button that is only words in the gold ink ("Show English", "Add anyway", "More ideas"): for a
+ * small action beside content, where a `Button` would be too heavy. 44 tall, with an optional
+ * symbol before the words and a chevron after them for something that opens and closes.
+ * `busyLabel` replaces the words, beside the turning mark, while a request runs. It sets no
+ * `alignSelf`: pass one in `style` where it stands alone in a column.
+ */
+export function TextButton({ label, onPress, icon, chevron, disabled, busy, busyLabel, accessibilityLabel, accessibilityState, style }: {
+  label: string;
+  onPress: () => void;
+  icon?: SFSymbol;
+  /** Which way the chevron after the words points: down while closed, up while open. */
+  chevron?: 'up' | 'down';
+  disabled?: boolean;
+  busy?: boolean;
+  busyLabel?: string;
+  accessibilityLabel?: string;
+  accessibilityState?: AccessibilityState;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const c = useTheme();
+  const off = disabled || busy;
+  return (
+    <Tappable
+      onPress={() => { haptic.tap(); onPress(); }}
+      disabled={off}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ ...accessibilityState, disabled: !!off, busy: !!busy }}
+      restOpacity={disabled && !busy ? 0.45 : 1}
+      scaleTo={0.97}
+      style={[{ minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.xs }, style]}
+    >
+      {busy && busyLabel ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+          <WorkingMark />
+          <Text style={{ ...type.subhead, color: c.textSecondary }}>{busyLabel}</Text>
+        </View>
+      ) : (
+        <>
+          {icon ? <Icon name={icon} size={16} color={c.accentInk} weight="semibold" /> : null}
+          <Text style={{ ...type.subhead, fontWeight: '600', color: c.accentInk, flexShrink: 1 }}>{label}</Text>
+          {chevron ? <Icon name={chevron === 'up' ? 'chevron.up' : 'chevron.down'} size={12} color={c.accentInk} weight="semibold" /> : null}
+        </>
+      )}
+    </Tappable>
+  );
+}
+
+/**
+ * A lifted card that says something has happened and opens it: a deck shared to Franki, new words
+ * running low, notes ready from Claude, vacation, reviews to do first. An icon, the news, a line
+ * on what a tap does, then a close button when it can be dismissed or a chevron when it can't.
+ * The caller wraps it in `Reveal` where it should fade in.
+ */
+export function Banner({ icon, iconColor, title, hint, onPress, onDismiss, dismissLabel = 'Dismiss', accessibilityHint }: {
+  icon: SFSymbol;
+  iconColor: string;
+  title: string;
+  hint: string;
+  onPress: () => void;
+  onDismiss?: () => void;
+  /** What VoiceOver says for the close button ("Dismiss until tomorrow"). */
+  dismissLabel?: string;
+  accessibilityHint?: string;
+}) {
+  const c = useTheme();
+  return (
+    <View
+      style={{
+        flexDirection: 'row', alignItems: 'center', borderRadius: radius.l, ...smooth,
+        backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, ...lift(c, 'high'),
+      }}
+    >
+      <Tappable
+        onPress={() => { haptic.tap(); onPress(); }}
+        accessibilityRole="button"
+        accessibilityLabel={`${title}. ${hint}`}
+        accessibilityHint={accessibilityHint}
+        style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 56, paddingVertical: space.m, paddingLeft: space.l, paddingRight: onDismiss ? 0 : space.l }}
+      >
+        <Icon name={icon} size={22} color={iconColor} />
+        <View style={{ flex: 1 }}>
+          <Text numberOfLines={2} style={{ ...type.callout, color: c.text }}>{title}</Text>
+          <Text style={{ ...type.footnote, color: c.textSecondary }}>{hint}</Text>
+        </View>
+        {onDismiss ? null : <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />}
+      </Tappable>
+      {onDismiss ? (
+        <Tappable
+          onPress={() => { haptic.tap(); onDismiss(); }}
+          accessibilityRole="button"
+          accessibilityLabel={dismissLabel}
+          style={{ minWidth: MIN_TAP, minHeight: MIN_TAP, alignItems: 'center', justifyContent: 'center', marginRight: space.xs }}
+        >
+          <Icon name="xmark" size={14} color={c.textTertiary} weight="semibold" />
+        </Tappable>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * A row in a `Group` that shows something rather than opening it: a label, a symbol before it if
+ * any, and what's at its end (a status, a count) as children. The line above it starts at the
+ * label, as in every other group. VoiceOver reads the row as one.
+ */
+export function ValueRow({ label, icon, first, children }: { label: string; icon?: { name: SFSymbol; color: string }; first?: boolean; children?: React.ReactNode }) {
+  const c = useTheme();
+  return (
+    <View accessible style={{ minHeight: MIN_TAP + space.m, flexDirection: 'row', alignItems: 'center', gap: space.m, paddingVertical: space.s, paddingHorizontal: space.l }}>
+      {first ? null : <Divider inset={space.l + (icon ? VALUE_ICON + space.m : 0)} />}
+      {icon ? <Icon name={icon.name} size={VALUE_ICON} color={icon.color} /> : null}
+      <Text style={{ ...type.body, color: c.text, flex: 1 }}>{label}</Text>
+      {children}
+    </View>
+  );
+}
+const VALUE_ICON = 18;
+
+/**
+ * A row in a `Group` with a check circle, for picking several (`CheckRow` is a checkmark, for picking
+ * one): tapping it checks it or takes the check off. `big` is a cram lesson's, for a glance
+ * mid-conversation. The label is often a word in the language being learned, so it takes Thai's
+ * taller line where it needs one.
+ */
+export function CheckboxRow({ label, detail, checked, onPress, first, big, color, trailing, disabled, labelSize, accessibilityLabel }: {
+  label: string;
+  detail?: string;
+  checked: boolean;
+  onPress: () => void;
+  first?: boolean;
+  big?: boolean;
+  /** The check's fill when on: the accent, unless this says otherwise (lesson mode's green). */
+  color?: string;
+  /** Something small after the text ("Saving"). */
+  trailing?: React.ReactNode;
+  disabled?: boolean;
+  /** Replaces the label's size and line height (a cram's text size, for a label in the cram's language). */
+  labelSize?: { fontSize: number; lineHeight: number };
+  /** What VoiceOver says when the label and detail leave something out (what `trailing` shows). */
+  accessibilityLabel?: string;
+}) {
+  const c = useTheme();
+  return (
+    <HoverPressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked, disabled: !!disabled }}
+      accessibilityLabel={accessibilityLabel ?? (detail ? `${label}, ${detail}` : label)}
+      style={({ pressed }) => ({
+        minHeight: MIN_TAP + (big ? space.l : space.m), flexDirection: 'row', alignItems: 'center', gap: space.m,
+        paddingVertical: big ? space.m : space.s + 2, paddingHorizontal: space.l, backgroundColor: pressed ? c.fill : c.surface,
+      })}
+    >
+      {first ? null : <Divider inset={space.l} />}
+      <Icon name={checked ? 'checkmark.circle.fill' : 'circle'} size={big ? 26 : 22} color={checked ? color ?? c.accent : c.textTertiary} weight="regular" />
+      <View style={{ flex: 1, gap: space.xs }}>
+        <Text style={{ ...withThaiLineHeight(big ? type.headline : type.body, label), ...labelSize, color: checked && big ? c.textSecondary : c.text }}>{label}</Text>
+        {detail ? <Text numberOfLines={2} style={{ ...(big ? type.subhead : type.footnote), color: c.textSecondary }}>{detail}</Text> : null}
+      </View>
+      {trailing}
+    </HoverPressable>
   );
 }
 

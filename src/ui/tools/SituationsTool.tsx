@@ -1,5 +1,5 @@
 import { useAudioPlayer } from 'expo-audio';
-import { router, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,7 +19,7 @@ import { speedFor } from '../../reader/prefs';
 import { loadParticle } from '../../reader/lessonStorage';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Group, Help, Icon, Loading, NavRow, Screen, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Group, Help, Icon, Loading, NavRow, Screen, Tappable, TextButton } from '../kit';
 import type { CardMotion } from '../SwipeCard';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
 import { useTrackedPlayer } from '../useSoundingButton';
@@ -201,9 +201,7 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
       />
       {error ? <ErrorNote message={error} onRetry={() => setLoads((n) => n + 1)} /> : null}
       {scene ? (
-        <Tappable onPress={() => { haptic.select(); setTyping(false); }} accessibilityRole="button" scaleTo={0.97} style={{ minHeight: MIN_TAP, justifyContent: 'center' }}>
-          <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>Pick a scene instead</Text>
-        </Tappable>
+        <TextButton label="Pick a scene instead" onPress={() => setTyping(false)} />
       ) : null}
     </View>
   ) : (
@@ -214,13 +212,9 @@ function PickScene({ tool, api, language, onLanguage, heardOnly, onHeardOnly, fo
       {focus ? <Text style={{ ...type.subhead, color: c.text, textAlign: 'center', maxWidth: 280 }}>{`Practicing: ${focus.title}. Claude works it into the scene and comments on how you used it at the end.`}</Text> : null}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xl, marginTop: space.s }}>
         {names && names.length > 1 ? (
-          <Tappable onPress={() => { haptic.select(); setBrowsing(true); }} accessibilityRole="button" scaleTo={0.97} style={{ minHeight: MIN_TAP, justifyContent: 'center' }}>
-            <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>Browse all</Text>
-          </Tappable>
+          <TextButton label="Browse all" onPress={() => setBrowsing(true)} />
         ) : null}
-        <Tappable onPress={() => { haptic.select(); setTyping(true); }} accessibilityRole="button" scaleTo={0.97} style={{ minHeight: MIN_TAP, justifyContent: 'center' }}>
-          <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>Type your own</Text>
-        </Tappable>
+        <TextButton label="Type your own" onPress={() => setTyping(true)} />
       </View>
     </View>
   );
