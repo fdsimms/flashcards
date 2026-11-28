@@ -1,0 +1,48 @@
+# Read & Listen's texts, read from its server: a sample, not a sweep. A batch is a few texts at random
+# from the last 30 days, so a run each month shows whether the texts are getting better or worse
+# (list_audits' by_month); a text never changes once shown, so one checked is never due again. A
+# finding can't be flagged like a note's: it waits in audit_findings. The format is
+# card-content.toml's, which explains each part.
+
+title = "Read & Listen texts"
+source = "texts"
+window_days = 30
+sample = true
+batch_max = 5
+about = """Whether the texts Read & Listen wrote are correct and natural, judged on a few at random \
+each month. A finding quotes the line and says what's right instead. A problem that shows up in \
+several texts is a problem in how they're written (the server's prompt or checks), not in one text: \
+say so when you report it."""
+
+[[checks]]
+id = "grammar"
+version = 1
+ask = """Every line is grammatical and spelled right in the target language."""
+
+[[checks]]
+id = "natural"
+version = 1
+ask = """Every line sounds like something a native speaker would say in that situation, in the \
+register given, and each speaker sounds like the same person throughout."""
+
+[[checks]]
+id = "english"
+version = 1
+ask = """Each line's English says what the line says, in natural American English."""
+
+[[checks]]
+id = "glosses"
+version = 1
+ask = """The glosses and `meanings` given for words fit the sense each word has in its line."""
+
+[[checks]]
+id = "questions"
+version = 1
+ask = """Each comprehension question can be answered from the text, and the answer marked right is \
+the right one."""
+
+[[checks]]
+id = "story"
+version = 1
+ask = """A story episode is consistent with the story's premise, cast and the recap of what came \
+before. (A dialogue passes this check.)"""

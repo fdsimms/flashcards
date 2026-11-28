@@ -198,6 +198,12 @@ def test_grammar_pages_list_both_kinds_and_read_one_without_writing_anything() -
     assert point["status"] == "ready" and point["point_note"]
     assert len(point["examples"]) == 2
 
+    # A page written again gets a new digest; one untouched keeps its own.
+    digests = {p["id"]: p["digest"] for p in pages}
+    store.save_grammar_topic_page(conn, topic.id, "Lead.", "Explanation, longer.", [example])
+    again = {p["id"]: p["digest"] for p in c.get("/api/audit/grammar", headers=AUTH).json()}
+    assert again[POINT] == digests[POINT] and again[str(topic.id)] != digests[str(topic.id)]
+
     # A point with no lesson is a 404 here, never a write started (the app's route would start one).
     assert c.get("/api/audit/grammar/point/th.ongoing", headers=AUTH).status_code == 404
     assert store.get_grammar_lesson(conn, "th.ongoing") is None

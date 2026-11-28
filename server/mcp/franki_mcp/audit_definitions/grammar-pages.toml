@@ -1,0 +1,28 @@
+# Read & Listen's grammar pages: the owner's own topics and the built-in points' lessons, read from its
+# server. A page written again (a new digest) is due again. A finding can't be flagged like a note's:
+# it waits in audit_findings. The format is card-content.toml's, which explains each part.
+
+title = "Grammar pages"
+source = "grammar_pages"
+about = """Whether a grammar page Claude wrote in Read & Listen teaches the grammar correctly. A \
+point's page comes with the catalog's own note on the point (`point_note`, `point_example`), which \
+the page must agree with. A finding names the example by its line, or the sentence of the \
+explanation, and says what's right instead."""
+
+[[checks]]
+id = "rule"
+version = 1
+ask = """What the page says about the grammar is true: no rule stated wider or narrower than it is, \
+no exception left out that a learner will meet often, and nothing that contradicts the point's \
+own note."""
+
+[[checks]]
+id = "examples"
+version = 1
+ask = """Each example is grammatical, spelled right and natural, and actually uses the grammar the \
+page is about (not a lookalike construction)."""
+
+[[checks]]
+id = "english"
+version = 1
+ask = """Each example's English says what the example says, in natural American English."""

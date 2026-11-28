@@ -64,6 +64,16 @@ and never the server's files, so searches, note adds, scheduling and sync behave
   in Settings > Voices (`src/anki/audioVoices.ts`, the same key), because that choice is stored on the
   phone where the MCP can't read it; `set_audio_voice` writes it too. Each side changes only the
   language it was given. A failed recording never fails the add: it's the result's `audio_error`.
+- **Content audits are judgment checks, remembered per item** (`audits.py`, one TOML file per audit
+  in `audit_definitions/`): what's kept is which version of each check passed which content (a hash
+  of what the checks read), not when a run happened, so an item added or changed since, or a check
+  whose version went up, is due again and a run can stop after any batch. An audit reads notes (an
+  Anki search) or Read & Listen's grammar pages or texts, through the same audit routes as
+  `reader.py` (a page's `digest` there says when it was written again). The records live in
+  `audits.sqlite` beside the collection, not in it. A note's finding is flagged the way Franki flags a
+  card (`flag::` reasons from `agentFlag.ts`, which `test_audits.py` keeps in step), so its fix goes
+  through `flagged_cards` and `resolve_flag` like any other; a page's or text's waits in
+  `audit_findings`. A rule that needs no judgment belongs in `omnilanguage.py`, not in an audit.
 - **`INSTRUCTIONS` stays short** (a client may cut long server instructions off mid-sentence, and
   did): what applies to every tool goes there, and a tool's own rules go in its description.
 - Keep `anki` in `requirements.txt` at the version the sync server runs (`ANKI_VERSION`;
