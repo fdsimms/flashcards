@@ -2090,6 +2090,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/videos/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview */
+        post: operations["preview_api_videos_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/videos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Add */
+        post: operations["add_api_videos_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/vocab-check": {
         parameters: {
             query?: never;
@@ -3609,6 +3643,49 @@ export interface components {
              * @default
              */
             reading: string;
+        };
+        /** VideoAddedOut */
+        VideoAddedOut: {
+            /** Id */
+            id: number;
+        };
+        /** VideoIn */
+        VideoIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            /** Link */
+            link: string;
+        };
+        /**
+         * VideoPreviewOut
+         * @description What adding a video would give, before it's added.
+         */
+        VideoPreviewOut: {
+            /** Video Id */
+            video_id: string;
+            /** Title */
+            title: string;
+            /** Channel */
+            channel: string;
+            /** Generated */
+            generated: boolean;
+            /** Seconds */
+            seconds: number;
+            /** Coverage */
+            coverage: number;
+            /** Words */
+            words: number;
+            /** New Words */
+            new_words: string[];
+            /** New Count */
+            new_count: number;
+            /** Lines */
+            lines: number;
+            /** Cost Usd */
+            cost_usd: number;
         };
         /** WordIn */
         WordIn: {
@@ -8007,6 +8084,76 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_api_videos_preview_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VideoIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoPreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    add_api_videos_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VideoIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VideoAddedOut"];
                 };
             };
             /** @description Validation Error */

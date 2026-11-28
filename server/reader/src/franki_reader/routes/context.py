@@ -27,6 +27,7 @@ from franki_reader import (
     situations,
     store,
     topic_image,
+    video,
     vocab_check,
     wanikani_senses,
     word_lookup,
@@ -78,6 +79,7 @@ class AppContext:
     write_lesson_topics: WriteTopics | None
     lessons_dir: Path | None
     commons: Commons | None
+    fetch_captions: video.FetchCaptions | None
     native_dir: Path | None
     write_aspect: aspect.WriteAspect | None
     ask_about_card: ask_card.AskCard | None

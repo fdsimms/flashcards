@@ -30,6 +30,7 @@ export function ReadListening({ voices, onVoices }: {
   const [listenTwice, setListenTwice] = useState(prefs().listenTwice);
   const [situationsAzure, setSituationsAzure] = useState(prefs().situationsAzure);
   const [topicImages, setTopicImages] = useState(prefs().topicImages);
+  const [videos, setVideos] = useState(prefs().videos);
   const [slowLanguages, setSlowLanguages] = useState(prefs().slowLanguages);
   const [guessFirst, setGuessFirst] = useState(prefs().guessFirst);
   const [quizKnown, setQuizKnown] = useState(prefs().quizKnown);
@@ -176,6 +177,28 @@ export function ReadListening({ voices, onVoices }: {
               onValueChange={(on) => {
                 savePrefs({ topicImages: on });
                 setTopicImages(on);
+              }}
+            />
+          </Group>
+        </Section>
+        <Section
+          title="Videos"
+          footer={(
+            <Help>
+              Adds A video to New text: share a YouTube video to Franki or paste its link, and read its subtitles under it
+              as it plays. Your server asks YouTube for the subtitles, and the video plays in YouTube's own player, with its
+              ads. YouTube can change how its subtitles are read, so a video may sometimes fail to add.
+            </Help>
+          )}
+        >
+          <Group>
+            <SwitchRow
+              first
+              label="Watch videos with their subtitles"
+              value={videos}
+              onValueChange={(on) => {
+                savePrefs({ videos: on });
+                setVideos(on);
               }}
             />
           </Group>
