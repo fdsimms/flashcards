@@ -798,6 +798,17 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
   in TypeScript), so the take still never leaves it. Shown in Thai, Japanese and Norwegian, where pitch
   tells words apart, or every language with Settings, Speaking's "Pitch line in every language". Review's
   cards only for now: a sentence's line is longer and harder to read.
+- **Tone check** (28 November 2026, the owner, from a mock with each recommendation picked;
+  `src/core/toneCheck.ts`, `src/ui/ToneCheck.tsx`): under a Thai card's pitch line, each syllable of the
+  word (from its Transliteration, `thaiSyllables`) with the recording's tone shape, the take's, and Same
+  or Different. It reads the two lines already drawn, so nothing new is measured or sent. A line is cut at
+  its gaps when there's one per syllable, else into equal stretches; a syllable's shape is rising or
+  falling by more than 2 semitones across it (a rising tone may dip first), else high, low or mid by its
+  level around the speaker's middle. It compares the take with the recording, not with a textbook shape,
+  since real speech bends tones, and says "Pitch not clear enough to say" for a syllable with under
+  60 ms of voice in either rather than guessing. Unlike Score it, it names a shape the learner can hear
+  and fix, but it's still a guide: never a score and never a rating. Thai only: Japanese pitch accent and
+  Norwegian's word tones work differently and would be their own step.
 
 ## Hosting
 
