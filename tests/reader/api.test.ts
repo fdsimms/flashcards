@@ -1,5 +1,5 @@
 import { expect, test, vi } from 'vitest';
-import { ApiError, createApi, readerAddress } from '../../src/reader/api';
+import { ApiError, createApi, readerAddress, settingsFromServer, type Shelf } from '../../src/reader/api';
 
 type Call = { url: string; init: RequestInit };
 
@@ -302,4 +302,56 @@ test('a story character sample and scene are asked for by language, voice and pi
   await createApi('https://x/reader/', 'p', scene.impl).castScene('ru');
   expect(scene.calls[0].url).toBe('https://x/reader/api/cast/scene');
   expect(JSON.parse(scene.calls[0].init.body as string)).toEqual({ language: 'ru' });
+});
+
+// The server updates itself as soon as a change merges, so it can name a language added after the
+// app on the phone was built; looking that one up crashed the Read & Listen screen.
+test("a language this build doesn't know is left out of the settings", () => {
+  const settings = settingsFromServer({
+    stretch_words: 'topic', lines: 8, form: 'dialogue', language: 'xx' as never,
+    decks: { th: 'Thai', tok: 'Toki Pona', xx: 'New' },
+    voices: { th: { male: 'a', male2: 'b', female: 'c', female2: 'd' }, xx: { male: 'e' } } as never,
+    common: { es: 10000, xx: 250 } as never,
+    daily_tasks: { th: 'rotate', tok: 'off', xx: 'rotate' } as never,
+    cast: { xx: {} } as never,
+  });
+  expect(settings.language).toBe('th');
+  expect(settings.decks).toEqual({ th: 'Thai' });
+  expect(settings.glossOnlyDecks).toEqual({ tok: 'Toki Pona' });
+  expect(Object.keys(settings.voices)).toEqual(['th']);
+  expect(settings.common).toEqual({ es: 10000 });
+  expect(settings.daily_tasks).toEqual({ th: 'rotate', tok: 'off' });
+  expect(settings.cast).toEqual({});
+});
+
+const shelf = (language: string): Shelf => ({
+  language: language as Shelf['language'],
+  languages: [{ code: 'th', name: 'Thai', ready: 1 }, { code: 'xx' as never, name: 'New', ready: 2 }],
+  texts: [], writing: [], story: null,
+});
+
+test("the shelf's language menu leaves out a language this build doesn't know", async () => {
+  const { impl } = fakeFetch(json(shelf('th')));
+  const out = await createApi('https://x', 'p', impl).shelf();
+  expect(out.languages.map((l) => l.code)).toEqual(['th']);
+});
+
+test("a reader's language this build doesn't know opens the fallback language's shelf", async () => {
+  const calls: string[] = [];
+  const impl = async (url: string) => {
+    calls.push(url);
+    return json(shelf(url.endsWith('?language=th') ? 'th' : 'xx'));
+  };
+  const out = await createApi('https://x', 'p', impl).shelf();
+  expect(out.language).toBe('th');
+  expect(calls).toEqual(['https://x/api/shelf', 'https://x/api/shelf?language=th']);
+});
+
+test("lessons, stories and input time leave out a language this build doesn't know", async () => {
+  const lessons = fakeFetch(json({ languages: ['th', 'xx'], lessons: [] }));
+  expect((await createApi('https://x', 'p', lessons.impl).lessons()).languages).toEqual(['th']);
+  const stories = fakeFetch(json({ language: 'xx', stories: [{ id: 1 }] }));
+  expect(await createApi('https://x', 'p', stories.impl).stories()).toEqual({ language: 'th', stories: [] });
+  const time = fakeFetch(json({ days: 7, languages: [{ language: 'xx', reading_seconds: 1, listening_seconds: 0, last_read_at: null }] }));
+  expect((await createApi('https://x', 'p', time.impl).inputTime()).languages).toEqual([]);
 });

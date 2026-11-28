@@ -13,7 +13,7 @@ import type { DrillQuestionIn, GrammarAnswer } from '../core/grammarDrills';
 import type { LessonWordCandidate } from '../core/lessonWords';
 import type { components } from './apiTypes.gen';
 import { genreChoice, type Genre } from './genre';
-import { splitDecks } from './languages';
+import { isKnownLanguage, knownLanguagesOf, splitDecks } from './languages';
 import { registerChoice, type RegisterLevel } from './registerLevel';
 import { isSlow } from './playbackRate';
 import type { CramReport } from '../core/cramsReport';
@@ -503,9 +503,33 @@ export type Settings = {
 /** The settings as the server sends them: `decks` holds every language, gloss-only ones included. */
 type ServerSettings = Omit<Settings, 'decks' | 'glossOnlyDecks'> & { decks?: Record<string, string> };
 
-/** The server's settings with each gloss-only language's deck moved out of `decks` (`splitDecks`). A server older than the deck setting sends no `decks`, and gets none. */
+/**
+ * The language shown in place of one this build doesn't know (`isKnownLanguage`): Thai, as the
+ * server does for a language it hides from an older app (server/reader languages.HIDDEN_LANGUAGES).
+ */
+export const FALLBACK_LANGUAGE: Language = 'th';
+
+/**
+ * The server's settings with each gloss-only language's deck moved out of `decks` (`splitDecks`),
+ * and every language this build doesn't know left out (`isKnownLanguage`), the reader's own
+ * language read as `FALLBACK_LANGUAGE`. A server older than the deck setting sends no `decks`, and
+ * gets none.
+ */
 export function settingsFromServer(raw: ServerSettings): Settings {
-  return (raw.decks ? { ...raw, ...splitDecks(raw.decks) } : raw) as Settings;
+  const known = {
+    ...raw,
+    language: isKnownLanguage(raw.language) ? raw.language : FALLBACK_LANGUAGE,
+    ...(raw.voices ? { voices: knownLanguagesOf(raw.voices) } : {}),
+    ...(raw.common ? { common: knownLanguagesOf(raw.common) } : {}),
+    ...(raw.daily_tasks ? { daily_tasks: knownLanguagesOf(raw.daily_tasks) } : {}),
+    ...(raw.cast ? { cast: knownLanguagesOf(raw.cast) } : {}),
+  };
+  return (raw.decks ? { ...known, ...splitDecks(knownLanguagesOf(raw.decks)) } : known) as Settings;
+}
+
+/** The shelf without the languages this build doesn't know in its language menu (`isKnownLanguage`). */
+export function shelfFromServer(raw: Shelf): Shelf {
+  return { ...raw, languages: raw.languages.filter((l) => isKnownLanguage(l.code)) };
 }
 
 // A change to the settings. A deck or voice named '' goes back to the default, and so does a
@@ -722,7 +746,10 @@ export function createApi(
     addTopic: (name: string) => call<Topic>('POST', '/api/topics', { name }),
     suggestions: () => call<Suggestion[]>('GET', '/api/suggestions'),
     progress: () => call<Progress>('GET', '/api/progress'),
-    inputTime: () => call<InputTime>('GET', '/api/input-time'),
+    inputTime: async (): Promise<InputTime> => {
+      const out = await call<InputTime>('GET', '/api/input-time');
+      return { ...out, languages: out.languages.filter((l) => isKnownLanguage(l.language)) };
+    },
     markedWords: () => call<MarkedWord[]>('GET', '/api/words'),
     grammar: () => call<GrammarList>('GET', '/api/grammar'),
     drills: (points: string[], count: number) => call<DrillSet>('POST', '/api/drills', { points, count }),
@@ -808,8 +835,10 @@ export function createApi(
     // With `story`, that story's episodes, first to last.
     // Audio lessons, newest first, and the languages the server can make them in. One is asked for by a scene and
     // made in the background (poll `lessons` until it's ready or failed).
-    lessons: (language?: Language) =>
-      call<{ languages: Language[]; lessons: AudioLesson[]; review?: LessonReview | null; lines?: LinesDrillOffer | null }>('GET', language === undefined ? '/api/lessons' : `/api/lessons?language=${language}`),
+    lessons: async (language?: Language) => {
+      const out = await call<{ languages: Language[]; lessons: AudioLesson[]; review?: LessonReview | null; lines?: LinesDrillOffer | null }>('GET', language === undefined ? '/api/lessons' : `/api/lessons?language=${language}`);
+      return { ...out, languages: out.languages.filter(isKnownLanguage) as Language[] };
+    },
     // `narrator`: an English voice for this lesson's narration; left out, the server's own.
     // `particle`: a Thai lesson's polite ending, khrap or kha; the server ignores it in other languages.
     // `phrases`: the learner's own words and phrases to teach (a cram's), up to 15, instead of ones
@@ -887,7 +916,13 @@ export function createApi(
     setDifficulty: (level: DifficultyLevel) => call<Progress['next']>('PUT', '/api/difficulty', { level }),
     // The current language's shelf; asking also tops it up in the background.
     // With a language, that language's shelf only read (keeping it for offline): the reader's own language stays, and nothing is written for it.
-    shelf: (language?: GlossLanguage) => call<Shelf>('GET', language ? `/api/shelf?language=${language}` : '/api/shelf'),
+    shelf: async (language?: GlossLanguage) => {
+      const shelf = await call<Shelf>('GET', language ? `/api/shelf?language=${language}` : '/api/shelf');
+      // The reader's language was set to one this build doesn't know (on a newer build elsewhere):
+      // its shelf would crash this one, so the fallback language's is shown, as the settings say.
+      if (!isKnownLanguage(shelf.language)) return shelfFromServer(await call<Shelf>('GET', `/api/shelf?language=${FALLBACK_LANGUAGE}`));
+      return shelfFromServer(shelf);
+    },
     // Writes a text on a typed topic in the background; it joins the shelf when it's ready.
     writeAbout: (name: string, form: Form, model?: TextModel, genre: Genre = 'any') => call<void>('POST', '/api/shelf/write', { name, form, ...(model ? { model } : {}), ...genreChoice(genre) }),
     // Starts a new story in the current language ('' lets the server choose what it's about).
@@ -902,7 +937,11 @@ export function createApi(
     videoPreview: (language: GlossLanguage, link: string) => call<VideoPreview>('POST', '/api/videos/preview', { language, link }),
     addVideo: (language: GlossLanguage, link: string) => call<Schemas['VideoAddedOut']>('POST', '/api/videos', { language, link }),
     // The reader's language's stories, running first, then ended.
-    stories: () => call<{ language: GlossLanguage; stories: StoryListItem[] }>('GET', '/api/stories'),
+    stories: async () => {
+      const out = await call<{ language: GlossLanguage; stories: StoryListItem[] }>('GET', '/api/stories');
+      // Stories in a language this build doesn't know (`shelf` above) aren't listed.
+      return isKnownLanguage(out.language) ? out : { language: FALLBACK_LANGUAGE, stories: [] };
+    },
     // One story for its own page: as the card has it (Last time, the next episode's practice words).
     story: (id: number) => call<StoryListItem>('GET', `/api/stories/${id}`),
     // Shows a running story on the shelf's card, in place of the one there.

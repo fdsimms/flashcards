@@ -88,7 +88,11 @@ def router(ctx: AppContext) -> APIRouter:
     def settings_out(current: Settings) -> dict[str, Any]:
         # Every language's deck and voices, the default where none was chosen, so the app shows
         # what's used.
-        decks = {code: with_deck(code, current.decks.get(code)).deck for code in LANGUAGES}
+        decks = {
+            code: with_deck(code, current.decks.get(code)).deck
+            for code in LANGUAGES
+            if code not in HIDDEN_LANGUAGES
+        }
         # The count is a setting only where it can be chosen (Toki Pona's short list always counts).
         common = {
             code: current.common_for(code)

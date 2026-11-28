@@ -19,7 +19,8 @@ from franki_reader.engine import Engine
 from franki_reader.gateway import AnkiUnavailable
 from franki_reader.languages import HIDDEN_LANGUAGES, LANGUAGES, SPEAKING_LANGUAGES, Code
 from franki_reader.lexicon import Entry
-from franki_reader.routes import views
+from franki_reader.routes import health, own_texts, views
+from franki_reader.routes import settings as settings_routes
 from franki_reader.status import DeckDue, DueStatus, LearningLater, StudyDay
 from franki_reader.store import Settings
 from franki_reader.tts import SLOW_RATE, Spoken
@@ -348,6 +349,8 @@ DECKS = {
     "en": "👅 Languages::🗽 English",
     "tok": "👅 Languages::🙂 toki pona",
 }
+# A hidden language's deck isn't reported either (languages.HIDDEN_LANGUAGES).
+DECKS = {code: deck for code, deck in DECKS.items() if code not in HIDDEN_LANGUAGES}
 # How many common words each language counts as known when none was chosen (not Thai: deck only).
 COMMON = {
     "es": 10000,
@@ -1747,20 +1750,28 @@ def test_only_the_passphrase_reports_crams_and_a_bad_one_is_refused() -> None:
     assert c.put("/api/franki-crams", json=too_many, headers=AUTH).status_code == 422
 
 
-@pytest.mark.parametrize("hidden", ["ja", "en"])
+def hide_languages(monkeypatch: pytest.MonkeyPatch, hidden: frozenset[Code]) -> None:
+    """Sets languages.HIDDEN_LANGUAGES in every module that reads it."""
+    for module in (store, views, settings_routes, health, own_texts):
+        monkeypatch.setattr(module, "HIDDEN_LANGUAGES", hidden)
+
+
+@pytest.mark.parametrize("hidden", ["ja", "en", "tok"])
 def test_a_new_language_is_hidden_from_the_app_until_its_build_has_it(
     hidden: Code, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     # An app built before a language has no entry for it and crashes on one, so a saved setting
-    # for it reads as Thai and the shelf doesn't list it (languages.HIDDEN_LANGUAGES).
-    monkeypatch.setattr(store, "HIDDEN_LANGUAGES", frozenset({hidden}))
-    monkeypatch.setattr(views, "HIDDEN_LANGUAGES", frozenset({hidden}))
+    # for it reads as Thai, and neither the shelf nor the settings name it (languages.HIDDEN_LANGUAGES).
+    hide_languages(monkeypatch, frozenset({hidden}))
     conn = store.connect(":memory:")
     store.save_snapshot(conn, ENTRIES, NOW)
     store.save_settings(conn, Settings(language=hidden))
     engine = Engine(conn, ScriptedModel(IN_RANGE).ask_for, None, lambda: NOW, random.Random(1))
     c = started(create_app(engine, "open sesame"))
-    assert c.get("/api/settings", headers=AUTH).json()["language"] == "th"
+    settings = c.get("/api/settings", headers=AUTH).json()
+    assert settings["language"] == "th"
+    assert hidden not in settings["decks"]
+    assert hidden not in settings["daily_tasks"]
     shelf = c.get("/api/shelf", headers=AUTH).json()
     assert shelf["language"] == "th"
     assert hidden not in [language["code"] for language in shelf["languages"]]
@@ -1808,7 +1819,10 @@ def test_glosses_work_for_toki_pona_with_no_lemmatizer_voices_or_common_list() -
     assert all(w["status"] == "known" for w in words if w["status"])
 
 
-def test_toki_pona_is_on_the_shelf_and_in_daily_tasks_but_has_no_voices_or_common_count() -> None:
+def test_toki_pona_is_on_the_shelf_and_in_daily_tasks_but_has_no_voices_or_common_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hide_languages(monkeypatch, frozenset())
     c = client()
     settings = c.get("/api/settings", headers=AUTH).json()
     assert settings["decks"]["tok"] == "👅 Languages::🙂 toki pona"

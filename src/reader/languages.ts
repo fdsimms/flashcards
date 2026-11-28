@@ -52,12 +52,29 @@ export const GLOSS_ONLY: Record<GlossOnlyLanguage, LanguageInfo> = {
 
 /** The look of a language a card's sentence can be glossed in, a gloss-only one included. */
 export function glossInfo(code: GlossLanguage): LanguageInfo {
-  return isGlossOnly(code) ? GLOSS_ONLY[code] : LANGUAGES[code];
+  // An unknown code is kept out at the API (`isKnownLanguage`); this is the backstop for one that
+  // slips past, so a name or a flag never throws on a language this build doesn't know.
+  return (isGlossOnly(code) ? GLOSS_ONLY[code] : LANGUAGES[code]) ?? { name: String(code), flag: '🌐', ...SPACED, speech: 'en-US' };
+}
+
+/**
+ * Whether `code`, as the server sent it, is a language this build of the app knows. The server
+ * updates itself as soon as a change merges, so it can name a language added after the app on the
+ * phone was built, and looking that one up crashed the Read & Listen screen. What reads languages
+ * from the server drops the rest (`settingsFromServer`, `shelfFromServer` and the rest in api.ts).
+ */
+export function isKnownLanguage(code: string): code is GlossLanguage {
+  return Object.hasOwn(LANGUAGES, code) || Object.hasOwn(GLOSS_ONLY, code);
+}
+
+/** `map` without the languages this build doesn't know (`isKnownLanguage`). */
+export function knownLanguagesOf<T>(map: Record<string, T>): Record<string, T> {
+  return Object.fromEntries(Object.entries(map).filter(([code]) => isKnownLanguage(code)));
 }
 
 /** Whether `code` is a language with no voices (Toki Pona): its texts are read, not heard, and no lesson or Practice tool covers it. */
 export function isGlossOnly(code: GlossLanguage): code is GlossOnlyLanguage {
-  return code in GLOSS_ONLY;
+  return Object.hasOwn(GLOSS_ONLY, code);
 }
 
 /**
