@@ -7309,6 +7309,118 @@
         }
       }
     },
+    "/api/videos/preview": {
+      "post": {
+        "summary": "Preview",
+        "operationId": "preview_api_videos_preview_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoPreviewOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/videos": {
+      "post": {
+        "summary": "Add",
+        "operationId": "add_api_videos_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VideoIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VideoAddedOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/vocab-check": {
       "get": {
         "summary": "Get Vocab Check",
@@ -11948,6 +12060,119 @@
           "entry"
         ],
         "title": "VerbIn"
+      },
+      "VideoAddedOut": {
+        "properties": {
+          "id": {
+            "type": "integer",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id"
+        ],
+        "title": "VideoAddedOut"
+      },
+      "VideoIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en",
+              "tok"
+            ],
+            "title": "Language"
+          },
+          "link": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Link"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "link"
+        ],
+        "title": "VideoIn"
+      },
+      "VideoPreviewOut": {
+        "properties": {
+          "video_id": {
+            "type": "string",
+            "title": "Video Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "channel": {
+            "type": "string",
+            "title": "Channel"
+          },
+          "generated": {
+            "type": "boolean",
+            "title": "Generated"
+          },
+          "seconds": {
+            "type": "integer",
+            "title": "Seconds"
+          },
+          "coverage": {
+            "type": "number",
+            "title": "Coverage"
+          },
+          "words": {
+            "type": "integer",
+            "title": "Words"
+          },
+          "new_words": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "New Words"
+          },
+          "new_count": {
+            "type": "integer",
+            "title": "New Count"
+          },
+          "lines": {
+            "type": "integer",
+            "title": "Lines"
+          },
+          "cost_usd": {
+            "type": "number",
+            "title": "Cost Usd"
+          }
+        },
+        "type": "object",
+        "required": [
+          "video_id",
+          "title",
+          "channel",
+          "generated",
+          "seconds",
+          "coverage",
+          "words",
+          "new_words",
+          "new_count",
+          "lines",
+          "cost_usd"
+        ],
+        "title": "VideoPreviewOut",
+        "description": "What adding a video would give, before it's added."
       },
       "WordIn": {
         "properties": {

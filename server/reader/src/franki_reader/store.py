@@ -416,6 +416,17 @@ CREATE TABLE IF NOT EXISTS native_lookups (
     PRIMARY KEY (language, word)
 );
 
+-- A text made from a video's subtitles (video.py, video_store.py): the YouTube video it plays with,
+-- its channel, whether the subtitles were YouTube's automatic ones, and each line's start and end in
+-- milliseconds (JSON [[start, end], ...], line for line with the text's).
+CREATE TABLE IF NOT EXISTS video_texts (
+    text_id INTEGER PRIMARY KEY,
+    video_id TEXT NOT NULL,
+    channel TEXT NOT NULL,
+    generated INTEGER NOT NULL,
+    times TEXT NOT NULL
+);
+
 -- Your level's figure for each study day (level.py, level_store.py), for its trend: how many of
 -- the 2,000 most common words are known and the share of everyday speech they make up.
 CREATE TABLE IF NOT EXISTS level_days (

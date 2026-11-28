@@ -60,6 +60,7 @@ describe('the shelf', () => {
     expect(nextInOrder(playOrder(shelf), 11)).toBe(12);
     expect(upNextOrder(shelf)).toEqual([3]);
     expect(reasonLabel(text({ reason: 'own' }))).toBe('Your text');
+    expect(reasonLabel(text({ reason: 'own', video: { id: 'dQw4w9WgXcQ', channel: 'Easy Polish', generated: false } }))).toBe('Video from Easy Polish');
   });
 
   it('steps the length and holds it at the ends', () => {

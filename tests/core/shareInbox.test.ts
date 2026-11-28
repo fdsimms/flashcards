@@ -13,6 +13,7 @@ describe('reading the share inbox', () => {
       { id: 'a', kind: 'read', text: 'Tekst', title: '  Most ', url: 'https://x.pl/a', sharedAt: NOW },
       { id: 'b', kind: 'words', text: 'kot', sharedAt: NOW, title: ' ' },
       { id: 'l', kind: 'lookup', text: 'kot', sharedAt: NOW },
+      { id: 'v', kind: 'video', text: 'https://youtu.be/dQw4w9WgXcQ', url: 'https://youtu.be/dQw4w9WgXcQ', sharedAt: NOW },
       { id: 'c', kind: 'other', text: 'x', sharedAt: NOW },
       { id: 'd', kind: 'read', text: '   ', sharedAt: NOW },
       { id: '', kind: 'read', text: 'x', sharedAt: NOW },
@@ -23,6 +24,7 @@ describe('reading the share inbox', () => {
       { id: 'a', kind: 'read', text: 'Tekst', title: 'Most', url: 'https://x.pl/a', sharedAt: NOW },
       { id: 'b', kind: 'words', text: 'kot', sharedAt: NOW },
       { id: 'l', kind: 'lookup', text: 'kot', sharedAt: NOW },
+      { id: 'v', kind: 'video', text: 'https://youtu.be/dQw4w9WgXcQ', url: 'https://youtu.be/dQw4w9WgXcQ', sharedAt: NOW },
     ]);
     expect(parseShares({})).toEqual([]);
   });

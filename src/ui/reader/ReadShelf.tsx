@@ -46,7 +46,8 @@ import { useQueueMenu } from '../useQueueMenu';
 // While something is being written, check back this often.
 const POLL_MS = 10_000;
 
-export type OpenText = { textId: number; order: number[]; playAll?: boolean };
+/** `video`: a video's text, which opens on Watch rather than in the reader. */
+export type OpenText = { textId: number; order: number[]; playAll?: boolean; video?: boolean };
 
 export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarLesson, onNew, onNewSeries, onSettings, onPast, onReadAgain, onStory, onStories, onWords, onLanguage, onReview, onListenAgain, openLanguage, onOpenedLanguage }: {
   api: Api;
@@ -298,7 +299,10 @@ export function ReadShelf({ api, knownLanguage, onPlayWord, onOpen, onGrammarLes
 
             {(shelf.own?.length ?? 0) > 0 || making(shelf).length > 0 ? (
               <CoverRow title="Your texts">
-                {(shelf.own ?? []).map((t) => <QuickTextCover key={t.id} text={t} saved={markOf(t.id)} onPress={() => open(t.id)} onLongPress={() => textActions(t)} />)}
+                {(shelf.own ?? []).map((t) => (t.video
+                  // A video's text has no recordings to queue in Up Next: it's watched.
+                  ? <QuickTextCover key={t.id} text={t} saved={markOf(t.id)} onPress={() => onOpen({ textId: t.id, order: [], video: true })} />
+                  : <QuickTextCover key={t.id} text={t} saved={markOf(t.id)} onPress={() => open(t.id)} onLongPress={() => textActions(t)} />))}
                 {making(shelf).map((w, i) => <WritingCover key={`${w.topic}:${i}`} title={w.topic} kind="Your text" stage={w.stage} />)}
               </CoverRow>
             ) : null}
