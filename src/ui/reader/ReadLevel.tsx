@@ -5,7 +5,7 @@ import { failureText } from '../../core/failure';
 import { ApiError, type Api, type GlossLanguage, type Level } from '../../reader/api';
 import { glossInfo } from '../../reader/languages';
 import { bandLabel, bandShare, CHART_DAYS, chartPoints, levelSummary, speechPercent } from '../../reader/level';
-import { Card, ErrorNote, Help, Loading, Screen, Section, SECTION_GAP, Tappable } from '../kit';
+import { Card, ErrorNote, Help, Loading, Meter, Screen, Section, SECTION_GAP, Tappable } from '../kit';
 import { haptic } from '../haptics';
 import { radius, readable, space, type, useTheme } from '../theme';
 
@@ -96,9 +96,7 @@ function BandRow({ band }: { band: Level['bands'][number] }) {
   return (
     <View accessible accessibilityLabel={`${bandLabel(band)}: ${count(band.known)} known`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
       <Text style={{ ...type.footnote, color: c.text, width: 92 }}>{bandLabel(band)}</Text>
-      <View style={{ flex: 1, height: 8, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
-        <View style={{ width: `${Math.round(share * 100)}%`, height: 8, backgroundColor: c.accent }} />
-      </View>
+      <Meter value={share} color={c.accent} style={{ flex: 1 }} />
       <Text style={{ ...type.footnote, color: c.textSecondary, width: 48, textAlign: 'right', fontVariant: ['tabular-nums'] }}>{count(band.known)}</Text>
     </View>
   );

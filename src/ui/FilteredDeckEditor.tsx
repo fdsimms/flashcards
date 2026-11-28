@@ -11,7 +11,7 @@ import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import type { NoteStore } from '../anki/noteService';
 import { haptic } from './haptics';
-import { Button, Card, Field, Help, Loading, Screen, Section, SECTION_GAP, SwitchRow, Tappable } from './kit';
+import { Button, Card, ErrorNote, Field, Help, Loading, Screen, Section, SECTION_GAP, SwitchRow, Tappable } from './kit';
 import { MIN_TAP, readable, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
 
@@ -37,6 +37,8 @@ export function FilteredDeckEditor({ repo, existing, initialSearch, onBuilt }: {
   const [terms, setTerms] = useState<TermText[]>([]);
   const [reschedule, setReschedule] = useState(true);
   const [problem, setProblem] = useState<string>();
+  /** A failure, shown as an ErrorNote; `problem` is what to fix in what was typed. */
+  const [failed, setFailed] = useState<string>();
   const [loadError, setLoadError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const done = useRef(false);
@@ -72,7 +74,7 @@ export function FilteredDeckEditor({ repo, existing, initialSearch, onBuilt }: {
 
   const editTerm = (i: number, change: Partial<TermText>) => {
     setTerms((all) => all.map((t, j) => (j === i ? { ...t, ...change } : t)));
-    setProblem(undefined);
+    setProblem(undefined); setFailed(undefined);
   };
 
   const build = async () => {
@@ -87,7 +89,7 @@ export function FilteredDeckEditor({ repo, existing, initialSearch, onBuilt }: {
       done.current = true;
       onBuilt(saved.name);
     } catch (e) {
-      setProblem(failureText(e, { what: existing ? "Couldn't save the filtered deck." : "Couldn't build the filtered deck.", next: 'Try again.' }));
+      setFailed(failureText(e, { what: existing ? "Couldn't save the filtered deck." : "Couldn't build the filtered deck.", next: 'Try again.' }));
     } finally {
       setBusy(false);
     }
@@ -133,7 +135,7 @@ export function FilteredDeckEditor({ repo, existing, initialSearch, onBuilt }: {
       {!base ? <Loading error={loadError} /> : (
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.xl + bottomPadding, gap: SECTION_GAP }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
           <Card>
-            <Field label="Name" value={name} onChangeText={(v) => { setName(v); setProblem(undefined); }} placeholder="e.g. Polski missed this week" editable={!busy} />
+            <Field label="Name" value={name} onChangeText={(v) => { setName(v); setProblem(undefined); setFailed(undefined); }} placeholder="e.g. Polski missed this week" editable={!busy} />
           </Card>
           <Section title="Cards">
             <View style={{ gap: space.m }}>
@@ -151,10 +153,11 @@ export function FilteredDeckEditor({ repo, existing, initialSearch, onBuilt }: {
               label="Reschedule cards based on my answers"
               hint="Off, it's a preview: answers don't change when cards are due."
               value={reschedule}
-              onValueChange={(on) => { setReschedule(on); setProblem(undefined); }}
+              onValueChange={(on) => { setReschedule(on); setProblem(undefined); setFailed(undefined); }}
             />
           </Card>
           {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+          {failed ? <ErrorNote message={failed} /> : null}
           {existing ? <Help>Saving empties the deck and gathers its cards again with these settings.</Help> : null}
         </ScrollView>
       )}
