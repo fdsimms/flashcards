@@ -12,21 +12,12 @@ import { loadParticle } from '../../reader/lessonStorage';
 import { loadToolMarks } from '../../tools/storage';
 import { toolById } from '../../tools/tools';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Field, Help, Icon, Loading, Screen, Segments, Tappable, TextButton } from '../kit';
-import { MIN_TAP, hairline, readable, space, type, radius, useTheme, type Colors } from '../theme';
+import { Button, Card, ErrorNote, Field, Help, Icon, Loading, Screen, Segments, Tag, Tappable, TextButton } from '../kit';
+import { MIN_TAP, hairline, readable, space, type, useTheme, type Colors } from '../theme';
 import { saveCram, useCollection, useCrams } from '../useCrams';
-import { WorkingMark } from '../WorkingMark';
+import { WorkingLine } from '../WorkingMark';
 import { setThemeState, useThemeState } from './themeStore';
 import { useKeyboardScroll } from '../useKeyboardScroll';
-
-/** A small label in a color pair from the theme (`fill` behind `ink`). */
-export function Chip({ label, ink, fill }: { label: string; ink: string; fill: string }) {
-  return (
-    <View style={{ borderRadius: radius.pill, paddingVertical: space.xs, paddingHorizontal: space.s + 1, backgroundColor: fill }}>
-      <Text style={{ ...type.footnote, color: ink, fontWeight: '600' }}>{label}</Text>
-    </View>
-  );
-}
 
 const chipColors = (c: Colors): Record<ThemeKind | 'new', { ink: string; fill: string }> => ({
   cram: { ink: c.accentInk, fill: c.accentFill },
@@ -195,10 +186,7 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
         {noWords && language ? <Help>{`Needs ${LANGUAGES[language].name} words you've studied at least once.`}</Help> : null}
         {problem ? <ErrorNote message={problem} onRetry={() => { void ask(false, stretch); }} /> : null}
         {asking && !shown ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-            <WorkingMark />
-            <Text style={{ ...type.subhead, color: c.textSecondary }}>Thinking of themes</Text>
-          </View>
+          <WorkingLine text="Thinking of themes" />
         ) : null}
         {shown?.themes.map((theme, i) => (
           <Tappable key={theme.title} onPress={() => { haptic.tap(); onOpen(i); }} accessibilityRole="button" accessibilityLabel={`Open ${theme.title}`} scaleTo={0.98}>
@@ -218,7 +206,7 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
               </View>
               {theme.why ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{theme.why}</Text> : null}
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s - 2 }}>
-                {themeChips(theme, shown.wordsOf[i] ?? []).map((chip) => <Chip key={chip.key} label={chip.label} {...chipColors(c)[chip.key]} />)}
+                {themeChips(theme, shown.wordsOf[i] ?? []).map((chip) => { const tint = chipColors(c)[chip.key]; return <Tag key={chip.key} text={chip.label} color={tint.ink} fill={tint.fill} />; })}
               </View>
               <Text style={{ ...type.footnote, color: c.textSecondary }}>
                 {`${(shown.wordsOf[i] ?? []).length} of your ${plural((shown.wordsOf[i] ?? []).length, 'word', 'words')}${theme.new_words.length ? ` · ${theme.new_words.length} new` : ''} · ${talkSummary(theme)}`}

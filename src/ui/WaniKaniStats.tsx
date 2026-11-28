@@ -6,6 +6,7 @@ import { Card, Group, Help, Loading, NavRow, Screen } from './kit';
 import type { WaniKaniState } from './useWaniKani';
 import { stageColors } from './WaniKaniStageBar';
 import { space, type, useTheme, readable } from './theme';
+import { Figure } from './Figure';
 
 const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} ${n === 1 ? one : many}`;
 const CHART_HEIGHT = 64;
@@ -81,10 +82,10 @@ export function WaniKaniStats({ wanikani, onStats }: { wanikani: WaniKaniState; 
         <Card>
           <Text style={{ ...type.headline, color: c.text }}>Answered in Franki</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', rowGap: space.m }}>
-            <Tile value={answers.reviewsToday.toLocaleString()} label={answers.reviewsToday === 1 ? 'review today' : 'reviews today'} />
-            <Tile value={answers.lessonsToday.toLocaleString()} label={answers.lessonsToday === 1 ? 'lesson today' : 'lessons today'} />
-            <Tile value={answers.rightFirstTimeWeek === null ? 'None yet' : `${answers.rightFirstTimeWeek}%`} label="right first time, 7 days" />
-            <Tile value={answers.reviewsWeek.toLocaleString()} label="reviews, 7 days" />
+            <Figure style={{ width: '50%' }} value={answers.reviewsToday.toLocaleString()} label={answers.reviewsToday === 1 ? 'review today' : 'reviews today'} />
+            <Figure style={{ width: '50%' }} value={answers.lessonsToday.toLocaleString()} label={answers.lessonsToday === 1 ? 'lesson today' : 'lessons today'} />
+            <Figure style={{ width: '50%' }} value={answers.rightFirstTimeWeek === null ? 'None yet' : `${answers.rightFirstTimeWeek}%`} label="right first time, 7 days" />
+            <Figure style={{ width: '50%' }} value={answers.reviewsWeek.toLocaleString()} label="reviews, 7 days" />
           </View>
           <Help>Answers given on wanikani.com aren't counted here.</Help>
         </Card>
@@ -113,12 +114,3 @@ function Bar({ share, color, label }: { share: number; color: string; label?: st
   );
 }
 
-function Tile({ value, label }: { value: string; label: string }) {
-  const c = useTheme();
-  return (
-    <View style={{ width: '50%', gap: 2 }}>
-      <Text style={{ ...type.title, color: c.text, fontVariant: ['tabular-nums'] }}>{value}</Text>
-      <Text style={{ ...type.subhead, color: c.textSecondary }}>{label}</Text>
-    </View>
-  );
-}

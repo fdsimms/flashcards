@@ -1,11 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Text, View } from 'react-native';
+import { View } from 'react-native';
 import { lessonRequestWords, type LessonWord } from '../../core/lessonWords';
 import { ApiError, type Api, type Language } from '../../reader/api';
-import { haptic } from '../haptics';
-import { ErrorNote, Icon, Tappable, TextButton } from '../kit';
-import { WorkingMark } from '../WorkingMark';
-import { radius, space, type, useTheme } from '../theme';
+import { Chip, ErrorNote, TextButton } from '../kit';
+import { space, type, useTheme } from '../theme';
 
 /**
  * The New lesson card's "Suggest topics": Claude writes a few scenes (fitted to the words chosen,
@@ -56,7 +54,6 @@ export function LessonTopics({ api, language, words, onPick }: {
   };
 
   const pick = (topic: string) => {
-    haptic.tap();
     onPick(topic);
     setTopics([]);
   };
@@ -67,31 +64,13 @@ export function LessonTopics({ api, language, words, onPick }: {
         <>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
             {topics.map((t) => (
-              <Tappable
-                key={t}
-                onPress={() => pick(t)}
-                accessibilityRole="button"
-                accessibilityLabel={`Use ${t}`}
-                scaleTo={0.95}
-                style={{ borderWidth: 1, borderColor: c.controlEdge, borderRadius: radius.pill, paddingVertical: space.s, paddingHorizontal: space.m }}
-              >
-                <Text style={{ ...type.subhead, color: c.text }}>{t}</Text>
-              </Tappable>
+              <Chip key={t} label={t} accessibilityLabel={`Use ${t}`} onPress={() => pick(t)} />
             ))}
           </View>
           <TextButton label="More ideas" busy={asking} busyLabel="Thinking of ideas" onPress={() => void ask()} style={{ alignSelf: 'flex-end' }} />
         </>
       ) : (
-        <Tappable
-          onPress={() => { haptic.tap(); void ask(); }}
-          disabled={asking}
-          accessibilityRole="button"
-          accessibilityLabel="Suggest topics"
-          style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, alignSelf: 'flex-start', paddingVertical: space.xs }}
-        >
-          {asking ? <WorkingMark /> : <Icon name="sparkles" size={16} color={c.accentInk} />}
-          <Text style={{ ...type.subhead, color: c.accentInk }}>{asking ? 'Thinking of ideas' : 'Suggest topics'}</Text>
-        </Tappable>
+        <TextButton icon="sparkles" label="Suggest topics" busy={asking} busyLabel="Thinking of ideas" onPress={() => void ask()} style={{ alignSelf: 'flex-start' }} />
       )}
       {error ? <ErrorNote message={error} onRetry={ask} /> : null}
     </View>

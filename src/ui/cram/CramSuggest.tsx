@@ -10,10 +10,10 @@ import type { Api, Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { loadParticle } from '../../reader/lessonStorage';
 import { haptic } from '../haptics';
-import { Button, CheckboxRow, ErrorNote, Field, Group, Help, Icon, Loading, Screen, SectionTitle, Segments, Tappable } from '../kit';
+import { Button, CheckboxRow, ErrorNote, Field, Group, Help, Loading, Screen, SectionTitle, Segments, TextButton } from '../kit';
 import { readable, space, type, useTheme } from '../theme';
 import { capCramCards, cramsNow, saveCram, setCramTag, useCollection, useCrams } from '../useCrams';
-import { WorkingMark } from '../WorkingMark';
+import { WorkingLine } from '../WorkingMark';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 
 export type SuggestMode = 'words' | 'phrases';
@@ -233,10 +233,7 @@ export function CramSuggest({ repo, api, cramId, initialMode, queue, onDone }: {
         ) : null}
         {problem ? <ErrorNote message={problem} onRetry={asked.has(mode) && !adding ? () => { void ask(mode, false); } : undefined} /> : null}
         {busy && empty ? (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-            <WorkingMark />
-            <Text style={{ ...type.subhead, color: c.textSecondary }}>{thinking}</Text>
-          </View>
+          <WorkingLine text={thinking} />
         ) : null}
         {asked.has(mode) && !busy && empty && !problem ? <Help>{phraseMode ? 'No new phrases this time. Try a different focus.' : 'No new words this time. Try a different focus.'}</Help> : null}
         {phraseMode && phrases.length ? (
@@ -260,19 +257,7 @@ export function CramSuggest({ repo, api, cramId, initialMode, queue, onDone }: {
           </>
         ) : null}
         {!empty ? (
-          <Tappable onPress={() => { void ask(mode, true); }} disabled={busy || adding} accessibilityRole="button" accessibilityLabel={phraseMode ? 'More phrases' : 'More words'} style={{ alignSelf: 'center', paddingVertical: space.s }}>
-            {busy ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-                <WorkingMark />
-                <Text style={{ ...type.subhead, color: c.textSecondary }}>{thinking}</Text>
-              </View>
-            ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 }}>
-                <Icon name="sparkles" size={16} color={c.accentInk} />
-                <Text style={{ ...type.subhead, color: c.accentInk }}>{phraseMode ? 'More phrases' : 'More words'}</Text>
-              </View>
-            )}
-          </Tappable>
+          <TextButton icon="sparkles" label={phraseMode ? 'More phrases' : 'More words'} busy={busy} busyLabel={thinking} disabled={adding} onPress={() => void ask(mode, true)} style={{ alignSelf: 'center' }} />
         ) : null}
       </ScrollView>
     </Screen>

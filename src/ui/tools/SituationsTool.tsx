@@ -29,7 +29,7 @@ import { useKeyboardScroll } from '../useKeyboardScroll';
 import type { ToolScreenProps } from './index';
 import { MyLine, SituationResult, TheirLine } from './SituationParts';
 import { MakingBody } from '../MakingCard';
-import { WorkingMark } from '../WorkingMark';
+import { WorkingLine } from '../WorkingMark';
 import { HoldToTalk, ListeningNote } from '../SpeakButton';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { useSpokenAnswer } from '../useSpokenAnswer';
@@ -586,10 +586,7 @@ function Talk({ api, repo, chat, onChat, heardOnly, handsFree, feedback, onFeedb
                 </View>
               ) : null}
               {waiting && !finishing && chat.lines.length ? (
-                <View accessible accessibilityRole="progressbar" accessibilityLabel={`${name} is answering`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-                  <WorkingMark />
-                  <Text style={{ ...type.footnote, color: c.textSecondary }}>{`${name} is answering...`}</Text>
-                </View>
+                <WorkingLine text={`${name} is answering`} />
               ) : null}
               {chat.done && !waiting ? <Help>{`${name} ended the conversation.`}</Help> : null}
               {problem ? <ErrorNote centered={!chat.lines.length} message={problem.message} onRetry={problem.retry} /> : null}

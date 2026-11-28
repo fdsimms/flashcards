@@ -9,7 +9,7 @@ import { lineAt, loopBack, VIDEO_RATES, videoLength, youtubeLink, type VideoRate
 import { saidAs } from '../../reader/wordAudio';
 import { wrapGroups } from '../../reader/wordLayout';
 import { haptic } from '../haptics';
-import { Button, ErrorNote, Help, Icon, Loading, Screen, Tappable } from '../kit';
+import { Button, Chip, ErrorNote, Help, Loading, Screen, Tappable } from '../kit';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { GlossPopover, type Tapped } from './Reader';
 import { WordView, type ReadTextStyle } from './ReadWord';
@@ -95,7 +95,6 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
 
   const chooseRate = (r: VideoRate) => { setRate(r); media.current?.rate(r); };
   const toggleLoop = () => {
-    haptic.select();
     setLooping((l) => (l === null && line >= 0 ? line : null));
   };
   const jump = (i: number) => {
@@ -159,9 +158,9 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
       {text.podcast ? <EpisodePane episode={text.podcast} title={text.title} bind={bind} onTime={onTime} onPlaying={setPlaying} /> : null}
       <View style={{ ...readable, flex: 1, width: '100%' }}>
         <View style={{ flexDirection: 'row', gap: space.s, paddingHorizontal: space.l, paddingVertical: space.s }}>
-          <Chip label="Loop line" on={looping !== null} disabled={looping === null && line < 0} onPress={toggleLoop} />
-          {VIDEO_RATES.filter((r) => r !== 1).map((r) => <Chip key={r} label={`${r}×`} on={rate === r} onPress={() => chooseRate(rate === r ? 1 : r)} />)}
-          <Chip label="Hide text" on={hidden} onPress={() => { haptic.select(); setHidden((h) => !h); }} />
+          <Chip label="Loop line" selected={looping !== null} disabled={looping === null && line < 0} onPress={toggleLoop} />
+          {VIDEO_RATES.filter((r) => r !== 1).map((r) => <Chip key={r} label={`${r}×`} selected={rate === r} onPress={() => chooseRate(rate === r ? 1 : r)} />)}
+          <Chip label="Hide text" selected={hidden} onPress={() => setHidden((h) => !h)} />
         </View>
         {playerError && video ? (
           <View style={{ paddingHorizontal: space.l, gap: space.s }}>
@@ -226,19 +225,3 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
   );
 }
 
-function Chip({ label, on, disabled, onPress }: { label: string; on: boolean; disabled?: boolean; onPress: () => void }) {
-  const c = useTheme();
-  return (
-    <Tappable
-      onPress={onPress}
-      disabled={disabled}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: on, disabled }}
-      restOpacity={disabled ? 0.45 : 1}
-      style={{ paddingHorizontal: space.m, paddingVertical: space.xs + 2, borderRadius: radius.pill, backgroundColor: on ? c.accent : c.fill, flexDirection: 'row', alignItems: 'center', gap: space.xs }}
-    >
-      {on ? <Icon name="checkmark" size={11} color={c.onAccent} weight="bold" /> : null}
-      <Text style={{ ...type.footnote, fontWeight: '600', color: on ? c.onAccent : c.text }}>{label}</Text>
-    </Tappable>
-  );
-}

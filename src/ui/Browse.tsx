@@ -17,7 +17,6 @@ import type { Card, Note } from '../core/types';
 import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult, NoteEditorTarget } from './AppContext';
 import { Chip, Divider, EmptyState, ErrorNote, Icon, Loading, Screen, SwipeAction, SwipeToReveal } from './kit';
-import { haptic } from './haptics';
 import { SelectBar } from './SelectBar';
 import { useSelection } from './useSelection';
 import { hairline, radius, smooth, space, type, useTheme, readable } from './theme';
@@ -118,7 +117,6 @@ export function Browse({ repo, onEditNote, onCardInfo, initialDeck }: { repo: No
   const foundIds = useMemo(() => found.map((n) => n.id), [found]);
   const sel = useSelection(foundIds);
   const deleteSelected = () => {
-    haptic.tap();
     const picked = [...sel.selected];
     const cardCount = picked.reduce((n, id) => n + (cards?.byNote.get(id)?.length ?? 0), 0);
     Alert.alert(deleteNotesTitle(picked.length), deleteNotesWarning(cardCount), [

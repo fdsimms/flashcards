@@ -163,7 +163,7 @@ export function NowPlaying() {
 
         <View style={{ flexDirection: 'row', gap: space.s }}>
           {queue.speed?.slowOffered ? (
-            <Chip
+            <PlayerToggle
               icon="tortoise"
               label={queue.speed.rate < NORMAL_RATE ? 'Slow' : 'Normal'}
               on={queue.speed.rate < NORMAL_RATE}
@@ -171,15 +171,15 @@ export function NowPlaying() {
               onPress={() => queue.setRate(queue.speed!.rate < NORMAL_RATE ? NORMAL_RATE : SLOW_RATE)}
             />
           ) : null}
-          <Chip icon="moon.zzz" label={sleepLabel(queue.sleep, clockNow)} on={queue.sleep !== null} accessibilityLabel={`Sleep timer: ${queue.sleep ? sleepLabel(queue.sleep, clockNow) : 'off'}`} onPress={chooseSleep} />
-          <Chip
+          <PlayerToggle icon="moon.zzz" label={sleepLabel(queue.sleep, clockNow)} on={queue.sleep !== null} accessibilityLabel={`Sleep timer: ${queue.sleep ? sleepLabel(queue.sleep, clockNow) : 'off'}`} onPress={chooseSleep} />
+          <PlayerToggle
             icon={queue.queue.repeat === 'one' ? 'repeat.1' : 'repeat'}
             label={repeatLabel(queue.queue.repeat)}
             on={queue.queue.repeat !== 'off'}
             accessibilityLabel={`${repeatLabel(queue.queue.repeat)}${queue.queue.repeat === 'off' ? ': off' : ''}. Changes to ${repeatLabel(nextRepeat(queue.queue.repeat)).toLowerCase()}${nextRepeat(queue.queue.repeat) === 'off' ? ' off' : ''}`}
             onPress={() => queue.setRepeat(nextRepeat(queue.queue.repeat))}
           />
-          <Chip icon="list.bullet" label="Up Next" on={false} accessibilityLabel={`Up Next: ${queue.queue.next.length} after this`} onPress={() => router.push('/up-next')} />
+          <PlayerToggle icon="list.bullet" label="Up Next" on={false} accessibilityLabel={`Up Next: ${queue.queue.next.length} after this`} onPress={() => router.push('/up-next')} />
         </View>
 
         <Button label={lesson ? 'Open the lesson' : 'Open in Read & Listen'} variant="secondary" onPress={open} />
@@ -202,7 +202,7 @@ function LessonTimes({ player, fallback }: { player: AudioPlayer; fallback: numb
 }
 
 /** A setting under the controls: a symbol over a short label, tinted while it's on. */
-function Chip({ icon, label, on, accessibilityLabel, onPress }: { icon: SFSymbol; label: string; on: boolean; accessibilityLabel: string; onPress: () => void }) {
+function PlayerToggle({ icon, label, on, accessibilityLabel, onPress }: { icon: SFSymbol; label: string; on: boolean; accessibilityLabel: string; onPress: () => void }) {
   const c = useTheme();
   return (
     <Tappable

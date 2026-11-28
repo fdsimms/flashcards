@@ -2,10 +2,11 @@ import React from 'react';
 import { Text, View } from 'react-native';
 import type { SFSymbol } from 'expo-symbols';
 import { haptic } from '../haptics';
-import { Divider, Icon, Tappable } from '../kit';
+import { Divider, Icon } from '../kit';
 import { useSoundingButton } from '../useSoundingButton';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { HoverPressable } from '../hover';
+import { PlayDot } from '../PlayCircle';
 
 /**
  * The pieces of the reader's word popover that are tapped: the round play button beside the word
@@ -14,19 +15,8 @@ import { HoverPressable } from '../hover';
  */
 
 export function WordPlayButton({ onPress }: { onPress: () => void }) {
-  const c = useTheme();
   const { playing, tap } = useSoundingButton();
-  return (
-    <Tappable
-      onPress={() => tap(onPress)}
-      accessibilityRole="button"
-      accessibilityLabel={playing ? 'Pause' : 'Play word'}
-      scaleTo={0.92}
-      style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
-    >
-      <Icon name={playing ? 'pause.fill' : 'play.fill'} size={18} color={c.accent} weight="semibold" />
-    </Tappable>
-  );
+  return <PlayDot label="Play word" playing={playing} onPress={() => tap(onPress)} />;
 }
 
 export function WordActionGroup({ children }: { children: React.ReactNode }) {
