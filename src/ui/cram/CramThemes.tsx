@@ -12,7 +12,7 @@ import { loadParticle } from '../../reader/lessonStorage';
 import { loadToolMarks } from '../../tools/storage';
 import { toolById } from '../../tools/tools';
 import { haptic } from '../haptics';
-import { Button, Card, ErrorNote, Field, Help, Icon, Loading, Screen, Segments, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Field, Help, Icon, Loading, Screen, Segments, Tappable, TextButton } from '../kit';
 import { MIN_TAP, hairline, readable, space, type, radius, useTheme, type Colors } from '../theme';
 import { saveCram, useCollection, useCrams } from '../useCrams';
 import { WorkingMark } from '../WorkingMark';
@@ -227,19 +227,7 @@ export function CramThemes({ repo, api, cramId, onOpen, onUse }: {
           </Tappable>
         ))}
         {shown ? (
-          <Tappable onPress={() => { haptic.tap(); void ask(true, stretch); }} disabled={asking} accessibilityRole="button" accessibilityLabel="Show different themes" style={{ alignSelf: 'center', paddingVertical: space.s }}>
-            {asking ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-                <WorkingMark />
-                <Text style={{ ...type.subhead, color: c.textSecondary }}>Thinking of themes</Text>
-              </View>
-            ) : (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2 }}>
-                <Icon name="sparkles" size={16} color={c.accentInk} />
-                <Text style={{ ...type.subhead, color: c.accentInk }}>Show different themes</Text>
-              </View>
-            )}
-          </Tappable>
+          <TextButton icon="sparkles" label="Show different themes" busy={asking} busyLabel="Thinking of themes" onPress={() => void ask(true, stretch)} style={{ alignSelf: 'center' }} />
         ) : null}
       </ScrollView>
     </Screen>

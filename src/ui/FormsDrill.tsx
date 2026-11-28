@@ -9,7 +9,7 @@ import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { practicingPoints } from '../reader/grammar';
 import { haptic } from './haptics';
-import { answerLook, Button, Card, EmptyState, Field, HeaderAction, Help, Icon, Loading, ProgressBar, Screen, Segments, Tappable } from './kit';
+import { answerLook, Button, Card, EmptyState, Field, HeaderAction, Help, Icon, Loading, ProgressBar, Screen, Segments, Tappable, TextButton } from './kit';
 import { Reveal } from './motion';
 import { hairline, MIN_TAP, radius, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
@@ -292,15 +292,7 @@ function Question({ prompt, reveal, onPlay }: { prompt: FormPrompt; reveal?: str
         <Text style={{ ...type.subhead, color: c.textSecondary }}>{asked}</Text>
       </View>
       {onPlay ? (
-        <Tappable
-          onPress={() => { haptic.tap(); onPlay(); }}
-          accessibilityRole="button"
-          accessibilityLabel={`Play ${prompt.say?.text ?? 'the answer'}`}
-          style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, minHeight: MIN_TAP, paddingHorizontal: space.m }}
-        >
-          <Icon name="speaker.wave.2.fill" size={16} color={c.accent} />
-          <Text style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>Play</Text>
-        </Tappable>
+        <TextButton icon="speaker.wave.2.fill" label="Play" accessibilityLabel={`Play ${prompt.say?.text ?? 'the answer'}`} onPress={onPlay} style={{ paddingHorizontal: space.m }} />
       ) : null}
       {prompt.sentence ? (
         <View style={{ alignItems: 'center', gap: space.xs, marginTop: space.s }}>
@@ -376,9 +368,7 @@ function Feedback({ answered, picked, onCount, onOpenGrammar }: { answered: Answ
         <Text style={{ ...type.headline, color: c.warning }}>{answered.counted ? `Counted as right: ${answer}` : `Almost: ${answer}`}</Text>
         <Help>Only an accent or a mark differs, and that can make it a different form.</Help>
         {answered.counted ? null : (
-          <Tappable onPress={onCount} accessibilityRole="button" style={{ minHeight: MIN_TAP, justifyContent: 'center', alignSelf: 'flex-start' }}>
-            <Text style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>Count it as right</Text>
-          </Tappable>
+          <TextButton label="Count it as right" onPress={onCount} style={{ alignSelf: 'flex-start' }} />
         )}
         <GrammarLine grammar={answered.prompt.grammar} onOpen={onOpenGrammar} />
       </Card>

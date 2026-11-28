@@ -6,7 +6,7 @@ import type { Api, FormExplanation, Language, Word } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { checkForm, formReason, markDecider, type FormCheck, type Settled } from '../../reader/formQuiz';
 import { usePrimers } from './ReadFormSheet';
-import { Button, ErrorNote, Icon, SheetHeader, Tappable } from '../kit';
+import { Button, ErrorNote, Icon, SheetHeader, TextButton } from '../kit';
 import { useKeyboardLanguage } from '../useKeyboardLanguage';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { MissingKeyboardNote } from '../useMissingKeyboard';
@@ -149,16 +149,7 @@ export function ReaderFormQuiz({ api, language, textId, line, word, before, afte
         {checked && !right ? (
           <View style={{ gap: space.s }}>
             {why?.state !== 'done' ? (
-              <Tappable
-                accessibilityRole="button"
-                onPress={explain}
-                disabled={why?.state === 'loading'}
-                hitSlop={{ top: space.s, bottom: space.s }}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, alignSelf: 'flex-start' }}
-              >
-                <Icon name="sparkles" size={18} color={c.accent} />
-                <Text style={{ ...type.headline, color: c.accent }}>{why?.state === 'loading' ? 'Explaining...' : why?.state === 'failed' ? 'Try explaining again' : 'Explain why'}</Text>
-              </Tappable>
+              <TextButton icon="sparkles" label={why?.state === 'failed' ? 'Try explaining again' : 'Explain why'} busy={why?.state === 'loading'} busyLabel="Explaining" onPress={explain} style={{ alignSelf: 'flex-start' }} />
             ) : null}
             {why?.state === 'failed' ? <ErrorNote message={why.message} /> : null}
             {why?.state === 'done' ? <FormWhy word={word} before={before} after={after} explanation={why.explanation} /> : null}

@@ -1,8 +1,7 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { selectedText } from '../core/selection';
-import { haptic } from './haptics';
-import { Tappable } from './kit';
+import { Tappable, TextButton } from './kit';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 /**
@@ -22,13 +21,7 @@ export function SelectBar({ count, total, onSelectAll, onClear, actions }: {
     <View style={{ gap: space.s, paddingHorizontal: space.l, paddingTop: space.s }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
         <Text style={{ ...type.subhead, color: c.textSecondary, fontWeight: '600' }}>{selectedText(count)}</Text>
-        <Tappable
-          onPress={() => { haptic.tap(); (all ? onClear : onSelectAll)(); }}
-          accessibilityRole="button"
-          style={{ minHeight: MIN_TAP, justifyContent: 'center' }}
-        >
-          <Text style={{ ...type.subhead, color: c.accentInk, fontWeight: '600' }}>{all ? 'Deselect all' : 'Select all'}</Text>
-        </Tappable>
+        <TextButton label={all ? 'Deselect all' : 'Select all'} onPress={all ? onClear : onSelectAll} />
       </View>
       <View style={{ flexDirection: 'row', gap: space.s }}>
         {actions.map((a) => (

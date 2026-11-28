@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { lessonRequestWords, type LessonWord } from '../../core/lessonWords';
 import { ApiError, type Api, type Language } from '../../reader/api';
 import { haptic } from '../haptics';
-import { ErrorNote, Icon, Tappable } from '../kit';
+import { ErrorNote, Icon, Tappable, TextButton } from '../kit';
 import { WorkingMark } from '../WorkingMark';
 import { radius, space, type, useTheme } from '../theme';
 
@@ -79,14 +79,7 @@ export function LessonTopics({ api, language, words, onPick }: {
               </Tappable>
             ))}
           </View>
-          <Tappable onPress={() => { haptic.tap(); void ask(); }} disabled={asking} accessibilityRole="button" accessibilityLabel="More ideas" style={{ alignSelf: 'flex-end' }}>
-            {asking ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-                <WorkingMark />
-                <Text style={{ ...type.footnote, color: c.textSecondary }}>Thinking of ideas</Text>
-              </View>
-            ) : <Text style={{ ...type.footnote, color: c.accentInk }}>More ideas</Text>}
-          </Tappable>
+          <TextButton label="More ideas" busy={asking} busyLabel="Thinking of ideas" onPress={() => void ask()} style={{ alignSelf: 'flex-end' }} />
         </>
       ) : (
         <Tappable

@@ -3,7 +3,7 @@ import { SymbolView, type SFSymbol } from 'expo-symbols';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator, Animated, Easing, LayoutAnimation, Pressable, Switch, Text, TextInput, useColorScheme, View,
-  type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type ViewStyle,
+  type AccessibilityState, type PressableProps, type StyleProp, type TextInputInstance, type TextInputProps, type ViewStyle,
 } from 'react-native';
 import { Host, Picker, Text as SwiftText } from '@expo/ui/swift-ui';
 import { accessibilityLabel, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
@@ -585,6 +585,55 @@ export function Button(props: {
           <Text style={{ ...type.headline, color: fg }}>{props.busyLabel}</Text>
         </View>
       ) : props.busy ? <ActivityIndicator color={fg} /> : <Text style={{ ...type.headline, color: fg }}>{props.label}</Text>}
+    </Tappable>
+  );
+}
+
+/**
+ * A button that is only words in the gold ink ("Show English", "Add anyway", "More ideas"): for a
+ * small action beside content, where a `Button` would be too heavy. 44 tall, with an optional
+ * symbol before the words and a chevron after them for something that opens and closes.
+ * `busyLabel` replaces the words, beside the turning mark, while a request runs. It sets no
+ * `alignSelf`: pass one in `style` where it stands alone in a column.
+ */
+export function TextButton({ label, onPress, icon, chevron, disabled, busy, busyLabel, accessibilityLabel, accessibilityState, style }: {
+  label: string;
+  onPress: () => void;
+  icon?: SFSymbol;
+  /** Which way the chevron after the words points: down while closed, up while open. */
+  chevron?: 'up' | 'down';
+  disabled?: boolean;
+  busy?: boolean;
+  busyLabel?: string;
+  accessibilityLabel?: string;
+  accessibilityState?: AccessibilityState;
+  style?: StyleProp<ViewStyle>;
+}) {
+  const c = useTheme();
+  const off = disabled || busy;
+  return (
+    <Tappable
+      onPress={() => { haptic.tap(); onPress(); }}
+      disabled={off}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel ?? label}
+      accessibilityState={{ ...accessibilityState, disabled: !!off, busy: !!busy }}
+      restOpacity={disabled && !busy ? 0.45 : 1}
+      scaleTo={0.97}
+      style={[{ minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', gap: space.xs }, style]}
+    >
+      {busy && busyLabel ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
+          <WorkingMark />
+          <Text style={{ ...type.subhead, color: c.textSecondary }}>{busyLabel}</Text>
+        </View>
+      ) : (
+        <>
+          {icon ? <Icon name={icon} size={16} color={c.accentInk} weight="semibold" /> : null}
+          <Text style={{ ...type.subhead, fontWeight: '600', color: c.accentInk, flexShrink: 1 }}>{label}</Text>
+          {chevron ? <Icon name={chevron === 'up' ? 'chevron.up' : 'chevron.down'} size={12} color={c.accentInk} weight="semibold" /> : null}
+        </>
+      )}
     </Tappable>
   );
 }
