@@ -18,7 +18,7 @@ import { COMMON_WORD_STATUS, inDeck, needsMeaning, wordStatus, glossInfo, spoken
 import { wordFrequency } from '../../reader/frequency';
 import { LineScrubber } from './LineScrubber';
 import { firstLine, LOOP_BREAK_NOTE, paragraphs, playableNear, rangeOf, repeatBadge } from '../../reader/playback';
-import { isSlow, RATES, SLOW_RATE } from '../../reader/playbackRate';
+import { isSlow, RATES } from '../../reader/playbackRate';
 import { nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
 import { shelfCards } from '../../reader/downloads';
 import { untranslated, UNTRANSLATED_NOTE } from '../../reader/ownText';

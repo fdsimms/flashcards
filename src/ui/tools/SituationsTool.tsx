@@ -1,5 +1,5 @@
 import { useAudioPlayer } from 'expo-audio';
-import { router, Stack } from 'expo-router';
+import { Stack } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import { Keyboard, ScrollView, Text, TextInput, View, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
