@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
-import { hasThai, japaneseFont, thaiTextStyle } from '../../core/script';
+import { hasThai, japaneseFont, romanLanguage, thaiTextStyle } from '../../core/script';
 import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { MIXUP_MODES, mixupQuestion, mixupSet, nextMixup, type MixupMode, type MixupQuestion, type MixupSet, type MixupWord } from '../../tools/mixups';
@@ -221,7 +221,7 @@ function Choice({ word, state, onPress, onPlay }: {
         <Text accessibilityLanguage={LANGUAGES[word.language].speech} style={{ ...wordStyle, color: c.text }}>{word.word}</Text>
         {state === 'open' ? null : (
           <>
-            {word.roman ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{word.roman}</Text> : null}
+            {word.roman ? <Text accessibilityLanguage={romanLanguage(word.roman, LANGUAGES[word.language].speech)} style={{ ...type.subhead, color: c.textSecondary }}>{word.roman}</Text> : null}
             {word.meaning ? <Text style={{ ...type.subhead, color: c.text }}>{word.meaning}</Text> : null}
           </>
         )}

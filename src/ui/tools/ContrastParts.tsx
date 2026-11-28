@@ -3,7 +3,7 @@ import { Text, View } from 'react-native';
 import { GAP_SHOWN, type ContrastSet, type ShownSentence } from '../../tools/contrasts';
 import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
-import { hasThai } from '../../core/script';
+import { hasThai, romanLanguage } from '../../core/script';
 import { haptic } from '../haptics';
 import { answerLook, Icon, Tappable } from '../kit';
 import { radius, smooth, space, type, useTheme } from '../theme';
@@ -39,7 +39,7 @@ export function ContrastSentenceView({ shown, answered, verdict, speech }: { sho
           : <Text accessibilityLabel="blank" style={{ color: c.textTertiary }}>{GAP_SHOWN}</Text>}
         {shown.after}
       </Text>
-      {answered && shown.roman ? <Text selectable accessibilityLanguage={speech} style={{ ...type.subhead, color: c.textBody, textAlign: 'center' }}>{shown.roman}</Text> : null}
+      {answered && shown.roman ? <Text selectable accessibilityLanguage={romanLanguage(shown.roman, speech)} style={{ ...type.subhead, color: c.textBody, textAlign: 'center' }}>{shown.roman}</Text> : null}
       {answered || peek ? (
         <Text selectable style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{shown.english}</Text>
       ) : (

@@ -11,7 +11,7 @@ import { answerLook, Field, Icon, Tappable } from '../kit';
 import { space, type, useTheme } from '../theme';
 import { CalendarMonth, dateLabel, dateWords } from './CalendarMonth';
 import { RuleLine, Status, Ways } from './ToolScreen';
-import { withThaiLineHeight } from '../../core/script';
+import { romanLanguage, withThaiLineHeight } from '../../core/script';
 
 /**
  * Saying dates besides saying it aloud: pick the phrase, type it, or read the phrase and tap the
@@ -254,7 +254,7 @@ export function PickChoices({ quiz }: { quiz: DateQuiz }) {
           >
             <View style={{ flex: 1, gap: space.xs }}>
               <Text accessibilityLanguage={LANGUAGES[quiz.language].speech} style={{ ...type.body, lineHeight: 26, color: c.text }}>{o.phrase.text}</Text>
-              {answered && o.phrase.roman ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{o.phrase.roman}</Text> : null}
+              {answered && o.phrase.roman ? <Text accessibilityLanguage={romanLanguage(o.phrase.roman, LANGUAGES[quiz.language].speech)} style={{ ...type.footnote, color: c.textSecondary }}>{o.phrase.roman}</Text> : null}
             </View>
             {isRight ? <Icon name="checkmark.circle.fill" size={22} color={c.countDue} /> : null}
             {isWrong ? <Icon name="xmark.circle.fill" size={22} color={c.danger} /> : null}
@@ -289,7 +289,7 @@ export function TapFront({ quiz, saying, date, weekStartsOn }: { quiz: DateQuiz;
     <View style={{ gap: space.l, width: '100%' }}>
       <View style={{ gap: space.xs, alignItems: 'center' }}>
         <Text selectable accessibilityLanguage={LANGUAGES[quiz.language].speech} style={{ ...withThaiLineHeight(type.cardBack, saying.everyday.text), color: c.text, textAlign: 'center' }}>{saying.everyday.text}</Text>
-        {answered && saying.everyday.roman ? <Text style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{saying.everyday.roman}</Text> : null}
+        {answered && saying.everyday.roman ? <Text accessibilityLanguage={romanLanguage(saying.everyday.roman, LANGUAGES[quiz.language].speech)} style={{ ...type.subhead, color: c.textSecondary, textAlign: 'center' }}>{saying.everyday.roman}</Text> : null}
       </View>
       <CalendarMonth
         date={quiz.view}

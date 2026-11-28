@@ -18,7 +18,7 @@ import { AnswerContent, RuleLine, Status, ToolScreen, useAnswer, useToolLanguage
 import { drawFromBag } from '../../tools/drillSeenStorage';
 import { useMarks } from './useMarks';
 import { useRetries } from './useRetries';
-import { withThaiLineHeight } from '../../core/script';
+import { romanLanguage, withThaiLineHeight } from '../../core/script';
 
 const MODES: { value: CountMode; label: string }[] = [{ value: 'say', label: 'Say it' }, { value: 'pick', label: 'Pick' }];
 
@@ -125,7 +125,7 @@ export function CountingTool({ tool, repo }: ToolScreenProps) {
         <Text maxFontSizeMultiplier={1.5} style={{ ...type.largeTitle, fontSize: 48, fontVariant: ['tabular-nums'], color: c.text }}>{question?.n}</Text>
         {noun ? <Text selectable accessibilityLanguage={LANGUAGES[language].speech} style={{ ...withThaiLineHeight(type.cardFront, noun.cue.text), color: c.text, flexShrink: 1 }}>{noun.cue.text}</Text> : null}
       </View>
-      {noun?.cue.roman ? <Text accessibilityLanguage={LANGUAGES[language].speech} style={{ ...type.subhead, color: c.textSecondary }}>{noun.cue.roman}</Text> : null}
+      {noun?.cue.roman ? <Text accessibilityLanguage={romanLanguage(noun.cue.roman, LANGUAGES[language].speech)} style={{ ...type.subhead, color: c.textSecondary }}>{noun.cue.roman}</Text> : null}
       {noun ? <Text style={{ ...type.subhead, color: c.text }}>{nounGloss(noun)}</Text> : null}
     </View>
   );
@@ -230,7 +230,7 @@ function Choices({ speech, choices, correct, picked, byReading, onChoose }: {
           >
             <View style={{ flex: 1, gap: space.xs }}>
               <Text accessibilityLanguage={speech} style={{ ...type.body, lineHeight: 26, color: c.text }}>{choiceText(p, byReading)}</Text>
-              {answered && p.roman ? <Text accessibilityLanguage={byReading ? speech : undefined} style={{ ...type.footnote, color: c.textSecondary }}>{byReading ? p.text : p.roman}</Text> : null}
+              {answered && p.roman ? <Text accessibilityLanguage={byReading ? speech : romanLanguage(p.roman, speech)} style={{ ...type.footnote, color: c.textSecondary }}>{byReading ? p.text : p.roman}</Text> : null}
             </View>
             {isRight ? <Icon name="checkmark.circle.fill" size={22} color={c.countDue} /> : null}
             {isWrong ? <Icon name="xmark.circle.fill" size={22} color={c.danger} /> : null}
