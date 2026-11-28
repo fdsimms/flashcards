@@ -93,7 +93,16 @@ async function duplicatesOf(db: SyncDb, note: Note, given: RowGiven, noteType: A
   }
   const first = noteType.fieldNames[0];
   if (!first || !given.fields.includes(first)) return [];
-  const stripped = strip(note.fields[first] ?? '');
+  return notesWithFirstField(db, noteType, note.fields[first] ?? '', before);
+}
+
+/**
+ * The collection's notes of `noteType` whose first field, with the HTML taken off, is `value`'s: what
+ * Anki's import and duplicate check match on (the `csum` column, then the stripped text). Only notes
+ * with an id up to `before`, when it's given.
+ */
+export async function notesWithFirstField(db: SyncDb, noteType: AnkiNoteType, value: string, before: number = Number.MAX_SAFE_INTEGER): Promise<Dupe[]> {
+  const stripped = strip(value);
   const rows = await db.all<Dupe>('SELECT id, mid, flds, tags FROM notes WHERE mid = ? AND csum = ? AND id <= ?', noteType.id, fieldChecksum(stripped), before);
   return rows.filter((r) => strip(r.flds.split(NOTE_FIELDS_SEP)[0] ?? '') === stripped);
 }

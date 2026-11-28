@@ -46,6 +46,13 @@ load by path" there). A comment that cites "CLAUDE.md" for one of these sections
   (`RowGiven`), a row that changes nothing left alone, #tags included, and a missing deck made. A row
   matching a word an earlier import left in Franki only, or of a note type Anki lacks, stays in
   Franki. `make-textimport-vectors.py` holds it to what Anki writes.
+- **Words an earlier import kept in Franki only move into the collection with their history**
+  (`moveToAnki`, `src/anki/moveToAnki.ts`, Settings, Anki): each card's schedule as an answer writes it
+  (`cardUpdate`), its past answers as review log rows at their own times (`historyRevlog`; never
+  `nextRevlogId`, which would move them to now and break Stats' one-second match), today's answers in the
+  decks' studied-today counts, and Franki's cards given the new Anki ids before the decks are read in
+  again, so `reconcileIds` matches them by id. `moveCheck` decides what can move, for the count and the
+  move alike.
 - **An unreadable file is refused with the reason and what to export instead**, never parsed as
   something else and left to fail with an unrelated message (a package exported for older Anki
   versions, and a backup `.db`, on the Import screen).

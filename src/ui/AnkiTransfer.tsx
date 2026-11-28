@@ -13,6 +13,7 @@ import type { Repo } from '../db/repo';
 import type { BackupStore } from '../db/sqliteRepo';
 import { Button, Card, Help, MessageList, Screen, SECTION_GAP } from './kit';
 import { importWordList, wordListSummary } from '../anki/wordListService';
+import { countMovable, moveToAnki } from '../anki/moveToAnki';
 import { space, type, useTheme, readable } from './theme';
 
 /** Warnings listed per import. Past this the rest are counted, never dropped silently. */
@@ -34,17 +35,23 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
 }) {
   const c = useTheme();
   const [log, setLog] = useState<string[]>([]);
-  const [busy, setBusy] = useState<'import' | 'send' | null>(null);
+  const [busy, setBusy] = useState<'import' | 'send' | 'move' | null>(null);
   const [status, setStatus] = useState<AnkiStatus>();
+  // Words earlier imports kept in Franki only, which can move into the collection now.
+  const [movable, setMovable] = useState(0);
   // A second tap while an import or a send is running would start another over the first.
   const running = useRef(false);
   const say = (line: string) => setLog((l) => [line, ...l]);
 
   // After Review's pending answers are written, so the unsent count includes them.
-  const refresh = useCallback(async () => { await reviewWrites.idle(); setStatus(await repo.ankiStatus()); }, [repo]);
+  const refresh = useCallback(async () => {
+    await reviewWrites.idle();
+    setStatus(await repo.ankiStatus());
+    setMovable(await countMovable(repo).catch(() => 0));
+  }, [repo]);
   useEffect(() => { refresh(); }, [refresh]);
 
-  const run = async (which: 'import' | 'send', work: () => Promise<void>) => {
+  const run = async (which: 'import' | 'send' | 'move', work: () => Promise<void>) => {
     if (running.current) return;
     running.current = true;
     setBusy(which);
@@ -206,6 +213,32 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
     }
   });
 
+  const move = () => {
+    const words = plural(movable, 'word', 'words');
+    Alert.alert(`Move ${words} to Anki?`, "They keep their progress, and their answers go into Anki's review log. This can't be undone.", [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Move',
+        onPress: () => run('move', async () => {
+          try {
+            // Answers Review is still writing go first: a card's schedule is read before it moves.
+            await reviewWrites.idle();
+            const r = await moveToAnki(repo, () => refreshFromKeptCollection(repo));
+            const shown = r.left.slice(0, MAX_WARNINGS).map((l) => `"${l.word}" stayed in Franki: ${l.reason}.`);
+            setLog((l) => [
+              `Moved ${plural(r.moved, 'word', 'words')} to Anki.`,
+              ...shown,
+              ...(r.left.length > shown.length ? [`and ${plural(r.left.length - shown.length, 'more word', 'more words')} that stayed in Franki`] : []),
+              ...l,
+            ]);
+          } catch (e: any) {
+            say(failureText(e, { what: "Couldn't move the words to Anki.", next: 'Try again.' }));
+          }
+        }),
+      },
+    ]);
+  };
+
   const sentLine = status?.lastSentAt ? ` Last sent ${new Date(status.lastSentAt).toLocaleDateString()}.` : '';
   return (
     <Screen title="Anki">
@@ -227,8 +260,18 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
             {syncOn ? " The next sync then asks whether to keep this collection or the server's." : ''}
             {' '}A deck package (.apkg) is added to what Franki has instead, and notes already here keep their progress.
           </Help>
-          <Button label="Choose file" onPress={pick} busy={busy === 'import'} disabled={busy === 'send'} />
+          <Button label="Choose file" onPress={pick} busy={busy === 'import'} disabled={busy === 'send' || busy === 'move'} />
         </Card>
+        {movable > 0 ? (
+          <Card>
+            <Text style={{ ...type.headline, color: c.text }}>{`Move ${plural(movable, 'word', 'words')} to Anki`}</Text>
+            <Help>
+              These words came from earlier imports, so they're only in Franki. Moving them adds them to your Anki collection
+              with their progress and past answers, so every device has them.
+            </Help>
+            <Button label="Move to Anki" variant="secondary" onPress={move} busy={busy === 'move'} disabled={busy !== null && busy !== 'move'} />
+          </Card>
+        ) : null}
         {status?.linked && !syncOn ? (
           <Card>
             <Text style={{ ...type.headline, color: c.text }}>Send your answers to Anki</Text>
@@ -241,7 +284,7 @@ export function AnkiTransfer({ repo, syncOn, onSyncSettings }: {
               Makes a collection file with every answer given here. Open it in AnkiMobile, which replaces its collection with
               this one, then sync Anki. Don't study in AnkiMobile in between, or what you do there is replaced.
             </Help>
-            <Button label="Send to Anki" variant="secondary" onPress={send} busy={busy === 'send'} disabled={busy === 'import'} />
+            <Button label="Send to Anki" variant="secondary" onPress={send} busy={busy === 'send'} disabled={busy === 'import' || busy === 'move'} />
           </Card>
         ) : null}
         <MessageList lines={log} />

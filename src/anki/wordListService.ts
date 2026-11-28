@@ -74,7 +74,7 @@ export async function importWordList(
   // The importer's own warnings: `reconcileIds`' are about matching in Franki, which Anki's matching replaces here.
   const warnings = [...parsed.warnings];
   if (frankiRows.length) {
-    warnings.push(`${frankiRows.length === 1 ? '1 word' : `${frankiRows.length} words`} came from an earlier import that kept ${frankiRows.length === 1 ? 'it' : 'them'} in Franki only, so ${frankiRows.length === 1 ? 'it was' : 'they were'} updated there.`);
+    warnings.push(`${frankiRows.length === 1 ? '1 word' : `${frankiRows.length} words`} came from an earlier import that kept ${frankiRows.length === 1 ? 'it' : 'them'} in Franki only, so ${frankiRows.length === 1 ? 'it was' : 'they were'} updated there. Settings, Anki can move such words into Anki.`);
   }
   const missingTypes = new Set<string>();
   const result = await store.lockAnki(() => store.withSyncConnection(async (db) => {

@@ -108,7 +108,7 @@ describe('a text file imported into the kept collection, as Anki imports it', ()
     const before = (await collectionNotes(kept)).length;
     const result = await importWordList(store, '#separator:tab\n#html:true\n#notetype:Basic\nCapital of Fiji?\tSuva, on Viti Levu\n', 'words.txt', { deck: { name: '🧠 Trivia' }, refresh: async () => {} }, NOW);
     expect(result).toMatchObject({ added: 0, frankiOnly: 1 });
-    expect(result.warnings).toContain('1 word came from an earlier import that kept it in Franki only, so it was updated there.');
+    expect(result.warnings).toContain('1 word came from an earlier import that kept it in Franki only, so it was updated there. Settings, Anki can move such words into Anki.');
     expect((await store.getNote('tsv:🧠 Trivia:Capital of Fiji?'))!.fields.Back).toBe('Suva, on Viti Levu');
     expect((await collectionNotes(kept)).length).toBe(before);
 
