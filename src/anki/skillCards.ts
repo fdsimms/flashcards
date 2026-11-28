@@ -5,7 +5,8 @@ import type { Note, NoteType } from '../core/types';
 import { headword } from '../core/forms';
 import { setAsideOf, SKILL_COVERED_TAG, SKILL_STOPPED_TAG } from '../core/skillTag';
 import { drillOfTags, stepWaits, SKILL_NOTE_TYPE, SKILL_TAG, SKILLS_SUBDECK, skillDrafts, skillWordDrafts, type SkillDraft, type SkillGroup } from '../tools/skills';
-import { knownAmong, SKILL_WORD_NOTE_TYPE, type SkillWordDraft } from '../tools/skillWords';
+import { knownAmong } from '../tools/knownWords';
+import { SKILL_WORD_NOTE_TYPE, type SkillWordDraft } from '../tools/skillWords';
 import { ensureDeck } from './deckService';
 import { deleteNote, NoteRefused, saveNote, setCardStates, type NoteStore } from './noteService';
 

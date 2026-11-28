@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, ScrollView, Text, View } from 'react-native';
 import {
   cramLanguageOf, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, lessonPhrases, meaningOf, MISSED_MAX, pendingRequests, practiceLabel, practiceOrder, practiceProgress,
-  practiceSummary, phrasesSummary, preparedLines, cramTextTopic, talkScene, textWords, themeTopic, withoutCapture, withoutRequest, withoutTalk, wordState, type Cram, type CramPhrase, type CramTalk as Talk, type WordState,
+  practiceSummary, preparedLines, cramTextTopic, talkScene, textWords, themeTopic, withoutCapture, withoutRequest, withoutTalk, wordState, type Cram, type CramPhrase, type CramTalk as Talk, type WordState,
 } from '../../core/cram';
 import { phraseIsUsed, withoutPhrase } from '../../core/cramPhrases';
 import { cramTextAbout } from '../../core/cramThemes';
@@ -18,10 +18,10 @@ import { LANGUAGES } from '../../reader/languages';
 import { rehearsalParams } from '../../reader/situations';
 import type { AppRepo } from '../AppContext';
 import { haptic } from '../haptics';
-import { Button, Card as Box, ErrorNote, Group, Help, Loading, NavRow, PageTitle, ProgressBar, Screen, SectionTitle, SwipeAction, SwipeToReveal } from '../kit';
+import { Button, Card as Box, CheckboxRow, ErrorNote, Group, Help, Loading, NavRow, PageTitle, ProgressBar, Screen, SectionTitle, SwipeAction, SwipeToReveal } from '../kit';
 import { readable, space, type, useTheme, type Colors } from '../theme';
 import { capCramCards, deleteCramWords, saveCram, setCramTag, useCollection, useCramClock, useCrams } from '../useCrams';
-import { CheckRow, Pill } from './CramBits';
+import { Pill } from './CramBits';
 import { SelectBar } from '../SelectBar';
 import { useSelection } from '../useSelection';
 import { RegisterPicker } from '../reader/RegisterPicker';
@@ -302,7 +302,7 @@ export function CramPage(props: {
             </>
           ) : (
             <>
-              <Text style={{ ...type.headline, color: c.text }}>{!ids.length && phrases.length ? phrasesSummary(phrases.length) : practiceSummary(cram, ids)}</Text>
+              <Text style={{ ...type.headline, color: c.text }}>{practiceSummary(cram, ids)}</Text>
               {cram.rounds.length && ids.length ? <ProgressBar value={solid / ids.length} label="Solid words" /> : null}
               {ids.length || phrases.length ? <Button label={practiceLabel(cram, ids, phrases.length)} onPress={() => go('/cram-round')} /> : null}
               {!ids.length && !phrases.length && props.readerApi && language ? <Button label="Suggest words" onPress={() => go('/cram-suggest')} /> : null}
@@ -384,7 +384,7 @@ export function CramPage(props: {
         {sel.selecting ? (
           <Group>
             {listed.map((note, i) => (
-              <CheckRow key={note.id} first={i === 0} label={headword(note) || 'Untitled'} detail={meaningOf(note) || undefined} checked={sel.selected.has(note.id)} onPress={() => { haptic.select(); sel.toggle(note.id); }} />
+              <CheckboxRow key={note.id} first={i === 0} label={headword(note) || 'Untitled'} detail={meaningOf(note) || undefined} checked={sel.selected.has(note.id)} onPress={() => { haptic.select(); sel.toggle(note.id); }} />
             ))}
           </Group>
         ) : (

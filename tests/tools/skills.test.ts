@@ -242,11 +242,17 @@ describe('clean weeks', () => {
   it('counts the reviews a week apart answered Good or Easy, newest first, until an Again or Hard', () => {
     // Learned, reviewed at 2 and 5 days while climbing (not weeks), then weekly.
     const history = [rev(54), rev(47, 4), rev(40), rev(33), rev(26), rev(19), rev(12), rev(5), rev(2), { at: day(0), kind: 'Learn', rating: 3 }];
-    expect(cleanWeeks(history)).toBe(7);
-    expect(cleanWeeks([rev(54), rev(47), rev(40, 2), rev(33)])).toBe(2);
-    expect(cleanWeeks([{ at: day(55), kind: 'Relearn', rating: 3 }, rev(47)])).toBe(0);
+    expect(cleanWeeks(history, 4)).toBe(7);
+    expect(cleanWeeks([rev(54), rev(47), rev(40, 2), rev(33)], 4)).toBe(2);
+    expect(cleanWeeks([{ at: day(55), kind: 'Relearn', rating: 3 }, rev(47)], 4)).toBe(0);
     // A change made by hand isn't an answer: passed over.
-    expect(cleanWeeks([rev(54), { at: day(50), kind: 'Manual', rating: 0 }, rev(47), rev(40)])).toBe(2);
+    expect(cleanWeeks([rev(54), { at: day(50), kind: 'Manual', rating: 0 }, rev(47), rev(40)], 4)).toBe(2);
+    // A week at the cap is fuzzed to 5 to 7 days, and counts in study days: 5 days apart is a week, an
+    // answer at 9 AM six days after one at 8 PM is too, and one 4 days on isn't.
+    const at = (n: number, hour: number) => ({ at: new Date(2026, 9, 1 + n, hour), kind: 'Review', rating: 3 });
+    expect(cleanWeeks([at(10, 12), at(5, 12), at(0, 12)], 4)).toBe(2);
+    expect(cleanWeeks([at(6, 9), at(0, 20)], 4)).toBe(1);
+    expect(cleanWeeks([at(4, 12), at(0, 12)], 4)).toBe(0);
     expect(STOP_SUGGESTED_AFTER).toBe(6);
   });
 });

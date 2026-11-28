@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { markedParts } from '../reader/grammar';
 import { haptic } from './haptics';
-import { Button, Card, Icon, Tappable } from './kit';
+import { Button, Card, Icon, Tappable, TextButton } from './kit';
 import { hairline, space, type, useTheme } from './theme';
 import { PlayPill } from './PlayButton';
 import { TranslationRow } from './TranslationRow';
@@ -60,15 +60,7 @@ function Tile({ example: e }: { example: ExampleTile }) {
           <Text style={{ ...type.subhead, color: c.textSecondary }}>{e.english}</Text>
         </TranslationRow>
       ) : (
-        <Tappable
-          onPress={() => { haptic.tap(); setShown(true); }}
-          accessibilityRole="button"
-          accessibilityLabel="Show translation"
-          hitSlop={{ top: space.s, bottom: space.s }}
-          style={{ alignSelf: 'flex-start' }}
-        >
-          <Text style={{ ...type.subhead, color: c.accent }}>Show translation</Text>
-        </Tappable>
+        <TextButton label="Show translation" onPress={() => setShown(true)} style={{ alignSelf: 'flex-start' }} />
       )}
       {!source ? null : 'title' in source ? (
         <Tappable

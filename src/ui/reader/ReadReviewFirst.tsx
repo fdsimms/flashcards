@@ -1,13 +1,11 @@
 import React from 'react';
-import { Text } from 'react-native';
 import type { GlossLanguage } from '../../reader/api';
 import { deckOf, glossInfo } from '../../reader/languages';
 import { reviewFirst } from '../../reader/reviewFirst';
 import { useApp } from '../AppContext';
-import { haptic } from '../haptics';
-import { Icon, Tappable } from '../kit';
+import { Banner } from '../kit';
 import { Reveal } from '../motion';
-import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
+import { type, useTheme } from '../theme';
 
 /**
  * The shelf's row while the language's deck has reviews due (`reviewFirst`): a word due today and
@@ -22,22 +20,7 @@ export function ReadReviewFirst({ language, onReview }: { language: GlossLanguag
   if (!due) return null;
   return (
     <Reveal>
-      <Tappable
-        onPress={() => { haptic.tap(); onReview(due.deck); }}
-        accessibilityRole="button"
-        accessibilityLabel={`${due.message}. ${due.hint}`}
-        style={{
-          flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: MIN_TAP + space.xs, paddingVertical: space.s + 2, paddingHorizontal: space.l,
-          borderRadius: radius.l, ...smooth, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, ...lift(c, 'high'),
-        }}
-      >
-        <Icon name="rectangle.stack" size={20} color={c.countDue} />
-        <Text style={{ ...type.subhead, color: c.textSecondary, flex: 1 }}>
-          <Text style={{ fontWeight: '600', color: c.text }}>{`${due.message}.`}</Text>
-          {` ${due.hint}`}
-        </Text>
-        <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
-      </Tappable>
+      <Banner icon="rectangle.stack" iconColor={c.countDue} title={due.message} hint={due.hint} onPress={() => onReview(due.deck)} />
     </Reveal>
   );
 }

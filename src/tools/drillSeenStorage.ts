@@ -39,6 +39,8 @@ export const drillMissedMonths = (language: string, stepId: string): number[] =>
 export function noteDrillMonth(language: string, stepId: string, month: number, right: boolean): void {
   const list = missedList(language, stepId);
   seen = right ? forgetSeen(seen, list, String(month)) : recordSeen(seen, list, String(month));
+  // A month taken off before the file is read would come back with it (the merge only adds), so it's taken off again after.
+  if (right) void loadDrillSeen().then(() => { seen = forgetSeen(seen, list, String(month)); });
   save();
 }
 

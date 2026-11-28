@@ -5,7 +5,7 @@ import { claudeChatLink, noteDraft, SUGGESTED_QUESTIONS, withNoteRequest, withQu
 import { failureText } from '../core/failure';
 import type { FixProposal } from '../core/fixCard';
 import { haptic } from './haptics';
-import { Button, ErrorNote, Field, Icon, SheetHeader, Tappable } from './kit';
+import { Button, ErrorNote, Field, SheetHeader, Tappable, TextButton } from './kit';
 import { MIN_TAP, radius, space, type, useTheme, smooth } from './theme';
 import { AskingText } from './AskingText';
 import { FixProposalView } from './FixProposalView';
@@ -260,10 +260,7 @@ export function AskCardSheet({ card, ask, visible = true, onDismiss, onSaveAnswe
           <Button label="Close" variant="secondary" onPress={onClose} style={{ flex: 1 }} disabled={asking} />
           {ask ? <Button label="Ask" onPress={() => void send(text)} style={{ flex: 1 }} busy={asking} disabled={!text.trim()} /> : null}
         </View>
-        <Tappable onPress={openInClaude} accessibilityRole="button" accessibilityLabel="Open this card in the Claude app" style={{ flexDirection: 'row', alignItems: 'center', gap: space.s, minHeight: MIN_TAP }}>
-          <Icon name="arrow.up.forward.app" size={18} color={c.accent} />
-          <Text style={{ ...type.callout, fontWeight: '600', color: c.accent }}>Open in the Claude app instead</Text>
-        </Tappable>
+        <TextButton icon="arrow.up.forward.app" label="Open in the Claude app instead" accessibilityLabel="Open this card in the Claude app" onPress={openInClaude} style={{ alignSelf: 'flex-start' }} />
         <Text style={{ ...type.footnote, color: c.textSecondary }}>
           Opens a new chat with this card and your question filled in, in the Claude app or on claude.ai. It uses your Claude plan, not Read & Listen's Claude key.
         </Text>

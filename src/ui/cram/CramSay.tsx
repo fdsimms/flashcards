@@ -133,7 +133,8 @@ export function CramSay({ repo, api, cramId, decks, add, onTalkingPoints }: {
     setSaving(true);
     setProblem(undefined);
     try {
-      await saveCram(repo, { ...cram, facts: factsFromSummary(result.summary) || undefined });
+      // An empty summary leaves what was already there: the footer can still keep it.
+      await saveCram(repo, { ...cram, facts: factsFromSummary(result.summary) || cram.facts });
       setKept(true);
       if (thenTalkingPoints) {
         // Talking points asks again from What really happened, not from the ideas it showed before.
@@ -258,8 +259,11 @@ function Result({ repo, result, language, deck, add, kept, saving, onKeep }: {
   const [problem, setProblem] = useState<string>();
   const lacking = useMemo(() => missingWords(result.lines), [result]);
   const say = (text: string) => phone.sayLine(text, info.speech, false);
+  // A ref as well as the state, so a second tap in the same frame doesn't queue the word twice.
+  const busyNow = useRef(false);
   const addWord = async (word: string, meaning: string) => {
-    if (busy || !deck) return;
+    if (busyNow.current || !deck) return;
+    busyNow.current = true;
     haptic.tap();
     setBusy(word);
     setProblem(undefined);
@@ -269,6 +273,7 @@ function Result({ repo, result, language, deck, add, kept, saving, onKeep }: {
     } catch (e) {
       setProblem(failureText(e, { what: `Couldn't add ${word}.`, next: 'Try again.' }));
     } finally {
+      busyNow.current = false;
       setBusy(undefined);
     }
   };

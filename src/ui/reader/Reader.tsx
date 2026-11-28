@@ -18,7 +18,7 @@ import { COMMON_WORD_STATUS, inDeck, needsMeaning, wordStatus, glossInfo, spoken
 import { wordFrequency } from '../../reader/frequency';
 import { LineScrubber } from './LineScrubber';
 import { firstLine, LOOP_BREAK_NOTE, paragraphs, playableNear, rangeOf, repeatBadge } from '../../reader/playback';
-import { isSlow, RATES, SLOW_RATE } from '../../reader/playbackRate';
+import { isSlow, RATES } from '../../reader/playbackRate';
 import { nextInOrder, playOrder, stepLength, upNextOrder, type LengthStep } from '../../reader/shelf';
 import { shelfCards } from '../../reader/downloads';
 import { untranslated, UNTRANSLATED_NOTE } from '../../reader/ownText';
@@ -72,7 +72,7 @@ import { idleRecording, RecordIconButton, RecordYourself } from '../RecordYourse
 import type { SelfRecording } from '../useSelfRecording';
 import { recordExtraRead } from '../../tools/extrasStorage';
 import type { ReaderPlayerHost } from '../useReaderPlayer';
-import { Button, Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable } from '../kit';
+import { Button, Card, ErrorNote, HeaderAction, Help, Icon, Screen, Segments, Tappable, TextButton } from '../kit';
 import { MakingCard } from '../MakingCard';
 import { textSteps } from '../../reader/making';
 import { hairline, lift, MIN_TAP, radius, smooth, space, type, useTheme, readable } from '../theme';
@@ -947,15 +947,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
                     <Text style={{ ...type.subhead, color: c.textSecondary }}>{line.english}</Text>
                   </Tappable>
                 ) : !listenOnly ? (
-                  <Tappable
-                    onPress={() => { haptic.tap(); toggleLineEnglish(i); }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Show translation for line ${i + 1}`}
-                    hitSlop={{ top: space.s, bottom: space.s }}
-                    style={{ alignSelf: 'flex-start', marginTop: space.xs }}
-                  >
-                    <Text style={{ ...type.subhead, color: c.accent }}>Show translation</Text>
-                  </Tappable>
+                  <TextButton label="Show translation" accessibilityLabel={`Show translation for line ${i + 1}`} onPress={() => toggleLineEnglish(i)} style={{ alignSelf: 'flex-start' }} />
                 ) : null}
                 <View style={{ flexDirection: 'row', gap: space.xs, marginTop: space.s }}>
                   {line.audio ? (

@@ -105,8 +105,14 @@ def made_lesson(conn: sqlite3.Connection) -> int:
     script = {
         "entries": [
             {"kind": "say", "voice": "narrator", "text": "How do you say:", "start": 0, "end": 900},
-            {"kind": "turn", "text": "เท่าไหร่", "english": "how much", "start": 900, "end": 3000,
-             "replay": 0},
+            {
+                "kind": "turn",
+                "text": "เท่าไหร่",
+                "english": "how much",
+                "start": 900,
+                "end": 3000,
+                "replay": 0,
+            },
         ],
         "phrase_clips": [],
     }
@@ -177,7 +183,9 @@ def test_grammar_pages_list_both_kinds_and_read_one_without_writing_anything() -
 def test_practice_items_are_listed_by_kind_with_how_their_batches_went() -> None:
     conn = store.connect(":memory:")
     c = client_with(conn)
-    question = GapQuestion("ฉัน", "เคย", "ไปเชียงใหม่", "I have been to Chiang Mai.", ("กำลัง",), "ever")
+    question = GapQuestion(
+        "ฉัน", "เคย", "ไปเชียงใหม่", "I have been to Chiang Mai.", ("กำลัง",), "ever"
+    )
     store.save_drill_batch(conn, POINT, "th", [question], 3, NOW, 0.01)
     store.save_sentence_batch(
         conn, "th", [Sentence(7, "กิน", "ฉันกินข้าว", "I eat rice.")], 2, NOW, 0.02

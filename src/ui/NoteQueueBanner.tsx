@@ -1,13 +1,11 @@
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { Text, View } from 'react-native';
 import { heldCounts } from '../reader/heldNotes';
 import { bannerOf } from '../reader/noteQueue';
 import { useApp } from './AppContext';
-import { haptic } from './haptics';
-import { Icon, Tappable } from './kit';
+import { Banner } from './kit';
 import { Reveal } from './motion';
-import { hairline, lift, radius, smooth, space, type, useTheme } from './theme';
+import { useTheme } from './theme';
 import { useConnectionProblem } from './connection';
 import { useHeldWords } from './held';
 import { useNoteQueue } from './useNoteQueue';
@@ -20,7 +18,7 @@ export function useNoteQueueBanner() {
   const held = useHeldWords();
   const problem = useConnectionProblem();
   const banner = reader.api ? bannerOf(queue, heldCounts(held), problem === 'server') : null;
-  return banner ? { ...banner, open: () => { haptic.tap(); router.push('/read-note-queue'); } } : null;
+  return banner ? { ...banner, open: () => router.push('/read-note-queue') } : null;
 }
 
 /** The card on Today: words waiting for Claude (held on the phone while offline, or with Claude), ready to review, or that it couldn't fill in. */
@@ -31,22 +29,7 @@ export function NoteQueueCard({ banner }: { banner: NonNullable<ReturnType<typeo
   const color = tone === 'ready' ? c.good : tone === 'waiting' ? c.textSecondary : c.warning;
   return (
     <Reveal>
-    <Tappable
-      onPress={banner.open}
-      accessibilityRole="button"
-      accessibilityLabel={`${message}. ${hint}`}
-      style={{
-        flexDirection: 'row', alignItems: 'center', gap: space.m, minHeight: 56, paddingVertical: space.m, paddingHorizontal: space.l,
-        borderRadius: radius.l, ...smooth, backgroundColor: c.surface, borderColor: c.border, borderWidth: hairline, ...lift(c, 'high'),
-      }}
-    >
-      <Icon name={icon} size={22} color={color} />
-      <View style={{ flex: 1 }}>
-        <Text style={{ ...type.callout, color: c.text }}>{message}</Text>
-        <Text style={{ ...type.footnote, color: c.textSecondary }}>{hint}</Text>
-      </View>
-      <Icon name="chevron.right" size={14} color={c.textTertiary} weight="semibold" />
-    </Tappable>
+      <Banner icon={icon} iconColor={color} title={message} hint={hint} onPress={banner.open} />
     </Reveal>
   );
 }

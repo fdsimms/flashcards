@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import { Alert, ScrollView, Text } from 'react-native';
 import { failureText } from '../core/failure';
 import { supportsOnDevice } from '../../modules/speech-on-device';
 import { hearingText, recognitionLocale } from '../core/speaking';
 import type { Repo } from '../db/repo';
 import { LANGUAGE_ORDER, LANGUAGES } from '../reader/languages';
-import { Group, Help, Screen, Section, SECTION_GAP, SwitchRow } from './kit';
-import { hairline, MIN_TAP, space, type, useTheme, readable } from './theme';
+import { Group, Help, Screen, Section, SECTION_GAP, SwitchRow, ValueRow } from './kit';
+import { space, type, useTheme, readable } from './theme';
 import { supportedLocales } from './useSpokenAnswer';
 import { pitchEveryLanguage } from './pitchPrefs';
 
@@ -81,16 +81,11 @@ export function SpeakingSettings({ repo }: { repo: Repo }) {
               const locale = locales ? recognitionLocale(LANGUAGES[l].speech, locales) : undefined;
               const heard = locales ? !!locale : null;
               return (
-                <View
-                  key={l}
-                  accessible
-                  style={{ flexDirection: 'row', alignItems: 'center', minHeight: MIN_TAP + space.s, paddingHorizontal: space.l, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}
-                >
-                  <Text style={{ ...type.body, color: c.text, flex: 1 }}>{LANGUAGES[l].name}</Text>
+                <ValueRow key={l} first={i === 0} label={LANGUAGES[l].name}>
                   <Text style={{ ...type.subhead, color: heard ? c.countDue : c.textSecondary }}>
                     {hearingText(heard, locale ? supportsOnDevice(locale) : null)}
                   </Text>
-                </View>
+                </ValueRow>
               );
             })}
           </Group>

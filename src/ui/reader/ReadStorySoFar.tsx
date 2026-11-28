@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { SoFar } from '../../reader/api';
 import { awayText, recapsShown, RECENT_EPISODES, WELCOME_BACK_DAYS } from '../../reader/welcomeBack';
 import { haptic } from '../haptics';
-import { Button, Card, Icon, SectionTitle, SheetHeader, Tappable } from '../kit';
+import { Button, Card, Icon, SectionTitle, SheetHeader, Tappable, TextButton } from '../kit';
 import { MIN_TAP, space, type, useTheme } from '../theme';
 import { XrayCard } from './ReaderXray';
 
@@ -54,16 +54,7 @@ export function StorySoFar({ soFar }: { soFar: SoFar }) {
         <>
           <EpisodeRecaps recaps={recapsShown(soFar, all)} />
           {more ? (
-            <Tappable
-              onPress={() => { haptic.select(); setAll(!all); }}
-              accessibilityRole="button"
-              accessibilityState={{ expanded: all }}
-              style={{ minHeight: MIN_TAP, justifyContent: 'center' }}
-            >
-              <Text style={{ ...type.subhead, fontWeight: '600', color: c.accent }}>
-                {all ? 'Latest episodes only' : `All ${soFar.recaps.length} episodes`}
-              </Text>
-            </Tappable>
+            <TextButton label={all ? 'Latest episodes only' : `All ${soFar.recaps.length} episodes`} accessibilityState={{ expanded: all }} onPress={() => setAll(!all)} style={{ alignSelf: 'flex-start' }} />
           ) : null}
         </>
       ) : null}

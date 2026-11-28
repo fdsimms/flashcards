@@ -8,7 +8,8 @@ import {
 import { loadExtras, saveExtraPrefs, subscribeExtras, updateExtraState, type Extras } from '../tools/extrasStorage';
 import { liveMisses, markList } from '../tools/marks';
 import { loadToolMarks, saveToolPrefs, toolMarks } from '../tools/storage';
-import { toolById } from '../tools/tools';
+import { countNounsKnown } from '../tools/skills';
+import { COUNTING, toolById } from '../tools/tools';
 import { useApp } from './AppContext';
 import { useStudyDay } from './useStudyDay';
 
@@ -32,7 +33,7 @@ export interface ExtraItem {
  */
 export function useDailyExtras() {
   const router = useRouter();
-  const { decks, reader } = useApp();
+  const { decks, reader, repo } = useApp();
   const [saved, setSaved] = useState<Extras>();
   const [marksIn, setMarksIn] = useState(false);
 
@@ -55,12 +56,28 @@ export function useDailyExtras() {
   const readerOn = !!reader.api;
   const hour = reader.dayStartsAtHour;
 
+  // The languages whose Counting things has no noun to ask yet (no counter known), read once the languages are,
+  // with the Counting screen's own function: Counting isn't planned for them.
+  const counted = languages.filter((l) => COUNTING[l]?.counterWord).join(',');
+  const [noCounters, setNoCounters] = useState<{ for: string; languages: Language[] }>();
+  useEffect(() => {
+    let live = true;
+    const ls = counted ? (counted.split(',') as Language[]) : [];
+    if (!ls.length) { setNoCounters({ for: counted, languages: [] }); return; }
+    Promise.all([repo.listNotes(), repo.listCards()]).then(
+      ([notes, cards]) => { if (live) setNoCounters({ for: counted, languages: ls.filter((l) => !countNounsKnown(l, notes, cards)?.length) }); },
+      () => { if (live) setNoCounters({ for: counted, languages: [] }); },
+    );
+    return () => { live = false; };
+  }, [repo, counted]);
+  const counterless = noCounters?.for === counted ? noCounters.languages : undefined;
+
   // Worked out again when the next study day starts, so Today left open overnight isn't on yesterday's plan.
   const day = useStudyDay(hour);
   const plan = useMemo(() => {
-    if (!saved || !marksIn || !languages.length) return undefined;
-    return planExtras({ prefs: saved.prefs, state: saved.state, languages, readerOn, marks: toolMarks(), now: new Date(), dayStartsAtHour: hour });
-  }, [saved, marksIn, languages, readerOn, hour, day]); // eslint-disable-line react-hooks/exhaustive-deps -- `day` is when to work it out again
+    if (!saved || !marksIn || !languages.length || !counterless) return undefined;
+    return planExtras({ prefs: saved.prefs, state: saved.state, languages, readerOn, marks: toolMarks(), noCounters: counterless, now: new Date(), dayStartsAtHour: hour });
+  }, [saved, marksIn, languages, readerOn, counterless, hour, day]); // eslint-disable-line react-hooks/exhaustive-deps -- `day` is when to work it out again
 
   // The first plan of the day, or one for changed settings, is kept so the day's list holds still.
   const kept = useRef<unknown>(undefined);
@@ -126,6 +143,6 @@ export function useDailyExtras() {
     /** The languages with a deck, for the settings screen. */
     languages,
     /** The languages taking turns, next first. */
-    turns: saved ? turnOrder({ prefs: saved.prefs, state: saved.state, languages, readerOn }) : [],
+    turns: saved ? turnOrder({ prefs: saved.prefs, state: saved.state, languages, readerOn, noCounters: counterless ?? [] }) : [],
   };
 }

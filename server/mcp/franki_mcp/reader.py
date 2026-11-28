@@ -120,7 +120,8 @@ def register(server: MCPServer, client: ReaderClient) -> None:
         `vocab_checks`, `note_queue`, `mnemonics`, `questions` (the check after reading) and `forms` (the grammatical form of a
         text's inflected words): what those Claude calls cost, apart
         from the texts, and `other_calls`, every other Claude call (looking a word up, rare words,
-        asking about or fixing a card...), as one total and by feature. Every figure includes calls
+        asking about or fixing a card...) and the Azure audio those features record (a grammar lesson's
+        examples), as one total and by feature. Every figure includes calls
         that failed after Claude answered, which were still paid for. `recordings` is the cards the
         app recorded with an Azure voice, as characters and the same estimate, in total only. Voice
         previews and recordings the MCP makes into notes are not in any of it."""

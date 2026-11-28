@@ -3,9 +3,9 @@ import React, { useMemo, useRef, useState } from 'react';
 import { FlatList, Text, View } from 'react-native';
 import type { NoteStore } from '../../anki/noteService';
 import { addableNotes, cramLanguageOf, cramNotes, cramTag, meaningOf, noteAddedAt, searchNotes, withRequest } from '../../core/cram';
-import { withPhrases } from '../../core/cramPhrases';
+import { addPhrases, type PhraseAddition } from '../../core/cramPhrases';
 import { withoutListedWords } from '../../core/cramWords';
-import { failureText } from '../../core/failure';
+import { failureText, Refusal } from '../../core/failure';
 import { headword } from '../../core/forms';
 import type { LessonWordCandidate } from '../../core/lessonWords';
 import { noteHasTag, tagCounts } from '../../core/priority';
@@ -13,11 +13,10 @@ import type { Note } from '../../core/types';
 import type { Language, QueuedNote } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { ErrorNote, Field, Group, Help, Loading, NavRow, Screen } from '../kit';
+import { CheckboxRow, ErrorNote, Field, Group, Help, Loading, NavRow, Screen } from '../kit';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { capCramCards, cramsNow, saveCram, setCramTag, useCollection, useCrams } from '../useCrams';
 import { useKeyboardScroll } from '../useKeyboardScroll';
-import { CheckRow } from './CramBits';
 import { CramAsk } from './CramAsk';
 import { leaveScreen } from '../leaveScreen';
 import { PRACTICE_PATH } from '../tabPaths';
@@ -126,10 +125,13 @@ export function CramWords({ repo, id, initial, card, findWords, queue, queued, a
   };
 
   // A word picked from the lookup kept on the cram as a phrase: no note, no card.
-  const addPhrases = async (words: LessonWordCandidate[]) => {
+  const keepPhrases = async (words: LessonWordCandidate[]): Promise<PhraseAddition> => {
     // The cram as it is now, so a phrase added while another save was in flight isn't lost.
     const now = cramsNow().find((x) => x.id === cram.id);
-    if (now) await saveCram(repo, withPhrases(now, words.map((w) => ({ text: w.text, english: w.english, reading: w.reading || undefined }))));
+    if (!now) throw new Refusal("Couldn't add the phrases. This cram was deleted.");
+    const result = addPhrases(now, words.map((w) => ({ text: w.text, english: w.english, reading: w.reading || undefined })));
+    await saveCram(repo, result.cram);
+    return result;
   };
 
   const name = language ? LANGUAGES[language].name : undefined;
@@ -163,7 +165,7 @@ export function CramWords({ repo, id, initial, card, findWords, queue, queued, a
             />
             <Help>{name ? `Type in ${name} or English. Searches your ${name} words by word and meaning, or a tag.` : 'Searches every word by word and meaning, or a tag.'}</Help>
             {typed && !exact && language && findWords && !card ? (
-              <CramAsk key={typed} text={typed} language={language} findWords={(t) => findWords(language, t)} listed={notListed} add={addPhrases} />
+              <CramAsk key={typed} text={typed} language={language} findWords={(t) => findWords(language, t)} listed={notListed} add={keepPhrases} />
             ) : null}
             {typed && !exact && language && findWords && queue && card ? (
               <CramAsk key={typed} text={typed} language={language} findWords={(t) => findWords(language, t)} listed={notListed} ask={ask} queued={queued} approve={approve ? async (note) => { const saved = await approve(note); if (saved) collection.reload(); return saved; } : undefined} />
@@ -194,7 +196,7 @@ export function CramWords({ repo, id, initial, card, findWords, queue, queued, a
           const meaning = meaningOf(item);
           return (
             <View style={{ backgroundColor: c.surface, borderTopLeftRadius: index === 0 ? radius.l : 0, borderTopRightRadius: index === 0 ? radius.l : 0, borderBottomLeftRadius: index === rows.length - 1 ? radius.l : 0, borderBottomRightRadius: index === rows.length - 1 ? radius.l : 0, overflow: 'hidden' }}>
-              <CheckRow
+              <CheckboxRow
                 first={index === 0}
                 label={headword(item) || 'Untitled'}
                 detail={[meaning, item.deck.split('::').pop()].filter(Boolean).join(' · ')}

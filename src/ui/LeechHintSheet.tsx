@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Modal, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { haptic } from './haptics';
-import { Button, ErrorNote, Field, Icon, SheetHeader, Tappable } from './kit';
+import { Button, ErrorNote, Field, Icon, SheetHeader, Tappable, TextButton } from './kit';
 import { MIN_TAP, radius, space, type, useTheme, smooth } from './theme';
 import { AskingText } from './AskingText';
 import { failureText } from '../core/failure';
@@ -132,9 +132,7 @@ export function LeechHintSheet({ word, translit, gloss, misses, suspended, step,
         ))}
         {error ? <ErrorNote message={error} /> : null}
         {step && step.n < step.of && onSkipRest ? (
-          <Tappable onPress={() => { haptic.tap(); onSkipRest(); }} disabled={saving} accessibilityRole="button" accessibilityLabel="Skip the rest" style={{ alignSelf: 'flex-start', minHeight: MIN_TAP, justifyContent: 'center' }}>
-            <Text style={{ ...type.callout, color: c.textSecondary }}>Skip the rest</Text>
-          </Tappable>
+          <TextButton label="Skip the rest" onPress={onSkipRest} disabled={saving} style={{ alignSelf: 'flex-start' }} />
         ) : null}
         {suspended ? (
           // The longer label gets the whole width, the main action on top.

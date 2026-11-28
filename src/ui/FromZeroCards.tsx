@@ -10,7 +10,7 @@ import { LANGUAGES } from '../reader/languages';
 import { useApp } from './AppContext';
 import { endFromZero, hidePath, makePathLesson, openFirstWords } from './fromZeroActions';
 import { useFromZero } from './fromZeroStorage';
-import { Card, Icon, Meter, Tappable } from './kit';
+import { Card, Icon, Meter, Tappable, TextButton } from './kit';
 import { LESSONS_PATH } from './tabPaths';
 import { radius, space, type, useTheme } from './theme';
 import { useCollection } from './useCrams';
@@ -80,9 +80,7 @@ function FromZeroCard({ path }: { path: FromZero }) {
     <Card style={{ gap: 0, paddingVertical: space.s }}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', paddingVertical: space.s }}>
         <Text style={{ ...type.overline, color: c.textSecondary }}>{`${name} from zero`}</Text>
-        <Tappable onPress={() => void hidePath(path.language)} accessibilityRole="button" accessibilityLabel={`Hide ${name} from zero`}>
-          <Text style={{ ...type.subhead, color: c.accentInk }}>Hide</Text>
-        </Tappable>
+        <TextButton label="Hide" accessibilityLabel={`Hide ${name} from zero`} onPress={() => void hidePath(path.language)} />
       </View>
       {steps.map((step, i) => {
         const onPress = tap(step);

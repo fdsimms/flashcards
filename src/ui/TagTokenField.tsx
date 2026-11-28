@@ -2,7 +2,7 @@ import React, { useMemo, useRef, useState } from 'react';
 import { ScrollView, Text, TextInput, View, useColorScheme, type TextInputInstance } from 'react-native';
 import { suggestTags, type TagSuggestion } from '../core/priority';
 import { haptic } from './haptics';
-import { Icon, Tappable } from './kit';
+import { Divider, Icon, Tappable } from './kit';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from './theme';
 
 const SUGGESTIONS = 4;
@@ -89,8 +89,9 @@ export function TagTokenField({ label, tags, onChange, counts, placeholder }: {
               onPress={() => { add(s.tag); input.current?.focus(); }}
               accessibilityRole="button"
               accessibilityLabel={`Add ${s.tag}, ${s.count} ${s.count === 1 ? 'note' : 'notes'}`}
-              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.s, minHeight: MIN_TAP, paddingHorizontal: space.m, borderTopWidth: i ? hairline : 0, borderTopColor: c.border }}
+              style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: space.s, minHeight: MIN_TAP, paddingHorizontal: space.m }}
             >
+              {i ? <Divider inset={space.m} /> : null}
               <Text style={{ ...type.body, color: c.text, flexShrink: 1 }} numberOfLines={1}>{s.tag}</Text>
               <Text style={{ ...type.subhead, color: c.textSecondary }}>{s.count} {s.count === 1 ? 'note' : 'notes'}</Text>
             </Tappable>

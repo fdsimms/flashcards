@@ -17,14 +17,16 @@ const plural = (n: number, one: string, many: string) => `${n.toLocaleString()} 
  * Deck options' "Keep to a daily goal" (src/core/dailyGoal.ts): the switch, the goal, and what
  * today's tuning set, with the month it expects. Saving goes through Deck options' own queue
  * (`onChange`); `retune` works today's value out again once the save has landed and reads the
- * screen back, so the gate's cap above and the deck list follow.
+ * screen back, so the gate's cap above and the deck list follow. `turnOff` turns the goal off and puts
+ * back the value it replaced (`goalTurnedOff`).
  */
-export function DeckDailyGoal({ settings, target, onChange, retune }: {
+export function DeckDailyGoal({ settings, target, onChange, retune, turnOff }: {
   settings: DeckSettings;
   /** What the goal sets for this deck (`goalTarget`); undefined hides the section. */
   target: GoalTarget | undefined;
   onChange: (patch: Partial<DeckSettings>) => void;
   retune: () => Promise<void>;
+  turnOff: () => void;
 }) {
   const c = useTheme();
   const on = settings.dailyGoal !== undefined;
@@ -56,7 +58,7 @@ export function DeckDailyGoal({ settings, target, onChange, retune }: {
 
   const toggle = (next: boolean) => {
     setError(undefined);
-    if (!next) { onChange({ dailyGoal: undefined, goalTuned: undefined }); return; }
+    if (!next) { turnOff(); return; }
     const parsed = parseDailyGoal(text);
     const goal = 'goal' in parsed ? parsed.goal : DEFAULT_GOAL;
     if (!('goal' in parsed)) setText(String(DEFAULT_GOAL));
@@ -145,9 +147,9 @@ function Figure({ value, label, color, approximate }: { value: number; label: st
 
 /** What the tuning set, said under the card. */
 function summary(r: GoalResult, target: GoalTarget): string {
-  if (target === 'gate') return `Today's value is set as Maximum cards in progress, above. Turning the goal off keeps it.`;
+  if (target === 'gate') return `Today's value is set as Maximum cards in progress, above. Turning the goal off puts back the value from before the goal.`;
   const where = target === 'anki'
     ? "It's this deck's own daily new card limit in Anki, so the other decks on its Anki options keep theirs."
     : "It's this deck's daily new card limit.";
-  return `${plural(r.value, 'new card', 'new cards')} a day today. ${where} Turning the goal off keeps it.`;
+  return `${plural(r.value, 'new card', 'new cards')} a day today. ${where} Turning the goal off puts back the limit from before the goal.`;
 }

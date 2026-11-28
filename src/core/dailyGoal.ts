@@ -178,9 +178,32 @@ export function goalTarget(deck: string, settings: DeckSettings | undefined, par
 /**
  * The deck's own settings with a day's tuning applied: the gate's cap set, or a preset-less deck's
  * own daily new limit; and the result kept for Deck options. An `anki` target takes its limit in the
- * collection instead (`saveDeckNewLimit`, src/anki/presetService.ts).
+ * collection instead (`saveDeckNewLimit`, src/anki/presetService.ts). `replaced` is the value there
+ * before this write (null for none of the deck's own); the first one the goal replaced is kept, to put
+ * back when the goal is turned off.
  */
-export function withTuning(settings: DeckSettings, r: GoalResult, target: GoalTarget): DeckSettings {
-  if (target === 'gate') return { ...settings, gateCap: r.value, goalTuned: r };
-  return target === 'own' ? { ...settings, newPerDay: r.value, goalTuned: r } : { ...settings, goalTuned: r };
+export function withTuning(settings: DeckSettings, r: GoalResult, target: GoalTarget, replaced: number | null): DeckSettings {
+  const goalReplaced = settings.goalReplaced?.target === target ? settings.goalReplaced : { target, value: replaced };
+  if (target === 'gate') return { ...settings, gateCap: r.value, goalTuned: r, goalReplaced };
+  return target === 'own' ? { ...settings, newPerDay: r.value, goalTuned: r, goalReplaced } : { ...settings, goalTuned: r, goalReplaced };
+}
+
+/** The value a goal's lever has now, as `withTuning` is given it: an `anki` target's is read from the collection. */
+export function leverValue(settings: DeckSettings, target: 'gate' | 'own'): number | null {
+  return (target === 'gate' ? settings.gateCap : settings.newPerDay) ?? null;
+}
+
+/**
+ * The deck's settings with its goal turned off, and what the goal replaced put back: the gate's cap,
+ * or Deck options' own limit. For an `anki` target, `ankiLimit` is the deck's own limit to put back in
+ * the collection (null: take it off, so the deck follows its preset again); undefined when there's
+ * nothing to put back (never tuned, or tuned for a target the deck no longer has).
+ */
+export function goalTurnedOff(settings: DeckSettings, target: GoalTarget | undefined): { settings: DeckSettings; ankiLimit?: number | null } {
+  const { goalReplaced, ...rest } = settings;
+  const off: DeckSettings = { ...rest, dailyGoal: undefined, goalTuned: undefined };
+  if (!goalReplaced || goalReplaced.target !== target) return { settings: off };
+  if (target === 'gate') return { settings: goalReplaced.value === null ? off : { ...off, gateCap: goalReplaced.value } };
+  if (target === 'own') return { settings: { ...off, newPerDay: goalReplaced.value ?? undefined } };
+  return { settings: off, ankiLimit: goalReplaced.value };
 }

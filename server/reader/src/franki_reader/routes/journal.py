@@ -1,6 +1,7 @@
 """The writing journal (journal.py): entries checked by Claude and kept, and the kinds of mistake
 their first checks found."""
 
+import asyncio
 import random
 from datetime import timedelta
 from typing import Literal
@@ -180,10 +181,26 @@ def router(ctx: AppContext) -> APIRouter:
             checks=check_entry is not None,
         )
 
+    # A new entry's `key` while its check runs: the phone resends a held entry after a few seconds,
+    # and the check takes longer, so a resend waits for the first and gets its entry, with no call.
+    checking: dict[str, asyncio.Lock] = {}
+
     @routes.post("/api/journal/check", dependencies=authed, response_model=JournalEntryOut)
     async def journal_check(body: JournalCheckIn) -> JournalEntryOut:
         """Checks an entry (one call to Claude) and keeps it: a new one, or `entry_id` written again.
-        A new entry whose `key` was already checked comes back as it was, with no call."""
+        A new entry whose `key` was already checked (or is being checked) comes back as it was, with
+        no call."""
+        if body.entry_id is not None or not body.key:
+            return await _check(body)
+        lock = checking.setdefault(body.key, asyncio.Lock())
+        try:
+            async with lock:
+                return await _check(body)
+        finally:
+            if not lock.locked():
+                checking.pop(body.key, None)
+
+    async def _check(body: JournalCheckIn) -> JournalEntryOut:
         text = body.text.strip()
         if not text:
             raise HTTPException(422, "Write something to check.")

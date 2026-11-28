@@ -67,12 +67,12 @@ export function useNewWords(): { low: LowDeck[]; dismiss: (deck: string) => void
     });
   }, [reader.api, reader.settings, decks, queue, held, dismissed, today, vacation]);
 
+  // No haptic here: the banner gives its own, and the Keep going row gives one in its onPress.
   const open = useCallback((d: LowDeck) => {
-    haptic.tap();
     router.push({ pathname: '/read-new-words', params: { deck: d.deck, language: d.language, perDay: String(d.perDay) } });
   }, [router]);
 
-  return { low, dismiss: (deck) => { haptic.tap(); void dismiss(deck, today); }, open };
+  return { low, dismiss: (deck) => { void dismiss(deck, today); }, open };
 }
 
 /**
@@ -88,6 +88,6 @@ export function useNewWordsStep(deck: string, color: string): NextStep | null {
     label: 'Add new words',
     detail: `${runwayText(found.left, found.perDay)} in ${deckShortName(found.deck)}`,
     icon: { name: 'plus', color },
-    onPress: () => open(found),
+    onPress: () => { haptic.tap(); open(found); },
   };
 }

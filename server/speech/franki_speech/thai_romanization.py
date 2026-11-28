@@ -86,7 +86,7 @@ def tones_of_ipa(ipa: str) -> list[str] | None:
 
 def tone_mismatch(transliteration: str, ipa: str) -> tuple[list[str], list[str]] | None:
     """The tones the romanization marks and the tones the IPA gives, when they differ; None when they
-    agree or can't be compared. With the same number of syllables each is compared in turn. With a
+    agree or can't be compared (no romanization yet). With the same number of syllables each is compared in turn. With a
     different number (a romanization written without hyphens is one token, a loanword splits
     differently) the marked tones are compared in order, which doesn't depend on where the syllables
     break: `phukhao` marks none and the IPA has a rising one."""
@@ -94,6 +94,8 @@ def tone_mismatch(transliteration: str, ipa: str) -> tuple[list[str], list[str]]
     if heard is None:
         return None
     written = tones_of(transliteration)
+    if not written:  # an empty romanization is its own problem, reported as missing
+        return None
     if len(written) == len(heard):
         return None if written == heard else (written, heard)
     marked = [t for t in written if t != "mid"]

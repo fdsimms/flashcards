@@ -89,7 +89,7 @@ export function CasesTool({ tool, repo }: ToolScreenProps) {
     if (!question || !noun || step !== 'form' || !typed.trim()) return;
     const v = checkCaseForm(typed, question.governor, noun);
     if (v === 'right') haptic.success(); else haptic.answer();
-    marks.mark([`form:${question.governor.case}`], v === 'right');
+    marks.mark([`form:${question.governor.case}`], v === 'right', true);
     setVerdict(v);
     setStep('done');
     answer.speak({ text: `${question.governor.word} ${noun.forms[question.governor.case]![0]}` });

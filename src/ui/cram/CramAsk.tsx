@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
 import { Keyboard, Text, View } from 'react-native';
+import { phrasesNotAddedText, type PhraseAddition } from '../../core/cramPhrases';
 import { failureText } from '../../core/failure';
 import { candidateChips, noCandidatesText, type LessonWordCandidate } from '../../core/lessonWords';
 import type { Language, QueuedNote } from '../../reader/api';
@@ -40,7 +41,7 @@ export function CramAsk({ text, language, findWords, listed, ask, add, queued, a
   /** Queues the words and keeps them on the cram as being written; says 'held' when they wait for a connection. */
   ask?: (words: LessonWordCandidate[]) => Promise<'queued' | 'held' | undefined>;
   /** Keeps the words on the cram as phrases. Given, this is Add a phrase and `ask` is not used. */
-  add?: (words: LessonWordCandidate[]) => Promise<void>;
+  add?: (words: LessonWordCandidate[]) => Promise<PhraseAddition>;
   /** The note queue as the server last said it: the card shows a Review button here once Claude has written a word's card. */
   queued?: QueuedNote[];
   /** Opens the written card in the note editor; saving there is the approval. True when it was saved. */
@@ -50,7 +51,7 @@ export function CramAsk({ text, language, findWords, listed, ask, add, queued, a
   const name = LANGUAGES[language].name;
   const [candidates, setCandidates] = useState<{ for: string; list: LessonWordCandidate[] }>();
   const [busy, setBusy] = useState(false);
-  const [done, setDone] = useState<{ for: string; words: string[]; held: boolean }>();
+  const [done, setDone] = useState<{ for: string; words: string[]; held: boolean; note?: string }>();
   // The words checked, by their text.
   const [checked, setChecked] = useState<{ for: string; texts: string[] }>();
   const [problem, setProblem] = useState<{ for: string; text: string }>();
@@ -99,9 +100,10 @@ export function CramAsk({ text, language, findWords, listed, ask, add, queued, a
   const make = () => run(async () => {
     haptic.tap();
     if (add) {
-      await add(picked);
-      haptic.success();
-      setDone({ for: typed, words: picked.map((w) => w.text), held: false });
+      // A phrase already on the cram, or past its limit, is said so rather than counted as added.
+      const note = phrasesNotAddedText(await add(picked));
+      if (note) haptic.answer(); else haptic.success();
+      setDone({ for: typed, words: picked.map((w) => w.text), held: false, note });
       return;
     }
     const how = await ask?.(picked);
@@ -120,7 +122,7 @@ export function CramAsk({ text, language, findWords, listed, ask, add, queued, a
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
           <Icon name="checkmark.circle.fill" size={24} color={c.countDue} />
-          <Text style={{ ...type.subhead, color: c.text, flex: 1 }}>{sent.words.length === 1 ? `Added ${sent.words[0]} to the cram's phrases.` : `Added ${sent.words.length} phrases to the cram.`}</Text>
+          <Text style={{ ...type.subhead, color: c.text, flex: 1 }}>{sent.note ?? (sent.words.length === 1 ? `Added ${sent.words[0]} to the cram's phrases.` : `Added ${sent.words.length} phrases to the cram.`)}</Text>
         </View>
       </Card>
     );
