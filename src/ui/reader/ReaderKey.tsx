@@ -7,7 +7,7 @@ import { HIGHLIGHT_ABOUT, MARK_INFO, type Example, type Mark } from '../../reade
 import { haptic } from '../haptics';
 import { SheetHeader } from '../kit';
 import { WordView, type ReadTextStyle } from './ReadWord';
-import { hairline, MIN_TAP, radius, space, type, useTheme, smooth } from '../theme';
+import { hairline, radius, space, type, useTheme, smooth } from '../theme';
 
 /**
  * What the marks on the words mean, with a switch for each, in a sheet the reader's header button
