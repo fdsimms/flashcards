@@ -2,6 +2,7 @@ from datetime import date
 
 from franki_reader.coverage import Lexicon
 from franki_reader.generator import TextRequest, request_message
+from franki_reader.lexicon import Entry, lexicon_from
 from franki_reader.met import MET_DAYS, MetWord, PastReading, pick_met
 
 LEXICON = Lexicon(["ฉัน", "อยาก", "กิน", "ครับ"])
@@ -55,3 +56,19 @@ def test_the_request_lists_them_as_words_outside_the_list() -> None:
     assert "Words met before" in message
     assert "- ทอน (give change)" in message
     assert "Words met before" not in request_message(TextRequest("food"))
+
+
+def test_a_word_met_again_in_another_form_counts() -> None:
+    german = lexicon_from([Entry(1, "ich", "I", "mature")], "de", 0)
+    glosses = {"Verletzung": "injury"}
+    readings = [
+        PastReading(date(2026, 11, 10), ("Ich|habe|eine|Verletzung.",), ("Verletzung",), glosses)
+    ]
+    readings += [
+        PastReading(date(2026, 11, 10 + n), ("Zwei|Verletzungen.",), (), {})
+        for n in range(1, MET_DAYS - 1)
+    ]
+    assert [w.text for w in pick_met(readings, german, TODAY)] == ["Verletzung"]
+    # Met on its last day as Verletzungen: four days in all, so it's left alone.
+    readings.append(PastReading(date(2026, 11, 10 + MET_DAYS - 1), ("Die|Verletzungen.",), (), {}))
+    assert pick_met(readings, german, TODAY) == []

@@ -426,7 +426,7 @@ export function Reader({ api, playerHost, source, settings, onSettings, onPlayWo
     if (!text || source.kind !== 'past' || listenLogged.current) return;
     listenLogged.current = true;
     try {
-      await api.logListen(text.id);
+      await api.logListen(text.id, session ? (Date.now() - session.startedAt) / 1000 : undefined);
     } catch {
       // Not counted: it's offered again, which is the better way to be wrong.
     }

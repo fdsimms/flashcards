@@ -49,6 +49,11 @@ export function PlayPill({ label, onPlay, speech, raised }: { label: string; onP
 /** Room the card's scrolling content leaves under its last line, so the floating Play button never covers it. */
 export const PLAY_BUTTON_CLEARANCE = MIN_TAP + space.l + space.m;
 
+/** Ends a card's scroll bar above the floating Play button, so the bar doesn't run behind it. */
+export function playButtonScrollInsets(hasButton: boolean) {
+  return { bottom: hasButton ? PLAY_BUTTON_CLEARANCE : 0 };
+}
+
 /** Review's Play button, fixed in the card's bottom right corner so it's under the thumb whatever the card's length. */
 export function PlayButton({ onPlay, speech }: { onPlay: () => void; speech?: string }) {
   return (

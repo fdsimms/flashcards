@@ -152,7 +152,7 @@ export interface TreeQueueInput {
   boostFor?: (root: string) => Boost | undefined;
   /** A deck's own daily new card limit, not today's: its preset's, else its own from Deck options (`DeckRow.newPerDay`). */
   newPerDayFor?: (deck: string) => number;
-  /** Vacation mode, resolved (`vacationPlan`): paused shows nothing, weakest first overrides the review order. The limits are scaled in `queueInput`. */
+  /** Vacation mode, resolved (`vacationPlan`): paused shows nothing, likeliest first overrides the review order. The limits are scaled in `queueInput`. */
   vacation?: VacationPlan;
   /**
    * While a review from an earlier study day waits, reviews come likeliest-remembered first (`isBehind`).
@@ -306,12 +306,11 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
     retentionOf: (c) => paramsFor(homeDeckOf(c))?.desiredRetention,
   };
   const all = active.flatMap((d) => studiable(input.cardsByDeck.get(d)!)).filter((c) => !isBuried(c, now, h) && !input.held?.has(c.id));
-  // Vacation mode's weakest-first order, but never over a filtered deck's own place order. Otherwise,
-  // while a review from an earlier study day still waits, the reviews likeliest to be remembered come
-  // first (`isBehind`): what can't be reached today is then what was already slipping, not what would have been kept.
+  // During a vacation, and while a review from an earlier study day still waits (`isBehind`), the reviews
+  // likeliest to be remembered come first, but never over a filtered deck's own place order: what can't be
+  // reached today is then what was already slipping, not what would have been kept.
   const order: StudyOrder = rootFiltered ? ownOrder
-    : input.vacation?.weakestFirst ? { ...ownOrder, reviewOrder: REVIEW.relativeOverdueness }
-    : input.catchUp && isBehind(all, now, h) ? { ...ownOrder, reviewOrder: REVIEW.retrievabilityDescending }
+    : input.vacation?.likeliestFirst || (input.catchUp && isBehind(all, now, h)) ? { ...ownOrder, reviewOrder: REVIEW.retrievabilityDescending }
     : ownOrder;
   const nextDay = nextStudyDayStart(now, h).getTime();
   // Siblings: a card is held back when one gathered before it has a preset burying its kind.

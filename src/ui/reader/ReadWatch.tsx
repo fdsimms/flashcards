@@ -1,12 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Linking, ScrollView, Text, View, type ScrollViewInstance } from 'react-native';
-import { WebView, type WebViewMessageEvent } from 'react-native-webview';
 import { failureText } from '../../core/failure';
 import { type Api, type GlossLanguage, type ReaderText, type Word } from '../../reader/api';
 import { readFont, scaledFontSize } from '../../reader/fonts';
 import { glossInfo, spokenLanguage } from '../../reader/languages';
 import { prefs } from '../../reader/storage';
-import { lineAt, loopBack, parsePlayerMessage, PLAYER_ORIGIN, playerErrorText, playerHtml, PLAYING, VIDEO_RATES, videoLength, youtubeLink, type VideoRate } from '../../reader/video';
+import { lineAt, loopBack, VIDEO_RATES, videoLength, youtubeLink, type VideoRate } from '../../reader/video';
 import { saidAs } from '../../reader/wordAudio';
 import { wrapGroups } from '../../reader/wordLayout';
 import { haptic } from '../haptics';
@@ -15,12 +14,15 @@ import { radius, readable, space, type, useTheme } from '../theme';
 import { GlossPopover, type Tapped } from './Reader';
 import { WordView, type ReadTextStyle } from './ReadWord';
 import { useReadingFont } from './useReadingFont';
-import { useOutputWake } from '../useOutputWake';
+import { useReaderPlayerHost } from '../useReaderPlayer';
+import { EpisodePane } from './EpisodePane';
+import { VideoPane, type Media } from './VideoPane';
 
 /**
- * Watch (docs/read-and-listen/architecture.md, "Videos"): a text made from a YouTube video's
- * subtitles, read under the video as it plays (server/reader video.py). The video plays in YouTube's
- * own embedded player (the privacy-enhanced one, without its own subtitles); the line being said is
+ * Watch (docs/read-and-listen/architecture.md, "Videos" and "Podcasts"): a text made from a YouTube
+ * video's subtitles or a podcast episode's transcript, read under it as it plays (server/reader
+ * video.py, podcast.py). The video plays in YouTube's own embedded player (VideoPane), the episode
+ * from its show's site (EpisodePane); whatever Up Next was playing stops. The line being said is
  * shaded and kept in view, a tap on a line's time jumps there, Loop line plays it again and again,
  * 0.75× slows the video, and Hide text keeps the lines out of sight to listen first. A word's tap
  * opens its gloss, with Add to deck as the reader has it. Finished logs it as read, as the reader
@@ -45,7 +47,8 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
   const [playerError, setPlayerError] = useState<string | null>(null);
   const [tapped, setTapped] = useState<Tapped | null>(null);
   const [finishing, setFinishing] = useState(false);
-  const web = useRef<WebView<{}>>(null);
+  const media = useRef<Media | null>(null);
+  const bind = useCallback((m: Media) => { media.current = m; }, []);
   const scroller = useRef<ScrollViewInstance>(null);
   const lineTops = useRef<number[]>([]);
   const looped = useRef<number | null>(null);
@@ -53,38 +56,34 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
   const glossed = useRef(new Set<string>());
   const opened = useRef(Date.now());
   const readingFont = useReadingFont(text?.language ?? 'th');
-  // A jump starts the video: quiet Bluetooth headphones lose its first words otherwise (useOutputWake).
-  const wake = useOutputWake();
+  // Up Next's player stops: two sounds would talk over each other.
+  const host = useReaderPlayerHost();
+  useEffect(() => { host.claim(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const load = useCallback(async () => {
     setError(null);
     try {
       setText(await api.text(textId));
     } catch (e) {
-      setError(failureText(e, { what: "Couldn't open the video's text.", next: 'Try again.' }));
+      setError(failureText(e, { what: "Couldn't open the text.", next: 'Try again.' }));
     }
   }, [api, textId]);
   useEffect(() => { void load(); }, [load]);
 
-  const times = text?.video?.times ?? [];
-  const call = (js: string) => web.current?.injectJavaScript(`window.franki&&${js};true;`);
-  const seek = (ms: number) => call(`window.franki.seek(${Math.max(0, ms / 1000)})`);
+  const times = text?.video?.times ?? text?.podcast?.times ?? [];
+  const timesNow = useRef(times);
+  timesNow.current = times;
 
-  const onMessage = (e: WebViewMessageEvent) => {
-    const m = parsePlayerMessage(e.nativeEvent.data);
-    if (!m) return;
-    if (m.type === 'time') {
-      const loop = looped.current;
-      if (loop !== null) {
-        const back = loopBack(times, loop, m.ms);
-        if (back !== null) { call(`window.franki.seek(${back})`); return; }
-      }
-      const now = lineAt(times, m.ms);
-      setLine((prev) => (prev === now ? prev : now));
-    } else if (m.type === 'state') setPlaying(m.state === PLAYING);
-    else if (m.type === 'error') setPlayerError(playerErrorText(m.code));
-    else if (m.type === 'ready') setPlayerError(null);
-  };
+  // The player's time: a looped line goes back to its start, and otherwise the line it's in is shaded.
+  const onTime = useCallback((ms: number) => {
+    const loop = looped.current;
+    if (loop !== null) {
+      const back = loopBack(timesNow.current, loop, ms);
+      if (back !== null) { media.current?.seek(back); return; }
+    }
+    const now = lineAt(timesNow.current, ms);
+    setLine((prev) => (prev === now ? prev : now));
+  }, []);
 
   // The line being said stays in view, a little below the top, unless the text is hidden.
   useEffect(() => {
@@ -93,7 +92,7 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
     if (y !== undefined) scroller.current?.scrollTo({ y: Math.max(0, y - space.xl), animated: true });
   }, [line, hidden]);
 
-  const chooseRate = (r: VideoRate) => { setRate(r); call(`window.franki.rate(${r})`); };
+  const chooseRate = (r: VideoRate) => { setRate(r); media.current?.rate(r); };
   const toggleLoop = () => {
     haptic.select();
     setLooping((l) => (l === null && line >= 0 ? line : null));
@@ -103,8 +102,8 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
     setLooping((l) => (l === null ? null : i));
     const t = times[i];
     if (!t) return;
-    seek(t[0]);
-    void wake().then(() => call('window.franki.play()'));
+    media.current?.seek(t[0] / 1000);
+    media.current?.play();
   };
 
   const finish = async () => {
@@ -122,7 +121,7 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
       haptic.success();
       onDone();
     } catch (e) {
-      setError(failureText(e, { what: "Couldn't mark the video as watched.", next: 'Try again.' }));
+      setError(failureText(e, { what: "Couldn't mark it as finished.", next: 'Try again.' }));
       setFinishing(false);
     }
   };
@@ -152,21 +151,8 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
       largeTitle={false}
       footer={<Button label="Finished" variant="secondary" onPress={() => void finish()} busy={finishing} />}
     >
-      {video ? (
-        <View style={{ width: '100%', aspectRatio: 16 / 9, backgroundColor: c.videoBack }}>
-          <WebView
-            ref={web}
-            source={{ html: playerHtml(video.id), baseUrl: PLAYER_ORIGIN }}
-            originWhitelist={['*']}
-            javaScriptEnabled
-            allowsInlineMediaPlayback
-            mediaPlaybackRequiresUserAction={false}
-            allowsFullscreenVideo
-            onMessage={onMessage}
-            style={{ backgroundColor: 'transparent' }}
-          />
-        </View>
-      ) : null}
+      {video ? <VideoPane id={video.id} bind={bind} onTime={onTime} onPlaying={setPlaying} onError={setPlayerError} /> : null}
+      {text.podcast ? <EpisodePane episode={text.podcast} title={text.title} bind={bind} onTime={onTime} onPlaying={setPlaying} /> : null}
       <View style={{ ...readable, flex: 1, width: '100%' }}>
         <View style={{ flexDirection: 'row', gap: space.s, paddingHorizontal: space.l, paddingVertical: space.s }}>
           <Chip label="Loop line" on={looping !== null} disabled={looping === null && line < 0} onPress={toggleLoop} />
@@ -222,7 +208,7 @@ export function ReadWatch({ api, textId, onPlayWord, mining, onDone }: {
         flagged={false}
         onToggleFlag={null}
         onPlay={() => {
-          if (playing) call('window.franki.pause()');
+          if (playing) media.current?.pause();
           if (tapped) onPlayWord(tapped.word.text, language, saidAs(language, tapped.word.text, tapped.word.translit));
         }}
         onAddToDeck={canAdd ? () => {

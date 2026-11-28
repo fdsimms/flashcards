@@ -273,6 +273,12 @@ def test_the_system_message_names_the_language_and_the_level() -> None:
     assert "stretch" in system_message("fr", True)
 
 
+def test_new_words_are_asked_for_in_their_dictionary_form() -> None:
+    assert "in its dictionary form: a verb in the first person singular" in system_message(
+        "el", False
+    )
+
+
 def test_the_asks_are_for_the_tutor_to_answer_not_about_the_learner() -> None:
     text = system_message("fr", False, topic=True)
     assert "about the tutor's own life" in text

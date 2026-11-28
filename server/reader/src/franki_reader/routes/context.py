@@ -21,6 +21,7 @@ from franki_reader import (
     journal,
     lesson_words,
     note_queue,
+    podcast,
     production,
     rare_words,
     sentences,
@@ -80,6 +81,7 @@ class AppContext:
     lessons_dir: Path | None
     commons: Commons | None
     fetch_captions: video.FetchCaptions | None
+    podcasts: podcast.Podcasts | None
     native_dir: Path | None
     write_aspect: aspect.WriteAspect | None
     ask_about_card: ask_card.AskCard | None

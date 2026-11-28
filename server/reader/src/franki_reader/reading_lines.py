@@ -29,6 +29,7 @@ class ReadingLine:
     title: str
     line: str  # plain, as shown
     english: str
+    word: str = ""  # the word as the line has it (a form of the entry), for the card to mark
 
 
 def find(
@@ -56,5 +57,5 @@ def find(
                 seen.add(word)
                 lines = found.setdefault(wanted[word], [])
                 if len(lines) < per_word:
-                    lines.append(ReadingLine(text.id, text.title, plain, ln.english))
+                    lines.append(ReadingLine(text.id, text.title, plain, ln.english, token))
     return found

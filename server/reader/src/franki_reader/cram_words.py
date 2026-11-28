@@ -17,7 +17,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader.claude_errors import didnt_answer
 from franki_reader.generator import CHEAP_MODEL, REGISTERS, Usage, usage_of
-from franki_reader.languages import LANGUAGES, Code
+from franki_reader.languages import LANGUAGES, Code, citation_form
 from franki_reader.lesson_words import (
     COMMONNESS,
     READINGS,
@@ -39,7 +39,7 @@ want to be able to talk about. List the {language} words they will most need to 
 about it (what happened, how it went, how they felt), the ones a person would actually say when \
 talking about it afterward, most useful first. For each: text, the word written the way \
 {language} is written (never romanization, never English), a single word or a short fixed \
-expression and not a sentence; reading, {reading}; english, the meaning in a few plain words. \
+expression and not a sentence, a word in {citation}; reading, {reading}; english, the meaning in a few plain words. \
 Also give commonness, how common the word is in everyday speech ({commonness}), and register, \
 how it is said ({registers}), each an empty string when you are not confident. Prefer common \
 everyday words over rare or technical ones, include a few verbs and adjectives and not only \
@@ -65,6 +65,7 @@ def claude_suggest_words(client: anthropic.AsyncAnthropic) -> SuggestWords:
     ) -> tuple[list[Candidate], Usage]:
         system = SYSTEM.format(
             language=LANGUAGES[language].name,
+            citation=citation_form(language),
             reading=READINGS.get(language, "left empty (the spelling already shows the sound)"),
             commonness=", ".join(COMMONNESS),
             registers=", ".join(REGISTERS),

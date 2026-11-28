@@ -53,6 +53,7 @@ def test_asks_haiku_for_the_topic_and_what_to_leave_out() -> None:
     assert call["model"] == "claude-haiku-5-5"
     assert call["output_config"]["format"]["type"] == "json_schema"
     assert f"exactly {MAX_SUGGESTED} words" in call["system"]
+    assert "a word in its dictionary form" in call["system"]
     content = call["messages"][0]["content"]
     for part in ("the 5k race", "I ran 5 km", "how it felt", "เหนื่อย"):
         assert part in content

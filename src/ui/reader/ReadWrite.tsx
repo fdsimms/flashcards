@@ -15,10 +15,11 @@ import { GenrePick } from './GenrePick';
 import { useKeyboardScroll } from '../useKeyboardScroll';
 import { ReadOwnText } from './ReadOwnText';
 import { ReadVideo } from './ReadVideo';
+import { ReadPodcast } from './ReadPodcast';
 import { prefs } from '../../reader/storage';
 import type { SharedItem } from '../../core/shareInbox';
 
-export type NewKind = 'series' | 'dialogue' | 'story' | 'own' | 'video';
+export type NewKind = 'series' | 'dialogue' | 'story' | 'own' | 'video' | 'podcast';
 
 /**
  * Having something written, from the home's + button, as a sheet. First a series, a dialogue or a
@@ -30,7 +31,7 @@ export type NewKind = 'series' | 'dialogue' | 'story' | 'own' | 'video';
 export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: { api: Api; language?: GlossLanguage; kind?: NewKind; /** Text shared from another app, for Your own text. */ shared?: SharedItem; onDone: () => void }) {
   const c = useTheme();
   // Your own text needs the language it's in; without one (settings not loaded yet) the choice shows instead.
-  const [kind, setKind] = useState<NewKind | null>((initialKind === 'own' || initialKind === 'video') && !language ? null : initialKind ?? null);
+  const [kind, setKind] = useState<NewKind | null>((initialKind === 'own' || initialKind === 'video' || initialKind === 'podcast') && !language ? null : initialKind ?? null);
   const [about, setAbout] = useState('');
   const [name, setName] = useState('');
   const [genre, setGenre] = useState<Genre>('any');
@@ -42,7 +43,7 @@ export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: 
 
   const write = async () => {
     const topic = name.trim();
-    if (!topic || busy || kind === null || kind === 'series' || kind === 'own' || kind === 'video') return;
+    if (!topic || busy || kind === null || kind === 'series' || kind === 'own' || kind === 'video' || kind === 'podcast') return;
     Keyboard.dismiss();
     setBusy('write');
     setError(null);
@@ -57,7 +58,7 @@ export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: 
   };
 
   const surprise = async () => {
-    if (busy || kind === null || kind === 'series' || kind === 'own' || kind === 'video') return;
+    if (busy || kind === null || kind === 'series' || kind === 'own' || kind === 'video' || kind === 'podcast') return;
     Keyboard.dismiss();
     setBusy('surprise');
     setError(null);
@@ -105,9 +106,14 @@ export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: 
           <Help>Each one takes about half a minute and shows on your shelf when it's ready.</Help>
           {language ? <KindTile tintKey="own:new" icon="doc.on.clipboard" title="Your own text" detail="Paste an article, a chapter or song lyrics to read and listen to." onPress={() => setKind('own')} /> : null}
           {language && prefs().videos ? <KindTile tintKey="video:new" icon="play.rectangle" title="A video" detail="A YouTube video, with its subtitles to read along under it." onPress={() => setKind('video')} /> : null}
+          {language && prefs().podcasts ? <KindTile tintKey="podcast:new" icon="headphones" title="A podcast" detail="An episode that publishes its transcript, to read along as it plays." onPress={() => setKind('podcast')} /> : null}
         </ScrollView>
       </Screen>
     );
+  }
+
+  if (kind === 'podcast' && language) {
+    return <ReadPodcast api={api} language={language} shared={shared} toolbar={cancel} onDone={onDone} />;
   }
 
   if (kind === 'video' && language) {

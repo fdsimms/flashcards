@@ -37,6 +37,8 @@ def test_finds_a_words_lines_one_a_text_latest_read_first() -> None:
     assert [ln.text_id for ln in found["กิน"]] == [second, first]
     assert all("กิน" in ln.line and "|" not in ln.line and "*" not in ln.line for ln in found["กิน"])
     assert found["กิน"][0].english
+    # The word as the line has it, for the card to mark it there.
+    assert found["กิน"][0].word == "กิน" and found["กิน"][0].word in found["กิน"][0].line
     # A phrase of the deck is found too, and a word in no text is left out.
     assert [ln.text_id for ln in found[MANGO]] == [second, first]
     assert "ไม่มี" not in found
@@ -63,6 +65,7 @@ def test_the_route_answers_by_word_and_needs_the_passphrase() -> None:
         "title",
         "line",
         "english",
+        "word",
     }
     assert c.post(
         "/api/reading-lines", json={"language": "es", "words": [MANGO]}, headers=AUTH

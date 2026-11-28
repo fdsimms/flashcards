@@ -143,7 +143,7 @@ describe('withOffline: a lesson heard', () => {
 
   it("doesn't hold a text's reading back", async () => {
     const { api, calls } = setup({ held: [{ kind: 'lessonHeard', lessonId: 2 }] });
-    await api.logListen(2, 'k');
+    await api.logListen(2, 30, 'k');
     expect(calls).toEqual(['POST /api/texts/2/listen']);
   });
 });
@@ -151,13 +151,14 @@ describe('withOffline: a lesson heard', () => {
 describe('withOffline: a listen', () => {
   it('is held with an id of its own, and sent with that id', async () => {
     const off = setup({ unreachable: true });
-    await off.api.logListen(4);
+    await off.api.logListen(4, 95);
     const [action] = off.held;
-    expect(action).toMatchObject({ kind: 'listen', textId: 4 });
+    // Held with how long it played, so the week's listening time has it once it's sent.
+    expect(action).toMatchObject({ kind: 'listen', textId: 4, seconds: 95 });
     expect((action as { key?: string }).key).toMatch(/^[a-z0-9]+-[a-z0-9]+$/);
 
     const on = setup();
-    await on.api.logListen(4, 'm1x-abc');
+    await on.api.logListen(4, 95, 'm1x-abc');
     expect(on.calls).toEqual(['POST /api/texts/4/listen']);
     expect(listenKey(1_700_000_000_000, () => 0.5)).not.toBe(listenKey(1_700_000_000_001, () => 0.5));
   });
