@@ -54,10 +54,13 @@ export function playButtonScrollInsets(hasButton: boolean) {
   return { bottom: hasButton ? PLAY_BUTTON_CLEARANCE : 0 };
 }
 
-/** Review's Play button, fixed in the card's bottom right corner so it's under the thumb whatever the card's length. */
-export function PlayButton({ onPlay, speech }: { onPlay: () => void; speech?: string }) {
+/**
+ * Review's Play button, fixed in the card's bottom right corner so it's under the thumb whatever the card's length.
+ * `lift` raises it clear of a band along the card's foot (the aspect question).
+ */
+export function PlayButton({ onPlay, speech, lift = 0 }: { onPlay: () => void; speech?: string; lift?: number }) {
   return (
-    <View style={{ position: 'absolute', right: space.l, bottom: space.l }}>
+    <View style={{ position: 'absolute', right: space.l, bottom: space.l + lift }}>
       <PlayPill label="Play the word" onPlay={onPlay} speech={speech} raised />
     </View>
   );
