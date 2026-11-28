@@ -266,7 +266,13 @@ def test_an_entry_is_checked_kept_and_its_cost_counted() -> None:
     assert seen == [CheckRequest("pl", TEXT, "What did you do?")]
     assert app.get(f"/api/journal/{got['id']}", headers=AUTH).json() == got
     other = app.get("/api/costs", headers=AUTH).json()["other_calls"]
-    assert {"feature": "journal", "asked": 1, "cost_usd": 2.0} in other["features"]
+    assert {
+        "feature": "journal",
+        "asked": 1,
+        "cost_usd": 2.0,
+        "audio_chars": 0,
+        "azure_usd": 0,
+    } in other["features"]
 
 
 def test_an_entry_sent_twice_is_checked_once() -> None:
@@ -375,7 +381,13 @@ def test_a_failed_check_keeps_what_it_cost_and_keeps_no_entry() -> None:
     got = app.post("/api/journal/check", json={"language": "pl", "text": TEXT}, headers=AUTH)
     assert got.status_code == 503 and got.json()["detail"].startswith("Claude didn't")
     other = app.get("/api/costs", headers=AUTH).json()["other_calls"]
-    assert {"feature": "journal", "asked": 1, "cost_usd": 2.0} in other["features"]
+    assert {
+        "feature": "journal",
+        "asked": 1,
+        "cost_usd": 2.0,
+        "audio_chars": 0,
+        "azure_usd": 0,
+    } in other["features"]
     assert app.get("/api/journal?language=pl", headers=AUTH).json()["entries"] == []
 
 

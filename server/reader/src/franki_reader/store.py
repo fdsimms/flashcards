@@ -2189,12 +2189,13 @@ def situation_spending(
     conn: sqlite3.Connection, since: datetime
 ) -> tuple[dict[Code, tuple[int, float]], int]:
     """Situations since `since` (situations.py): each language's calls (a turn, or the feedback at
-    the end, failed calls included) and what they cost Claude, and the characters Azure spoke."""
+    the end, failed calls included) and what they cost Claude, and the characters Azure spoke. A
+    line spoken slowly is a clip with no Claude call, so it adds to the characters, not the calls."""
     (chars,) = conn.execute(
         "SELECT SUM(audio_chars) FROM call_costs WHERE feature = 'situations' AND created_at >= ?",
         (since.isoformat(),),
     ).fetchone()
-    return _feature_spending(conn, "situations", since), int(chars or 0)
+    return _feature_spending(conn, "situations", since, calls_only=True), int(chars or 0)
 
 
 def lesson_spending(
@@ -2263,15 +2264,34 @@ REPORTED_FEATURES: frozenset[CallFeature] = frozenset(
 )
 
 
-def other_call_spending(conn: sqlite3.Connection, since: datetime) -> dict[str, tuple[int, float]]:
+# A `call_costs` row that is a call to Claude, as against a clip Azure recorded with no Claude call
+# (characters and no cost: a grammar lesson's example, a situation's line spoken slowly), which
+# adds to the audio but isn't one more call. A call that failed after Claude answered cost
+# something, so it counts. Not for `lessons` or `recording`, where each row is a lesson or a
+# recording whether Claude wrote it or not.
+_CLAUDE_CALL = "(cost_usd > 0 OR audio_chars = 0)"
+
+
+@dataclass(frozen=True)
+class FeatureSpending:
+    """One `call_costs` feature's Claude calls since a date (failed ones included), what they cost
+    Claude, and the characters Azure spoke for it."""
+
+    asked: int
+    cost_usd: float
+    audio_chars: int
+
+
+def other_call_spending(conn: sqlite3.Connection, since: datetime) -> dict[str, FeatureSpending]:
     """Each `call_costs` feature with no section of its own in /api/costs (`REPORTED_FEATURES`),
-    with calls since `since`: how many (failed ones included) and what they cost Claude."""
+    with calls or audio since `since`: its Claude calls, what they cost, and the characters Azure
+    spoke for it, so a feature's audio is counted without a section of its own either."""
     reported = sorted(REPORTED_FEATURES)
     marks = ", ".join("?" for _ in reported)
     return {
-        feature: (count, cost)
-        for feature, count, cost in conn.execute(
-            "SELECT feature, COUNT(*), SUM(cost_usd) FROM call_costs"
+        feature: FeatureSpending(int(asked), cost, int(chars))
+        for feature, asked, cost, chars in conn.execute(
+            f"SELECT feature, SUM({_CLAUDE_CALL}), SUM(cost_usd), SUM(audio_chars) FROM call_costs"
             f" WHERE feature NOT IN ({marks}) AND created_at >= ?"
             " GROUP BY feature ORDER BY SUM(cost_usd) DESC",
             (*reported, since.isoformat()),
@@ -2280,13 +2300,16 @@ def other_call_spending(conn: sqlite3.Connection, since: datetime) -> dict[str, 
 
 
 def _feature_spending(
-    conn: sqlite3.Connection, feature: CallFeature, since: datetime
+    conn: sqlite3.Connection, feature: CallFeature, since: datetime, *, calls_only: bool = False
 ) -> dict[Code, tuple[int, float]]:
+    """Each language's rows of `feature` since `since` and what they cost Claude; with
+    `calls_only`, its Claude calls alone, leaving out clips recorded with no call (`_CLAUDE_CALL`)."""
+    calls = f" AND {_CLAUDE_CALL}" if calls_only else ""
     return {
         language: (count, cost)
         for language, count, cost in conn.execute(
             "SELECT language, COUNT(*), SUM(cost_usd) FROM call_costs"
-            " WHERE feature = ? AND created_at >= ?"
+            f" WHERE feature = ? AND created_at >= ?{calls}"
             " GROUP BY language ORDER BY SUM(cost_usd) DESC",
             (feature, since.isoformat()),
         )
