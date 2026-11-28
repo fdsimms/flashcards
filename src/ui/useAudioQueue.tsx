@@ -191,7 +191,7 @@ function useAudioQueueHost(): AudioQueueHost {
     if (began.current) began.current.logged = true;
     // withOffline holds it to send later when the server can't be reached; anything else is let go, as the reader does.
     if (log?.kind === 'reading') server.logReading(item.textId, log.log).catch(() => undefined);
-    else if (log?.kind === 'listen') server.logListen(item.textId).catch(() => undefined);
+    else if (log?.kind === 'listen') server.logListen(item.textId, seconds).catch(() => undefined);
   }, []);
 
   /** Once Up Next runs out after a shelf text: that language's next shelf text, if Keep playing the shelf is on. */

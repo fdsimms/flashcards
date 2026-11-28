@@ -668,9 +668,13 @@ def connect(path: Path | str) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA foreign_keys=ON")
     conn.executescript(_SCHEMA)
-    if "key" not in {r[1] for r in conn.execute("PRAGMA table_info(listens)")}:
+    listen_columns = {r[1] for r in conn.execute("PRAGMA table_info(listens)")}
+    if "key" not in listen_columns:
         # The app's own id for a listen, so one sent twice is counted once; none before it sent one.
         conn.execute("ALTER TABLE listens ADD COLUMN key TEXT")
+    if "seconds" not in listen_columns:
+        # How long the listen played, for the week's listening time; none before the app sent it.
+        conn.execute("ALTER TABLE listens ADD COLUMN seconds INTEGER")
     if "roles" not in {r[1] for r in conn.execute("PRAGMA table_info(texts)")}:
         # Texts written before speakers had roles have none, and show only A and B.
         conn.execute("ALTER TABLE texts ADD COLUMN roles TEXT NOT NULL DEFAULT '{}'")
@@ -1938,8 +1942,8 @@ def input_time(conn: sqlite3.Connection, since: datetime) -> list[InputTime]:
     """Each language's time since `since`, for every language with a text ever read: reading is the
     time logged on texts read (`readings.seconds`), listening the time on texts played with their
     words hidden (`listen_only`) plus the length of each audio lesson played to the end
-    (`lessons.heard_at`). A text heard again (`listens`) has no time kept, so it isn't counted.
-    Only reports: nothing reads it to steer a text or grade a card."""
+    (`lessons.heard_at`), plus each text heard again (`listens.seconds`; one sent by an app older
+    than that has none, and isn't counted). Only reports: nothing reads it to steer a text or grade a card."""
     times: dict[str, list[int]] = {}
     last: dict[str, datetime] = {}
     for language, seconds, listen_only, logged_at, finished in conn.execute(
@@ -1957,6 +1961,12 @@ def input_time(conn: sqlite3.Connection, since: datetime) -> list[InputTime]:
         (since.isoformat(),),
     ):
         times.setdefault(language, [0, 0])[1] += int(duration_ms) // 1000
+    for language, seconds in conn.execute(
+        """SELECT x.language, l.seconds FROM listens l JOIN texts x ON x.id = l.text_id
+           WHERE l.seconds IS NOT NULL AND l.listened_at >= ?""",
+        (since.isoformat(),),
+    ):
+        times.setdefault(language, [0, 0])[1] += int(seconds)
     return [
         InputTime(language, reading, listening, last.get(language))
         for language, (reading, listening) in times.items()
@@ -2513,7 +2523,11 @@ def previous_check(
 
 
 def log_listen(
-    conn: sqlite3.Connection, text_id: int, now: datetime, key: str | None = None
+    conn: sqlite3.Connection,
+    text_id: int,
+    now: datetime,
+    key: str | None = None,
+    seconds: int | None = None,
 ) -> bool:
     """Counts a text read to the end as heard again. False for a text that was never read to the
     end (there's nothing to hear again), and nothing is kept. `key` is the app's id for this listen:
@@ -2530,8 +2544,8 @@ def log_listen(
         return True
     with conn:
         conn.execute(
-            "INSERT INTO listens (text_id, listened_at, key) VALUES (?, ?, ?)",
-            (text_id, now.isoformat(), key or None),
+            "INSERT INTO listens (text_id, listened_at, key, seconds) VALUES (?, ?, ?, ?)",
+            (text_id, now.isoformat(), key or None, seconds),
         )
     return True
 
