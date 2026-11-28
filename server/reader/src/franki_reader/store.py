@@ -440,6 +440,17 @@ CREATE TABLE IF NOT EXISTS podcast_texts (
     times TEXT NOT NULL
 );
 
+-- An episode's transcript made by Azure (podcast.py, Transcribe), kept so it's never paid for twice:
+-- its cues as JSON [[start, end, text], ...], and what it cost.
+CREATE TABLE IF NOT EXISTS podcast_transcripts (
+    feed TEXT NOT NULL,
+    guid TEXT NOT NULL,
+    cues TEXT NOT NULL,
+    cost_usd REAL NOT NULL,
+    made_at TEXT NOT NULL,
+    PRIMARY KEY (feed, guid)
+);
+
 -- Your level's figure for each study day (level.py, level_store.py), for its trend: how many of
 -- the 2,000 most common words are known and the share of everyday speech they make up.
 CREATE TABLE IF NOT EXISTS level_days (
@@ -2213,6 +2224,7 @@ CallFeature = Literal[
     "grammar_lessons",
     "written_points",
     "journal",
+    "transcribe",
 ]
 
 
