@@ -77,6 +77,8 @@ function DeckBadge({ deck, emoji }: { deck: string; emoji: string }) {
   );
 }
 const BADGE = 36;
+/** The red minus dot on a deck row while editing; its tap target is MIN_TAP around it. */
+const DELETE_DOT = 22;
 
 /** A deck as the small pill that follows the finger while it's dragged (DeckDrag.tsx): its mark and its name. */
 function DeckChip({ row }: { row: ShownRow }) {
@@ -160,10 +162,13 @@ export function DeckRowView({ row, first, picked = false, toggleSlot = false, de
           accessibilityRole="button"
           accessibilityLabel={`Delete ${row.name}`}
           scaleTo={0.85}
-          hitSlop={space.s}
-          style={{ width: 22, height: 22, borderRadius: radius.pill, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center' }}
+          // A full tap target around the 22pt dot: the negative margins keep the row's height and the
+          // dot's place, and the target's right half pushes the name over rather than lying on it.
+          style={{ width: MIN_TAP, height: MIN_TAP, marginVertical: -(MIN_TAP - DELETE_DOT) / 2, marginLeft: -(MIN_TAP - DELETE_DOT) / 2, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Icon name="minus" size={12} color={c.onRating} weight="bold" />
+          <View style={{ width: DELETE_DOT, height: DELETE_DOT, borderRadius: radius.pill, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="minus" size={12} color={c.onRating} weight="bold" />
+          </View>
         </Tappable>
       ) : null}
       {badge.emoji ? <DeckBadge deck={row.deck} emoji={badge.emoji} /> : null}
