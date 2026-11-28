@@ -64,16 +64,24 @@ class NativeRecorder:
         self.commons = commons
 
     async def keep(
-        self, note_ids: list[int], overwrite: bool = False, preview: bool = False, only_wanted: bool = True
+        self,
+        note_ids: list[int],
+        overwrite: bool = False,
+        preview: bool = False,
+        only_wanted: bool = True,
+        only_silent: bool = False,
     ) -> list[dict[str, Any]]:
         """Finds and keeps a native recording for each note (at most `MAX_NOTES`): its Entry looked up
         in its Language, the first recording found put in Audio (any other text there stays) and its
         credit in AudioCredit. A note with a native recording already is skipped unless
         `overwrite`; one with no recording found keeps its Audio. `preview` finds and says what it
-        would keep, writing nothing. `only_wanted` skips a language the setting leaves off."""
+        would keep, writing nothing. `only_wanted` skips a language the setting leaves off. `only_silent`
+        skips a note whose Audio already holds a recording, as the Azure recording of a new note does."""
         if self.commons is None:
             raise ToolError("Native recordings aren't set up on this server.")
         commons = self.commons
+
+        from .tools import SOUND
 
         def plan(col: Collection) -> list[dict[str, Any]]:
             config = col.get_config(NATIVE_KEY, {}) or {}
@@ -102,6 +110,9 @@ class NativeRecorder:
                     continue
                 if only_wanted and not wanted(config, language):
                     row["skipped"] = "Native recordings are off for this language (Franki, Settings, Voices)."
+                    continue
+                if only_silent and SOUND.search(note["Audio"]):
+                    row["skipped"] = "Its Audio has a recording already."
                     continue
                 if note[CREDIT_FIELD].strip() and not overwrite:
                     row["skipped"] = "It has a native recording already. Pass overwrite to replace it."

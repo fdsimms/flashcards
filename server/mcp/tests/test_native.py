@@ -147,3 +147,20 @@ async def test_add_notes_keeps_a_native_recording_before_recording_with_azure(na
     # None found for Katze: recorded with Azure as before.
     assert katze_result["audio"].startswith("franki-tts-")
     assert len(azure.requests) == 1
+
+
+async def test_add_notes_keeps_the_recording_it_was_given(native_client, cm, azure, wiki, german_deck):
+    await set_native(cm, {"on": True})
+    wiki.words = {"Vogel"}
+    new = {"deck": "Deutsch", "note_type": "Omnilanguage", "fields": {
+        "Entry": "Vogel", "Meaning": "bird", "Context": "<b>Vogel</b>", "ContextTranslation": "bird",
+        "Register": "neutral", "Language": "german", "PartOfSpeech": "noun", "Audio": "[sound:vogel-mine.mp3]"}}
+    out = await call(native_client, "add_notes", notes=[new], allow_nonstandard=True)
+    (result,) = out["results"]
+    assert "audio" not in result and "native_error" not in result
+
+    def read(col):
+        return col.get_note(result["note_id"])["Audio"]
+
+    assert await cm.read(read) == "[sound:vogel-mine.mp3]"
+    assert not azure.requests

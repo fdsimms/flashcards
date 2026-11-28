@@ -384,7 +384,10 @@ export function treeQueue(root: string, input: TreeQueueInput): Queue {
       gathered.push(other);
     }
   }
-  const fresh = partnerOf?.size ? groupPartners(sortNew(gathered, order.newSortOrder, ctx), partnerOf) : gathered;
+  // A partner joins the sort, but the boosted cards stay first: re-sorting all of them would undo the boost's order.
+  const fresh = partnerOf?.size
+    ? groupPartners([...gathered.filter((c) => firstIds.has(c.id)), ...sortNew(gathered.filter((c) => !firstIds.has(c.id)), order.newSortOrder, ctx)], partnerOf)
+    : gathered;
 
   // ---- presentation ----
   const learnOrder = (a: Card, b: Card) => Number(a.sched.reps === 0) - Number(b.sched.reps === 0) || shownAt(a) - shownAt(b);

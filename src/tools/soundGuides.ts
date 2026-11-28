@@ -146,7 +146,7 @@ export const SOUND_GUIDES: Partial<Record<Language, SoundGuide>> = {
   },
   th: {
     rows: [
-      { spelled: 'tones', example: 'ใหม่', hint: 'Five tones. The same syllable with another tone is another word (ใหม่ new, ไหม a question, ไม้ wood).' },
+      { spelled: 'tones', example: 'ใหม่', hint: 'Five tones. The same syllable with another tone is another word (ใหม่ new, ไหม a question, ไม่ not).' },
       { spelled: 'ป ต ก', example: 'ปลา', hint: 'p, t and k with no puff of air. พ ท ค have one.' },
       { spelled: 'ง', example: 'งาน', hint: '"ng" as in "sing", here at the start of a word.' },
       { spelled: 'vowel length', example: 'ข้าว', hint: 'Short and long vowels make different words (เข้า enter, ข้าว rice).' },

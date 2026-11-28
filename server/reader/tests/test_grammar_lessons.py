@@ -116,3 +116,16 @@ def test_without_claude_a_lesson_can_not_be_written() -> None:
     with TestClient(create_app(_engine(), "open sesame")) as c:
         assert c.get("/api/grammar/th.future/lesson", headers=AUTH).status_code == 503
         assert c.post("/api/grammar/th.future/lesson", headers=AUTH).status_code == 503
+
+
+def test_a_write_cut_off_by_a_restart_can_be_started_again() -> None:
+    conn = store.connect(":memory:")
+    assert store.start_grammar_lesson(conn, "th.future", NOW)
+    # The server restarted mid-write: nothing will ever finish it, and a new start was refused.
+    assert not store.start_grammar_lesson(conn, "th.future", NOW)
+    store.fail_interrupted_grammar_lessons(conn, grammar_lessons.FAILED)
+    lesson = store.get_grammar_lesson(conn, "th.future")
+    assert (
+        lesson is not None and lesson.status == "failed" and lesson.note == grammar_lessons.FAILED
+    )
+    assert store.start_grammar_lesson(conn, "th.future", NOW)

@@ -90,6 +90,8 @@ describe('practice', () => {
     expect(practiceWords(all, ids)).toEqual(ids);
     expect(practiceLabel(all, ids)).toBe('Practice all 3 again');
     expect(practiceSummary(cram(), [])).toBe('No words yet.');
+    // A cram with phrases and no words says so on every screen that shows the line (Today, the list, the cram).
+    expect(practiceSummary({ ...cram(), phrases: [{ text: 'Dzień dobry', english: 'Good morning' }] }, [])).toBe('1 phrase.');
   });
   it(`takes ${SOLID_PASSES} clean passes in a row to count a word as solid`, () => {
     expect(SOLID_PASSES).toBe(2);

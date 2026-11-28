@@ -4,6 +4,7 @@ import { GERMAN_CONTRASTS } from './german/contrasts';
 import { GREEK_CONTRASTS } from './greek/contrasts';
 import { POLISH_CONTRASTS } from './polish/contrasts';
 import { THAI_CONTRASTS } from './thai/contrasts';
+import { knownAmong } from './knownWords';
 
 /**
  * Which word fits: sets of words easily mixed up (จน and จนกว่า, รู้ and รู้จัก), each with
@@ -120,13 +121,12 @@ export interface ContrastQuestion { setId: string; index: number }
 /** A question's key, so the same one isn't asked twice in a row (and for drillSeen's recent list). */
 export const contrastKey = (q: ContrastQuestion): string => `${q.setId}:${q.index}`;
 
-/** A word as compared with a deck's headwords. */
-const norm = (w: string) => w.normalize('NFC').toLocaleLowerCase().trim();
-
 /** The words of `set` that `headwords` lack. */
 export function missingWords(set: ContrastSet, headwords: Iterable<string>): string[] {
-  const have = new Set([...headwords].map(norm));
-  return set.words.map((w) => w.word).filter((w) => !have.has(norm(w)));
+  // Matched as the skill card's words are (`knownAmong`), so Practice offers the set the card already drills ("fragen nach" has "fragen").
+  const words = set.words.map((w) => w.word);
+  const known = knownAmong(words, [...headwords]);
+  return words.filter((_, i) => !known[i]);
 }
 
 /** The sets whose every word is among `headwords` (the words studied): the only ones worth asking, since telling apart a word not yet learned tests nothing. */

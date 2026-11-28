@@ -13,7 +13,7 @@ import { useApp } from './AppContext';
  *
  * Synced first, so the server reads the answers just given before it writes the text. The reader
  * is pushed, not replaced, so Back returns to where this was started from. `stillHere` is asked
- * after each wait: false when the screen was left meanwhile, so the push doesn't land on whatever is
+ * after each wait: false when the screen was left (or its tab switched away from) meanwhile, so the push doesn't land on whatever is
  * in front. A failure is an alert, since the button that started this is the only thing on screen.
  */
 export function useReadWithWords() {
@@ -22,7 +22,7 @@ export function useReadWithWords() {
   const { api, settings, setSettings } = reader;
   // A second tap while the first is still writing would start a second text.
   const running = useRef(false);
-  return useCallback(async (language: Language, words: string[], stillHere: () => boolean = () => true, own?: { name?: string; about?: string }) => {
+  return useCallback(async (language: Language, words: string[], stillHere: () => boolean, own?: { name?: string; about?: string }) => {
     if (!api || running.current) return;
     running.current = true;
     try {

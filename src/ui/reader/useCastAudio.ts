@@ -17,7 +17,8 @@ export function useCastAudio(api: Api | null) {
   const wake = useOutputWake();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
-  useEffect(() => () => { player.current?.remove(); player.current = null; }, []);
+  // Bumping `latest` too, so a sample still loading when the screen goes never plays after it.
+  useEffect(() => () => { latest.current++; player.current?.remove(); player.current = null; }, []);
   const play = useCallback(async (key: string, load: () => Promise<Uint8Array>) => {
     if (!api) return;
     const mine = ++latest.current;

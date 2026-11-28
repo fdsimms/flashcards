@@ -827,7 +827,8 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       // The last answer stays on the line above the buttons until the next one, to undo or change. A
       // redo's card isn't the one `intervals` is for, so its buttons' intervals are worked out here.
       holdOffer.show(null);
-      if (!redo && !preview) stopSuggestion.answered(cur, nt, rating, when);
+      if (redo) stopSuggestion.withdraw(nt.id);
+      else if (!preview) stopSuggestion.answered(cur, nt, rating, when);
       missCover.show(missMnemonic(nt, rating, !!preview) ?? null);
       lastAnswer.show(preview ? null : { cardId: cur.id, rating, interval: (redo ? previewIntervals(cur.sched, when, params, answerContext(cur, when)) : intervals)?.[rating], word: headword(nt) });
       // The next card goes up now, from the queue as it was, and the queue is rebuilt once it's on
@@ -1006,6 +1007,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
       await repo.deleteReview(last.reviewId);
       misses.undone(last.before.id);
       skill.undone(String(last.before.id));
+      stopSuggestion.withdraw(last.before.noteId);
       setPendingHints((list) => removePendingHintForCard(list, last.before.id));
       forgetCard(loadSnapshot.current, last.before.id);
       undone.current.add(last);

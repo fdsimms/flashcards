@@ -189,7 +189,12 @@ export function* forecastSteps(input: ForecastInput): Generator<ForecastDay, For
         const balance = !balancing || card.filteredDeck || !counts ? undefined
           : balancerFrom(counts, params?.bury?.reviews ? daysOfNote.get(card.noteId) ?? [] : undefined, { seed, easyDays: params?.easyDays, nextDayAt: next });
         let sched = card.sched;
-        let when = at;
+        // The queue is built at the day's last minute, but each card is answered when it comes due
+        // that day (a new card or an overdue one at the day's start), so its learning steps run
+        // inside the day. Answered at the last minute, a step would land past `next` and the card
+        // would be counted again, still learning, the next day.
+        const dueAt = new Date(card.sched.due);
+        let when = d === 0 ? at : wasNew || dueAt < dayStart ? dayStart : dueAt;
         debt += 1 - input.passRate;
         let rating: RatingValue = 3;
         if (debt >= 1) { debt -= 1; rating = 1; }

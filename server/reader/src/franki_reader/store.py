@@ -2714,6 +2714,17 @@ def save_grammar_lesson(
         )
 
 
+def fail_interrupted_grammar_lessons(conn: sqlite3.Connection, note: str) -> None:
+    """A grammar lesson still "writing" when the server starts was cut off by a restart, and
+    `start_grammar_lesson` refuses while it says so: it fails as a write does, keeping its examples."""
+    with conn:
+        conn.execute(
+            "UPDATE grammar_lessons SET status = CASE WHEN examples = '[]' THEN 'failed'"
+            " ELSE 'ready' END, note = ? WHERE status = 'writing'",
+            (note,),
+        )
+
+
 def fail_grammar_lesson(conn: sqlite3.Connection, point_id: str, note: str) -> None:
     """A failed write: the examples it had are kept, so a lesson that was ready stays usable."""
     with conn:

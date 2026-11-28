@@ -671,6 +671,7 @@ def production_app() -> FastAPI:
     settings.db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = store.connect(settings.db_path)
     store.fail_interrupted_lessons(conn)
+    store.fail_interrupted_grammar_lessons(conn, grammar_lessons.FAILED)
     ask_for: Callable[..., Ask] | None = None
     mnemonics: MakeMnemonics | None = None
     explain: Explain | None = None

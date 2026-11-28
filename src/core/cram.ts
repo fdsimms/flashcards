@@ -542,9 +542,10 @@ export function practiceLabel(cram: Cram, noteIds: string[], phrases = 0): strin
   return noteIds.length === 1 ? `Practice it again${tail}` : `Practice all ${noteIds.length} again${tail}`;
 }
 
-/** One line on how practice is going: "9 of 14 words solid.", or "Not practiced yet." */
+/** One line on how practice is going: "9 of 14 words solid.", or "Not practiced yet.", or for a cram
+ *  with phrases and no words, "3 phrases.". */
 export function practiceSummary(cram: Cram, noteIds: string[]): string {
-  if (!noteIds.length) return 'No words yet.';
+  if (!noteIds.length) return cram.phrases?.length ? phrasesSummary(cram.phrases.length) : 'No words yet.';
   if (!cram.rounds.length) return 'Not practiced yet.';
   const { solid } = practiceProgress(cram, noteIds);
   return `${solid.length} of ${wordsText(noteIds.length)} solid.`;

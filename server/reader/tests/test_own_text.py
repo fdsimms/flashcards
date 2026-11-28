@@ -19,6 +19,7 @@ from franki_reader.own_text import (
     TranslationFailed,
     checked,
     clean,
+    estimate_cost,
     parse_translation,
     part_title,
     split_lines,
@@ -234,3 +235,10 @@ def test_the_translation_prompt_asks_for_natural_english() -> None:
     from franki_reader.own_text import _SYSTEM
 
     assert NATURAL_ENGLISH in _SYSTEM
+
+
+def test_a_language_with_no_voices_costs_the_translating_only() -> None:
+    lines = [OwnLine("mi moku e kili. " * 400, True), OwnLine("sina pona. " * 400, False)]
+    spoken = estimate_cost(lines, "es")
+    read_only = estimate_cost(lines, "tok")
+    assert 0 < read_only < spoken

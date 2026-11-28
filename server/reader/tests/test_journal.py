@@ -1,5 +1,7 @@
+import asyncio
 import json
 import random
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -274,6 +276,25 @@ def test_an_entry_sent_twice_is_checked_once() -> None:
     first = app.post("/api/journal/check", json=body, headers=AUTH).json()
     again = app.post("/api/journal/check", json=body, headers=AUTH).json()
     assert first == again and len(seen) == 1
+
+
+def test_an_entry_resent_while_its_check_runs_is_checked_once() -> None:
+    seen: list[CheckRequest] = []
+    first_check = checker(seen)
+
+    async def slow(request: CheckRequest) -> tuple[dict[str, Any], Usage]:
+        await asyncio.sleep(0.3)  # longer than the phone waits before sending a held entry again
+        return await first_check(request)
+
+    app, _ = client(slow)
+    body = {"language": "pl", "text": TEXT, "key": "held-2"}
+    with ThreadPoolExecutor(2) as pool:
+        sent = [
+            pool.submit(app.post, "/api/journal/check", json=body, headers=AUTH) for _ in range(2)
+        ]
+        answers = [f.result() for f in sent]
+    assert [a.status_code for a in answers] == [200, 200]
+    assert answers[0].json() == answers[1].json() and len(seen) == 1
 
 
 def test_writing_again_counts_the_first_checks_mistakes_only() -> None:
