@@ -20,9 +20,9 @@ Code = Literal["th", "es", "de", "fr", "ru", "el", "pl", "nb", "ja", "en", "tok"
 
 # Languages kept out of what the app is shown, for a build of the app from before they were added
 # (its language table has no entry for them, and the Read & Listen screen crashes on one). Empty
-# this once the app is rebuilt with the language. None is hidden now: Japanese and English are in
-# the app's build.
-HIDDEN_LANGUAGES: frozenset[Code] = frozenset()
+# this once the app is rebuilt with the language. Toki Pona is hidden until the phone has a build
+# from after it was added; builds since then skip a language they don't know instead of crashing.
+HIDDEN_LANGUAGES: frozenset[Code] = frozenset({"tok"})
 
 # How many of a language's most common words can be counted as known (the `common` setting).
 CommonCount = Literal[0, 250, 500, 1000, 2000, 3000, 5000, 10000]

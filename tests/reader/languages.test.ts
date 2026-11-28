@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { COMMON_COUNTS, LANGUAGE_ORDER, LANGUAGES, TEXT_LANGUAGE_ORDER, commonLabel, commonNamed, deckOf, flaggedName, glossInfo, inDeck, ipaNote, isGlossOnly, languageNamed, meaningOf, needsMeaning, splitDecks, spokenLanguage, wordStatus } from '../../src/reader/languages';
+import { COMMON_COUNTS, LANGUAGE_ORDER, LANGUAGES, TEXT_LANGUAGE_ORDER, commonLabel, commonNamed, deckOf, flaggedName, glossInfo, inDeck, ipaNote, isGlossOnly, isKnownLanguage, languageNamed, meaningOf, needsMeaning, splitDecks, spokenLanguage, wordStatus } from '../../src/reader/languages';
 
 test("a word's meaning is its gloss, else its parts labeled as parts, never as its meaning", () => {
   expect(meaningOf({ gloss: 'to understand', parts: null })).toBe('to understand');
@@ -93,4 +93,13 @@ test('a text can be in Toki Pona, listed after the app\'s languages, with a flag
   expect(TEXT_LANGUAGE_ORDER).toEqual([...LANGUAGE_ORDER, 'tok']);
   expect(flaggedName('tok')).toBe('🙂 Toki Pona');
   expect(flaggedName('th')).toBe(`${LANGUAGES.th.flag} Thai`);
+});
+
+test("a language this build doesn't know is told apart, and its look never throws", () => {
+  expect(isKnownLanguage('th')).toBe(true);
+  expect(isKnownLanguage('tok')).toBe(true);
+  expect(isKnownLanguage('xx')).toBe(false);
+  expect(isKnownLanguage('toString')).toBe(false);
+  expect(glossInfo('xx' as never).name).toBe('xx');
+  expect(flaggedName('xx' as never)).toBe('🌐 xx');
 });

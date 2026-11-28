@@ -6,6 +6,7 @@ import asyncio
 import random
 from typing import Any
 
+import pytest
 from fake_anki import FakeDeck, card, note
 
 from franki_reader import store
@@ -342,9 +343,13 @@ def test_spanish_lines_are_spoken_in_a_mexican_voice(tmp_path: Any) -> None:
 
 
 def test_a_toki_pona_text_is_written_and_served_with_no_audio_even_with_a_voice_set_up(
-    tmp_path: Any,
+    tmp_path: Any, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from datetime import datetime
+
+    # While Toki Pona is hidden from older builds of the app (languages.HIDDEN_LANGUAGES), a saved
+    # choice of it reads as Thai; this is about writing its texts, so it is shown here.
+    monkeypatch.setattr(store, "HIDDEN_LANGUAGES", frozenset())
 
     from franki_reader.tts import AudioCache
 
