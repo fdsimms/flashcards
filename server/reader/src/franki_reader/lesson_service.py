@@ -259,6 +259,41 @@ async def make_lines(
     )
 
 
+async def make_words(
+    conn: sqlite3.Connection,
+    lesson_id: int,
+    language: Code,
+    phrases: tuple[lesson.Phrase, ...],
+    examples: tuple[lesson.Example | None, ...],
+    *,
+    meaning_first: bool = False,
+    synthesize: Synthesize,
+    voices: Voices,
+    lessons_dir: Path,
+    now: Callable[[], datetime],
+    narrator: str | None = None,
+    learner: lesson.Learner = "male",
+    renderer: Renderer = lesson_audio.render,
+) -> None:
+    """Speaks and keeps lesson `lesson_id`, Your words (lesson.build_words): words the app picked
+    from the deck, with their meanings and examples. No Claude call; never grades a card."""
+    plan = lesson.words_plan(phrases)
+    await _speak_and_keep(
+        conn,
+        lesson_id,
+        language,
+        plan,
+        lesson.build_words(plan, examples, meaning_first, learner),
+        synthesize=synthesize,
+        voices=voices,
+        lessons_dir=lessons_dir,
+        now=now,
+        narrator=narrator,
+        renderer=renderer,
+        claude_usd=0.0,
+    )
+
+
 async def find_old_pauses(
     conn: sqlite3.Connection,
     lesson_id: int,

@@ -844,6 +844,19 @@ export function createApi(
       const response = await send('POST', '/api/lessons/lines', { language, ...(narrator ? { narrator } : {}), ...(particle ? { particle } : {}), ...(slow ? { slow } : {}) });
       return ((await response.json()) as { id: number }).id;
     },
+    // Makes Your words: words picked from the deck on the phone (src/core/listenWords.ts), each said with a pause to recall
+    // it, then its meaning and an example; with `meaningFirst`, the meaning then a pause to say the word (no Claude call).
+    makeYourWords: async (language: Language, words: { text: string; english: string; example?: string; exampleEnglish?: string }[], meaningFirst: boolean, narrator?: string, particle?: 'khrap' | 'kha') => {
+      const body = {
+        language,
+        words: words.map((w) => ({ text: w.text, english: w.english, ...(w.example ? { example: w.example, example_english: w.exampleEnglish ?? '' } : {}) })),
+        meaning_first: meaningFirst,
+        ...(narrator ? { narrator } : {}),
+        ...(particle ? { particle } : {}),
+      };
+      const response = await send('POST', '/api/lessons/your-words', body);
+      return ((await response.json()) as { id: number }).id;
+    },
     // A phrase of the lesson as said at normal speed, cut out for a card's Audio field.
     lessonPhraseAudio: async (id: number, index: number): Promise<Uint8Array> => {
       const response = await send('GET', `/api/lessons/${id}/phrases/${index}/audio`);

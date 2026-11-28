@@ -4951,6 +4951,65 @@
         }
       }
     },
+    "/api/lessons/your-words": {
+      "post": {
+        "summary": "Make Words Route",
+        "description": "Your words (lesson.build_words): the words the app sends, each said with a pause to\nrecall it, its meaning and an example. Made in the background like a review. Never grades a\ncard: hearing a word isn't answering it.",
+        "operationId": "make_words_route_api_lessons_your_words_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/YourWordsIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Make Words Route Api Lessons Your Words Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/lessons/{lesson_id}/phrases/{index}/audio": {
       "get": {
         "summary": "Phrase Audio Route",
@@ -12235,6 +12294,120 @@
           "name"
         ],
         "title": "WriteIn"
+      },
+      "YourWordIn": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Text"
+          },
+          "english": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 1,
+            "title": "English"
+          },
+          "example": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example"
+          },
+          "example_english": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 400
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Example English"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "english"
+        ],
+        "title": "YourWordIn"
+      },
+      "YourWordsIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en",
+              "tok"
+            ],
+            "title": "Language"
+          },
+          "narrator": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Narrator"
+          },
+          "particle": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "khrap",
+                  "kha"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Particle"
+          },
+          "words": {
+            "items": {
+              "$ref": "#/components/schemas/YourWordIn"
+            },
+            "type": "array",
+            "maxItems": 60,
+            "minItems": 3,
+            "title": "Words"
+          },
+          "meaning_first": {
+            "type": "boolean",
+            "title": "Meaning First",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "words"
+        ],
+        "title": "YourWordsIn"
       }
     }
   }

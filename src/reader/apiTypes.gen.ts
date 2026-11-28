@@ -1356,6 +1356,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/lessons/your-words": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Make Words Route
+         * @description Your words (lesson.build_words): the words the app sends, each said with a pause to
+         *     recall it, its meaning and an example. Made in the background like a review. Never grades a
+         *     card: hearing a word isn't answering it.
+         */
+        post: operations["make_words_route_api_lessons_your_words_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/lessons/{lesson_id}/phrases/{index}/audio": {
         parameters: {
             query?: never;
@@ -3715,6 +3737,36 @@ export interface components {
              * @enum {string}
              */
             genre: "any" | "everyday" | "comedy" | "mystery" | "romance" | "adventure" | "scifi" | "fantasy" | "horror" | "drama" | "news";
+        };
+        /** YourWordIn */
+        YourWordIn: {
+            /** Text */
+            text: string;
+            /** English */
+            english: string;
+            /** Example */
+            example?: string | null;
+            /** Example English */
+            example_english?: string | null;
+        };
+        /** YourWordsIn */
+        YourWordsIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            /** Narrator */
+            narrator?: string | null;
+            /** Particle */
+            particle?: ("khrap" | "kha") | null;
+            /** Words */
+            words: components["schemas"]["YourWordIn"][];
+            /**
+             * Meaning First
+             * @default false
+             */
+            meaning_first: boolean;
         };
     };
     responses: never;
@@ -6525,6 +6577,43 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ReviewIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    make_words_route_api_lessons_your_words_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["YourWordsIn"];
             };
         };
         responses: {

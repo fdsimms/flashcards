@@ -70,6 +70,20 @@ class LinesDrillIn(ReviewIn):
     slow: bool = False
 
 
+class YourWordIn(BaseModel):
+    text: str = Field(min_length=1, max_length=200)
+    english: str = Field(min_length=1, max_length=300)
+    example: str | None = Field(default=None, max_length=400)
+    example_english: str | None = Field(default=None, max_length=400)
+
+
+class YourWordsIn(ReviewIn):
+    # Picked on the phone from the deck (src/core/listenWords.ts): due today, then started lately.
+    words: list[YourWordIn] = Field(min_length=lesson.WORDS_MIN, max_length=lesson.WORDS_MAX)
+    # The meaning first, then a pause to say the word, rather than the word first.
+    meaning_first: bool = False
+
+
 class TopicsIn(BaseModel):
     language: Code
     # The learner's own words (as for a lesson), so the ideas are situations they'd come up in.
@@ -428,6 +442,64 @@ def router(ctx: AppContext) -> APIRouter:
             learner="female" if body.language == "th" and body.particle == "kha" else "male",
         )
         return {"id": review_id}
+
+    @routes.post("/api/lessons/your-words", status_code=202, dependencies=authed)
+    async def make_words_route(body: YourWordsIn, background: BackgroundTasks) -> dict[str, Any]:
+        """Your words (lesson.build_words): the words the app sends, each said with a pause to
+        recall it, its meaning and an example. Made in the background like a review. Never grades a
+        card: hearing a word isn't answering it."""
+        if engine.synthesize is None:
+            raise HTTPException(
+                503,
+                "Azure isn't set up on the server, so it can't speak a lesson"
+                " (AZURE_SPEECH_KEY and AZURE_SPEECH_REGION in server/.env turn this on).",
+            )
+        if lessons_dir is None:
+            raise HTTPException(503, "The server has no folder to keep lessons in.")
+        if body.language not in lesson_service.LESSON_LANGUAGES:
+            raise HTTPException(
+                422, f"Audio lessons aren't made in {LANGUAGES[body.language].name} yet."
+            )
+        narrator = (body.narrator or "").strip() or None
+        if narrator is not None and not lesson_service.is_narrator_voice(narrator):
+            raise HTTPException(
+                422, "The narrator has to be an English voice, such as en-US-GuyNeural."
+            )
+        if sum(1 for row in store.lessons(engine.conn) if row.state == "making") >= MAX_MAKING:
+            raise HTTPException(
+                409, "Two lessons are already being made. Wait for one to finish, then ask again."
+            )
+        lesson_id = store.add_lesson(engine.conn, body.language, lesson.WORDS_TITLE, engine.clock())
+        phrases = tuple(
+            lesson.Phrase(w.text.strip(), w.english.strip(), (w.text.strip(),)) for w in body.words
+        )
+        examples = tuple(
+            lesson.Example(w.example.strip(), (w.example_english or "").strip())
+            if w.example and w.example.strip()
+            else None
+            for w in body.words
+        )
+        synthesize = engine.synthesize
+
+        async def speak_bytes(text: str, voice: str, locale: str, rate: float) -> bytes:
+            return (await synthesize(text, voice, locale, rate=rate)).audio
+
+        background.add_task(
+            lesson_service.make_words,
+            engine.conn,
+            lesson_id,
+            body.language,
+            phrases,
+            examples,
+            meaning_first=body.meaning_first,
+            synthesize=speak_bytes,
+            voices=engine.voices_for,
+            lessons_dir=lessons_dir,
+            now=engine.clock,
+            narrator=narrator,
+            learner="female" if body.language == "th" and body.particle == "kha" else "male",
+        )
+        return {"id": lesson_id}
 
     @routes.get("/api/lessons/{lesson_id}/phrases/{index}/audio", dependencies=authed)
     async def phrase_audio_route(lesson_id: int, index: int) -> Response:
