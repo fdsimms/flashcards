@@ -698,6 +698,19 @@ aloud is never heard by the phone.
   through it, the most recent texts first, none drilled in the last 7 days; offered on the Lessons tab
   beside Review once there are 4. It's a lesson, so it plays locked, downloads, and takes the lesson
   microphone settings and Again marks, and it never grades a card.
+- **Your words** (28 November 2026, the owner, from a mock; `src/core/listenWords.ts`,
+  `lesson.build_words`, `YourWordsCard.tsx`): the deck's words to hear with the screen locked. The
+  phone picks them, since it has the freshest answers: notes with a card due today, soonest due first,
+  then notes with a card first answered in the last 14 days, newest first, up to 10, 30 or 60, skill
+  cards and suspended cards left out. It sends each word, its Meaning and its first example with the
+  translation (`POST /api/lessons/your-words`), and the server makes a lesson of them, with no Claude
+  call: each word, a pause of at least 3 seconds to recall it (a turn, so Wait for my answer stops
+  there), its meaning, then the example and its English; or with Meaning first, the meaning, a pause to
+  say the word, then the word. Played once through, since the deck brings the words back. The mock had
+  it play on the phone from the cards' own recordings and the phone's voice; the owner chose the
+  server-made lesson instead, so it plays, downloads and queues like any lesson rather than as a third
+  kind of Up Next item. Azure speaks the words too, so a card's native recording isn't used here. It
+  never grades a card: hearing a word isn't answering it.
 
 ## Cram themes
 
