@@ -237,6 +237,9 @@ export type WritingRequest =
 export type NativeRecordingFound = Schemas['NativeRecordingOut'];
 export type NativeFind = Schemas['NativeFindOut'];
 export type VideoPreview = Schemas['VideoPreviewOut'];
+export type PodcastShow = Schemas['ShowOut'];
+export type PodcastEpisodes = Schemas['EpisodesOut'];
+export type PodcastPreview = Schemas['PodcastPreviewOut'];
 export type Level = Schemas['LevelOut'];
 // The writing journal (server/reader journal.py): an entry checked by Claude sentence by sentence and kept on
 // the server. A mistake's `kind` is a grammar point's id or a general kind ("case", "word_order"); `case` and
@@ -330,6 +333,9 @@ export type TextQuestion = {
 // The YouTube video a text was made from (server/reader video.py): its id, its channel, and whether its
 // subtitles were YouTube's automatic ones. The reader's copy adds each line's start and end, in ms.
 export type VideoRef = { id: string; channel: string; generated: boolean };
+// The podcast episode a text was made from (server/reader podcast.py): its show and artwork. The reader's copy
+// adds the episode's audio and each line's start and end, in ms.
+export type PodcastRef = { show: string; artwork: string };
 
 export type ReaderText = {
   id: number;
@@ -356,6 +362,8 @@ export type ReaderText = {
   story_id?: number | null;
   /** A text made from a video's subtitles: the video, and each line's [start, end] in ms. Missing for any other text. */
   video?: VideoRef & { times: [number, number][] };
+  /** A text made from a podcast episode's transcript: the episode, and each line's [start, end] in ms. Missing for any other text. */
+  podcast?: PodcastRef & { audio: string; times: [number, number][] };
   // A story episode's options for what happens next, and the index of the one picked (null until
   // one is). Missing from a server older than story choices, and empty for any other text.
   choices?: TextChoice[];
@@ -400,6 +408,8 @@ export type ShelfText = {
   created_at?: string | null;
   /** A text made from a video's subtitles, which opens on Watch; missing for any other text. */
   video?: VideoRef;
+  /** A text made from a podcast episode's transcript, which opens on Watch too; missing for any other text. */
+  podcast?: PodcastRef;
 };
 
 // A series' "Story so far": one English sentence per episode told, oldest first, and the whole days since the learner last finished an episode (null when none was), and the characters as of the episode before the one it's shown for.
@@ -936,6 +946,13 @@ export function createApi(
     // coverage, new words and cost), then adding it to the Your texts row, translated and glossed in the background.
     videoPreview: (language: GlossLanguage, link: string) => call<VideoPreview>('POST', '/api/videos/preview', { language, link }),
     addVideo: (language: GlossLanguage, link: string) => call<Schemas['VideoAddedOut']>('POST', '/api/videos', { language, link }),
+    // Podcasts (server/reader podcast.py): shows in Apple's directory, a show's episodes from its feed or an Apple
+    // Podcasts link, then what adding an episode with a transcript would give, and adding it to the Your texts row.
+    podcastSearch: (language: GlossLanguage, term: string) =>
+      call<Schemas['SearchOut']>('GET', `/api/podcasts/search?language=${language}&term=${encodeURIComponent(term)}`),
+    podcastEpisodes: (link: string) => call<PodcastEpisodes>('POST', '/api/podcasts/episodes', { link }),
+    podcastPreview: (language: GlossLanguage, feed: string, guid: string) => call<PodcastPreview>('POST', '/api/podcasts/preview', { language, feed, guid }),
+    addPodcast: (language: GlossLanguage, feed: string, guid: string) => call<Schemas['PodcastAddedOut']>('POST', '/api/podcasts', { language, feed, guid }),
     // The reader's language's stories, running first, then ended.
     stories: async () => {
       const out = await call<{ language: GlossLanguage; stories: StoryListItem[] }>('GET', '/api/stories');

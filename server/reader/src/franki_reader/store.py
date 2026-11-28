@@ -427,6 +427,19 @@ CREATE TABLE IF NOT EXISTS video_texts (
     times TEXT NOT NULL
 );
 
+-- A text made from a podcast episode's transcript (podcast.py, podcast_store.py): the show's feed,
+-- the episode's guid, its title, artwork and audio, and each line's start and end in milliseconds
+-- (JSON [[start, end], ...], line for line with the text's).
+CREATE TABLE IF NOT EXISTS podcast_texts (
+    text_id INTEGER PRIMARY KEY,
+    feed TEXT NOT NULL,
+    guid TEXT NOT NULL,
+    show TEXT NOT NULL,
+    artwork TEXT NOT NULL,
+    audio TEXT NOT NULL,
+    times TEXT NOT NULL
+);
+
 -- Your level's figure for each study day (level.py, level_store.py), for its trend: how many of
 -- the 2,000 most common words are known and the share of everyday speech they make up.
 CREATE TABLE IF NOT EXISTS level_days (
