@@ -2,6 +2,7 @@
 // the language): Use today's words after a review session, Check mine in Sentences, and Retell it after a
 // text. What the check says, in words, and which words a session offers to use. Pure, so it's tested;
 // nothing here grades a card or writes a note.
+import type { TypedComparison } from '../core/typedCompare';
 import type { WritingCheck } from './api';
 
 /** The headline over a check: how it went, in plain words. */
@@ -20,6 +21,16 @@ export function verdictLine(check: WritingCheck): string {
  */
 export function asksAnotherTry(check: WritingCheck, tries: number): boolean {
   return tries <= 1 && (check.verdict !== 'right' || check.used_word === false);
+}
+
+/**
+ * Whether Sentences' Show asks first instead of showing the sentence: something was said or typed and
+ * its words differ from the sentence written for it. It can still be right in other words, so Claude can
+ * check it (and give hints, `asksAnotherTry`) before the written sentence gives the answer away. An
+ * empty answer, or one with the sentence's own words, shows it at once.
+ */
+export function checksBeforeShowing(typed: string, comparison: TypedComparison): boolean {
+  return typed.trim().length > 0 && !comparison.sameWords;
 }
 
 export interface WordToUse {

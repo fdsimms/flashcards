@@ -4,9 +4,8 @@ import { Text, View } from 'react-native';
 import { LESSON_MAX_WORDS } from '../../core/cram';
 import type { LessonWord } from '../../core/lessonWords';
 import { haptic } from '../haptics';
-import { Button, Icon, Tappable } from '../kit';
-import { radius, space, type, useTheme } from '../theme';
-import { withThaiLineHeight } from '../../core/script';
+import { Button, RemovableChip, Tappable } from '../kit';
+import { space, type, useTheme } from '../theme';
 
 /**
  * The New lesson card's "Words to teach" part: the words chosen so far, each with a button to take
@@ -23,18 +22,7 @@ export function LessonWords({ words, onRemove, onClear }: { words: LessonWord[];
         <>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
             {words.map((w) => (
-              <Tappable
-                key={w.text}
-                onPress={() => { haptic.tap(); onRemove(w.text); }}
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${w.text}, ${w.english}`}
-                scaleTo={0.95}
-                style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, backgroundColor: c.accentFill, borderRadius: radius.pill, paddingVertical: space.xs + 2, paddingLeft: space.m, paddingRight: space.s }}
-              >
-                <Text style={{ ...withThaiLineHeight(type.subhead, w.text), color: c.accentInk }}>{w.text}</Text>
-                <Text style={{ ...type.caption, color: c.textSecondary }}>{w.english}</Text>
-                <Icon name="xmark" size={11} color={c.textSecondary} />
-              </Tappable>
+              <RemovableChip key={w.text} label={w.text} detail={w.english} onRemove={() => onRemove(w.text)} />
             ))}
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>

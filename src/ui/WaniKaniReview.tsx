@@ -29,9 +29,13 @@ import { Reveal } from './motion';
 import { ReviewFooter } from './ReviewFooter';
 import { CardSurface } from './Review';
 import { useAnswerFlash } from './SwipeCard';
+
 import type { WaniKaniState } from './useWaniKani';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
+
+/** How opaque the answer flash starts on WaniKani's saturated subject-colored card (Review's neutral card uses the default). */
+const WK_FLASH_PEAK = 0.8;
 import { useMiniCram } from './useMiniCram';
 import { useOutputWake } from './useOutputWake';
 import { trackPlayer } from './useSoundingButton';
@@ -372,8 +376,9 @@ export function WaniKaniReview({ wanikani, onDone, onOptions }: { wanikani: Wani
   // The session last answered from: two taps before a re-render would both answer it, sending the
   // held answer to WaniKani and logging it twice.
   const answeredFrom = useRef<Study | null>(null);
-  // The card washes green or red as an answer is given, as Review's does.
-  const answerFlash = useAnswerFlash();
+  // The card washes green or red as an answer is given, as Review's does. Its card is a saturated subject
+  // color (blue, pink, purple), where Review's neutral peak barely shows, so it starts stronger.
+  const answerFlash = useAnswerFlash(WK_FLASH_PEAK);
   const answer = (correct: boolean) => {
     if (!study || !question || answeredFrom.current === study) return;
     answeredFrom.current = study;

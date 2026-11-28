@@ -4,10 +4,12 @@ import Svg, { Line, Path } from 'react-native-svg';
 import { decodeForPitch, PITCH_SAMPLE_RATE } from '../../modules/audio-samples';
 import { htmlToText } from '../core/html';
 import { pitchLine, pitchPath, pitchRange, showsPitch, toneCaption, trackPitch, type PitchLine as Line_ } from '../core/pitch';
+import { thaiSyllables, toneCheck } from '../core/toneCheck';
 import type { Note } from '../core/types';
 import { pitchEveryLanguage } from './pitchPrefs';
 import type { SelfRecording } from './useSelfRecording';
 import { hairline, radius, smooth, space, type, useTheme } from './theme';
+import { ToneCheck } from './ToneCheck';
 
 const WIDTH = 300;
 const HEIGHT = 120;
@@ -27,10 +29,11 @@ type Lines = { take: string; recording: Line_ | null; yours: Line_ | null } | { 
 /**
  * Record yourself's pitch line (src/core/pitch.ts): once a take is made, its pitch drawn over the
  * card recording's, each around its own speaker's middle pitch. Worked out on the phone; the take
- * isn't sent anywhere, and nothing scores it. `caption` is a Thai word's tones from its romanization.
+ * isn't sent anywhere, and nothing scores it. `caption` is a Thai word's tones from its romanization,
+ * and `syllables` its syllables for the tone check under the chart (src/core/toneCheck.ts).
  * Nothing shows in a build without modules/audio-samples, or while a take is being measured.
  */
-export function PitchLine({ takeUri, recordingUri, caption }: { takeUri: string; recordingUri: string; caption?: string | null }) {
+export function PitchLine({ takeUri, recordingUri, caption, syllables }: { takeUri: string; recordingUri: string; caption?: string | null; syllables?: readonly string[] }) {
   const c = useTheme();
   const [lines, setLines] = useState<Lines | null>(null);
 
@@ -82,6 +85,7 @@ export function PitchLine({ takeUri, recordingUri, caption }: { takeUri: string;
         <Key color={c.countNew} label="Yours" dashed />
         {caption ? <Text style={{ ...type.footnote, color: c.textSecondary }}>{caption}</Text> : null}
       </View>
+      {lines.recording && syllables?.length ? <ToneCheck checks={toneCheck(lines.recording, lines.yours, syllables)} /> : null}
     </View>
   );
 }
@@ -99,7 +103,8 @@ function Key({ color, label, dashed }: { color: string; label: string; dashed?: 
 /**
  * Review's pitch line, under Record yourself: shown once a take is made, on a card with a recording,
  * in a language whose words pitch tells apart, or any language with Settings, Speaking's setting on
- * (`showsPitch`). A Thai card's caption names its tones from its Transliteration.
+ * (`showsPitch`). A Thai card's caption names its tones from its Transliteration, which also gives
+ * the syllables its tone check compares.
  */
 export function ReviewPitchLine({ rec, recordingUri, speechLang, note }: {
   rec: Pick<SelfRecording, 'recording' | 'takeUri'>;
@@ -110,6 +115,7 @@ export function ReviewPitchLine({ rec, recordingUri, speechLang, note }: {
   const everyLanguage = pitchEveryLanguage.use();
   if (!rec.takeUri || rec.recording || !recordingUri || !showsPitch(speechLang, everyLanguage)) return null;
   const thai = speechLang?.toLowerCase().startsWith('th');
-  const caption = thai && note ? toneCaption(htmlToText(note.fields.Transliteration ?? '')) : null;
-  return <PitchLine takeUri={rec.takeUri} recordingUri={recordingUri} caption={caption} />;
+  const roman = thai && note ? htmlToText(note.fields.Transliteration ?? '') : '';
+  const caption = roman ? toneCaption(roman) : null;
+  return <PitchLine takeUri={rec.takeUri} recordingUri={recordingUri} caption={caption} syllables={roman ? thaiSyllables(roman) : undefined} />;
 }

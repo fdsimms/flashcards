@@ -11,7 +11,7 @@ import {
 import { QUEUED_MODEL } from '../reader/noteQueue';
 import { deckShortName } from './deckShortName';
 import { haptic } from './haptics';
-import { Button, Card, Chip, Divider, ErrorNote, Field, Group, Help, Icon, Screen, Segments, Select, Tappable, TextButton } from './kit';
+import { Button, Card, Chip, CloseButton, Divider, ErrorNote, Field, Group, Help, Icon, Screen, Segments, Select, Tappable, TextButton } from './kit';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { MIN_TAP, readable, space, type, useTheme } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
@@ -372,14 +372,7 @@ function WordRow({ word, first, state, filled, language, inDeck, refusal, onRemo
           <TextButton label="Add anyway" accessibilityLabel={`Add ${word.entry} anyway`} onPress={onAnyway} style={{ alignSelf: 'flex-start' }} />
         ) : null}
       </View>
-      <Tappable
-        onPress={() => { haptic.tap(); onRemove(); }}
-        accessibilityRole="button"
-        accessibilityLabel={`Remove ${word.entry}`}
-        style={{ width: MIN_TAP, height: MIN_TAP, alignItems: 'center', justifyContent: 'center' }}
-      >
-        <Icon name="xmark" size={14} color={c.textSecondary} />
-      </Tappable>
+      <CloseButton label={`Remove ${word.entry}`} onPress={onRemove} />
     </View>
   );
 }

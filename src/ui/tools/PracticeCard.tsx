@@ -6,7 +6,7 @@ import type { Phrase } from '../../tools/phrase';
 import { haptic } from '../haptics';
 import { Button, Tappable } from '../kit';
 import { Reveal } from '../motion';
-import { PLAY_BUTTON_CLEARANCE, PlayButton } from '../PlayButton';
+import { PLAY_BUTTON_CLEARANCE, PlayButton, playButtonScrollInsets } from '../PlayButton';
 import { PlayCircle } from '../PlayCircle';
 import { SwipeCard, type CardMotion } from '../SwipeCard';
 import { hairline, radius, smooth, space, type, useTheme } from '../theme';
@@ -52,6 +52,7 @@ export function PracticeCard({ questionKey, cardKey, swipe, motion, onMark, onTa
         {/* Not an accessibility element itself: the card's text stays readable, and Show answer is the control VoiceOver uses. */}
         <Pressable accessible={false} disabled={!onTap} onPress={() => { haptic.select(); onTap?.(); }} style={{ flex: 1 }}>
           <ScrollView
+            scrollIndicatorInsets={playButtonScrollInsets(!!onPlay)}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ padding: space.xl, paddingBottom: onPlay ? PLAY_BUTTON_CLEARANCE : space.xl, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: READABLE_WIDTH, alignSelf: 'center' }}
           >

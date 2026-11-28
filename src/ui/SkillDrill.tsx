@@ -12,7 +12,7 @@ import { studyDayKey } from '../core/day';
 import { haptic } from './haptics';
 import { ListeningNote, SpeakButton } from './SpeakButton';
 import { useSpokenAnswer } from './useSpokenAnswer';
-import { Button, Icon, Tappable } from './kit';
+import { Button, Icon, Tag, Tappable } from './kit';
 import { Reveal } from './motion';
 import { radius, smooth, space, type, useTheme } from './theme';
 import { ClockFace } from './tools/ClockFace';
@@ -187,9 +187,8 @@ export function SkillDrillCard({ skill, revealed, say }: { skill: SkillDrillStat
     // Tapping the card shows the answer, as on any card. Not an accessibility element itself: Show answer is the control VoiceOver uses.
     <Pressable accessible={false} disabled={skill.shown || skill.done || question.kind === 'contrast'} onPress={() => { haptic.select(); skill.show(); if (answer0 && speech) say(answer0.everyday.text, speech); }} style={{ flex: 1 }}>
     <ScrollView contentContainerStyle={{ padding: space.xl, paddingTop: space.xxl + space.l, gap: space.xl, flexGrow: 1, justifyContent: 'center', width: '100%', maxWidth: READABLE_WIDTH, alignSelf: 'center' }}>
-      <View style={{ alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: space.xs, paddingHorizontal: space.m, paddingVertical: 3, borderRadius: radius.pill, backgroundColor: c.accentFill }}>
-        <Icon name={GROUP_ICONS[drill.step.group]} size={12} color={c.accentInk} />
-        <Text style={{ ...type.caption, fontWeight: '600', color: c.accentInk }}>{`Skill · ${GROUP_TITLES[drill.step.group]}`}</Text>
+      <View style={{ alignSelf: 'center' }}>
+        <Tag text={`Skill · ${GROUP_TITLES[drill.step.group]}`} color={c.accentInk} fill={c.accentFill} icon={GROUP_ICONS[drill.step.group]} />
       </View>
       {revealed && skill.done ? (
         <Reveal key="done" rise={6} style={{ alignItems: 'center', gap: space.m }}>

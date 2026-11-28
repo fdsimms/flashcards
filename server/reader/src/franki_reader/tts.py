@@ -17,7 +17,7 @@ import hashlib
 import json
 import re
 import shutil
-from collections.abc import Callable, Coroutine, Sequence
+from collections.abc import Awaitable, Callable, Coroutine, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -25,6 +25,7 @@ from typing import Any, Protocol
 
 from franki_speech import Part, SpeechClient, SpeechError, WordMark
 from franki_speech.loudness import LoudnessError, trim_trailing_silence
+from franki_speech.transcribe import Transcription, transcribe
 
 # How fast Azure speaks the slow recording (1.0 is normal speed): SSML's prosody rate of -35%.
 SLOW_RATE = 0.65
@@ -100,6 +101,17 @@ async def trimmed(spoken: Spoken) -> Spoken:
         return Spoken(await trim_trailing_silence(spoken.audio), spoken.marks)
     except LoudnessError:
         return spoken
+
+
+def azure_transcribe(client: SpeechClient) -> Callable[[str, str], Awaitable[Transcription]]:
+    """Azure's fast transcription with the speech client's key and region (podcast.py, Transcribe)."""
+
+    async def run(audio_url: str, locale: str) -> Transcription:
+        return await transcribe(
+            client.http, client.key, client.region, audio_url, locale, client.user_agent
+        )
+
+    return run
 
 
 def azure_synthesize(client: SpeechClient) -> Synthesize:

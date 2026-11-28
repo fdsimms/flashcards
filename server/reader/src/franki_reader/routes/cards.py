@@ -368,6 +368,7 @@ def router(ctx: AppContext) -> APIRouter:
                         "title": ln.title,
                         "line": ln.line,
                         "english": ln.english,
+                        "word": ln.word,
                     }
                     for ln in lines
                 ]

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Text, TextInput, View, useColorScheme } from 'react-native';
 import { failureText } from '../../core/failure';
 import { compareTyped } from '../../core/typedCompare';
+import { asksAnotherTry, checksBeforeShowing } from '../../reader/production';
 import type { Language, SentencePrompt, WritingCheck } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { useKeyboardLanguage } from '../useKeyboardLanguage';
@@ -10,7 +11,7 @@ import { splitAtMeaning } from '../../tools/sentenceWord';
 import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Help, Icon, Loading, Tappable } from '../kit';
 import type { CardMotion } from '../SwipeCard';
-import { WritingResult } from '../reader/ReadWritingResult';
+import { WritingFirstTry, WritingResult } from '../reader/ReadWritingResult';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { TypedDiff } from '../TypedDiff';
 import { ListeningNote, SpeakButton } from '../SpeakButton';
@@ -28,8 +29,10 @@ const ROUND = 10;
  * Sentences (server/reader sentences.py), as Review's card (PracticeCard.tsx): the English sentence with the
  * word to use underlined (its form in the language is behind a Hint), a microphone and a field to answer in, the
  * comparison opening under it, and the round's ten segments on top. An English sentence built around a word reviewed today or
- * still young, to say or type in the language, then compared with the sentence written for it. Check
- * mine asks Claude whether one's own wording is right when it differs. Missed it brings a sentence back
+ * still young, to say or type in the language, then compared with the sentence written for it. When
+ * what was written differs, Show asks first (`checksBeforeShowing`): Claude can check it before the
+ * sentence gives the answer away, with hints and another try on the first check with mistakes
+ * (`asksAnotherTry`), as Use today's words does. Check mine still asks after the sentence is shown. Missed it brings a sentence back
  * at the end of the round (the round is Read & Listen's line drill's, reader/lineDrill.ts). Results stay
  * here; nothing grades a card, and a word waiting for its review is never asked.
  */
@@ -48,6 +51,10 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
   const [check, setCheck] = useState<WritingCheck | null>(null);
   const [checking, setChecking] = useState(false);
   const [checkError, setCheckError] = useState<string | null>(null);
+  // Show was tapped with words that differ from the sentence: Claude can check them before it's shown
+  // (`checksBeforeShowing`), and the first check with mistakes gives hints for another try (`asksAnotherTry`).
+  const [asked, setAsked] = useState(false);
+  const [tries, setTries] = useState(0);
   const [hint, setHint] = useState(false);
   const swipeOn = useSwipeSetting(repo);
   const motion = useRef<CardMotion | null>(null);
@@ -78,13 +85,22 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
     onBeforeListen: () => answer.hide(),
     onHeard: (heard) => setTyped(heard),
   });
-  useEffect(() => { spoken.cancel(); setTyped(''); setShown(false); setCheck(null); setCheckError(null); setChecking(false); setHint(false); }, [round.at, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { spoken.cancel(); setTyped(''); setShown(false); setCheck(null); setCheckError(null); setChecking(false); setAsked(false); setTries(0); setHint(false); }, [round.at, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
   const comparison = useMemo(() => (prompt ? compareTyped(prompt.sentence, typed) : null), [prompt, typed]);
 
-  const show = () => {
+  const reveal = () => {
     spoken.cancel();
     setShown(true);
     if (prompt) answer.speak({ text: prompt.sentence });
+  };
+  // Words that differ from the sentence are asked about first, so the sentence doesn't give the answer away.
+  const show = () => {
+    if (readerApi && comparison && !asked && checksBeforeShowing(typed, comparison)) {
+      spoken.cancel();
+      setAsked(true);
+      return;
+    }
+    reveal();
   };
   const mark = (right: boolean) => { asking.current++; setRound((r) => markLine(r, right)); };
   const checkMine = async () => {
@@ -92,9 +108,14 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
     const mine = ++asking.current;
     setChecking(true);
     setCheckError(null);
+    const tried = tries + 1;
     try {
       const got = await readerApi.checkWriting({ kind: 'translate', language, attempt: typed.trim(), english: prompt.english, reference: prompt.sentence });
-      if (asking.current === mine) setCheck(got);
+      if (asking.current !== mine) return;
+      setCheck(got);
+      setTries(tried);
+      // Right, or a second try: the sentence and the correction show. A first try with mistakes stays for another go.
+      if (!shown && !asksAnotherTry(got, tried)) reveal();
     } catch (e) {
       if (asking.current === mine) setCheckError(failureText(e, { what: "Couldn't check your sentence.", next: 'Try again.' }));
     } finally {
@@ -166,6 +187,8 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
     footer = <Button label="More sentences" onPress={() => void load()} />;
   } else {
     const parts = splitAtMeaning(prompt.english, prompt.meaning);
+    // Asked before showing, and the first check found mistakes: its hints, for another try.
+    const firstTry = asked && !shown && !!check && asksAnotherTry(check, tries);
     const front = (
       <View style={{ gap: space.l, width: '100%', alignItems: 'center' }}>
         <View style={{ gap: space.s, width: '100%' }}>
@@ -189,7 +212,11 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
             )}
           </View>
         </View>
-        {shown ? null : (
+        {shown ? null : firstTry ? (
+          <View style={{ width: '100%', marginTop: space.m }}>
+            <WritingFirstTry check={check!} attempt={typed.trim()} lang={LANGUAGES[language].speech} />
+          </View>
+        ) : (
           <View style={{ gap: space.xl, alignItems: 'center', width: '100%', marginTop: space.m }}>
             <SpeakButton spoken={spoken} size="hero" />
             <ListeningNote spoken={spoken} language={name} />
@@ -211,6 +238,13 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
               }}
             />
             <MissingKeyboardNote speechTag={LANGUAGES[language].speech} />
+            {asked && !check ? (
+              <View style={{ alignSelf: 'stretch', backgroundColor: c.warningFill, borderRadius: radius.m, ...smooth, padding: space.m, gap: space.xs }}>
+                <Text style={{ ...type.headline, color: c.warningInk }}>{"Yours isn't the sentence written for this."}</Text>
+                <Text style={{ ...type.subhead, color: c.text }}>It can still be right in other words. Claude can check it before you see the sentence.</Text>
+              </View>
+            ) : null}
+            {checkError && !shown ? <ErrorNote message={checkError} onRetry={checkMine} /> : null}
           </View>
         )}
       </View>
@@ -247,7 +281,17 @@ export function SentencesTool({ tool, repo, readerApi }: ToolScreenProps) {
         back={back}
       />
     );
-    footer = shown ? <MarkButtons onMark={markAndMove} /> : (
+    footer = shown ? <MarkButtons onMark={markAndMove} /> : firstTry ? (
+      <View style={{ flexDirection: 'row', gap: space.s }}>
+        <Button variant="secondary" label="Show the sentence" style={{ flex: 1 }} onPress={reveal} />
+        <Button label="Try again" style={{ flex: 1 }} onPress={() => { asking.current++; setCheck(null); }} />
+      </View>
+    ) : asked ? (
+      <View style={{ flexDirection: 'row', gap: space.s }}>
+        <Button variant="secondary" label="Show the sentence" style={{ flex: 1 }} onPress={reveal} />
+        <Button label={tries ? 'Check again' : 'Check with Claude'} busy={checking} busyLabel="Checking your sentence" disabled={!typed.trim()} style={{ flex: 1 }} onPress={() => void checkMine()} />
+      </View>
+    ) : (
       <View style={{ flexDirection: 'row', gap: space.s }}>
         <Button variant="secondary" label="Skip" style={{ flex: 1 }} onPress={() => { asking.current++; setRound(skipLine); }} />
         <Button label="Show" style={{ flex: 1 }} onPress={show} />

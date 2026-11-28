@@ -8,7 +8,7 @@ import { glossInfo } from '../../reader/languages';
 import { surprisePick } from '../../reader/shelf';
 import { haptic } from '../haptics';
 import { Button, ErrorNote, Field, Group, Help, Icon, Screen, Segments, Tappable } from '../kit';
-import { WorkingMark } from '../WorkingMark';
+import { WorkingLine } from '../WorkingMark';
 import { hairline, radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useCoverTint } from './Cover';
 import { GenrePick } from './GenrePick';
@@ -176,10 +176,7 @@ export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: 
             <View style={{ flex: 1 }}>
               <Text style={{ ...type.headline, color: c.text }}>Surprise me</Text>
               {busy === 'surprise' ? (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
-                  <WorkingMark />
-                  <Text style={{ ...type.footnote, color: c.textSecondary }}>Picking an idea from your deck</Text>
-                </View>
+                <WorkingLine text="Picking an idea from your deck" />
               ) : <Text style={{ ...type.footnote, color: c.textSecondary }}>An idea you haven't tried, picked for your deck</Text>}
             </View>
           </Tappable>

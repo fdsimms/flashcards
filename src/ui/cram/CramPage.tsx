@@ -134,7 +134,6 @@ export function CramPage(props: {
     );
   };
   const takeOutSelected = () => {
-    haptic.tap();
     setProblem(undefined);
     setCramTag(repo, cram, sel.selected, false).then(
       () => { collection.reload(); sel.stop(); },

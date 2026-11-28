@@ -5,7 +5,7 @@ import type { Api, GrammarRotation } from '../../reader/api';
 import { rotationCopy, undoneLine } from '../../reader/rotation';
 import { useApp } from '../AppContext';
 import { haptic } from '../haptics';
-import { ErrorNote, HeaderAction, Help, Icon, Tappable } from '../kit';
+import { CloseButton, ErrorNote, HeaderAction, Help } from '../kit';
 import { Reveal } from '../motion';
 import { radius, smooth, space, type, useTheme } from '../theme';
 import { useGrammarRotations } from './useGrammarRotation';
@@ -69,14 +69,7 @@ export function ReadGrammarRotation({ api, onOpenLesson }: { api: Api; onOpenLes
                 <Text style={{ ...type.headline, color: c.text }}>{copy!.title}</Text>
                 <Text style={{ ...type.subhead, color: c.text }}>{copy!.body}</Text>
               </View>
-              <Tappable
-                onPress={() => close(r)}
-                accessibilityRole="button"
-                accessibilityLabel="Close this notice"
-                style={{ width: 44, height: 44, marginTop: -space.m, marginRight: -space.m, alignItems: 'center', justifyContent: 'center' }}
-              >
-                <Icon name="xmark" size={14} color={c.textSecondary} />
-              </Tappable>
+              <CloseButton label="Close this notice" onPress={() => close(r)} style={{ marginTop: -space.m, marginRight: -space.m }} />
             </View>
             <View style={{ flexDirection: 'row', gap: space.m, flexWrap: 'wrap' }}>
               {copy!.open && r.started ? (

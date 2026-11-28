@@ -8,7 +8,7 @@ import { headword } from '../../core/forms';
 import { talkTextStyle } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Button, Card, CheckboxRow, ErrorNote, Field, Group, Help, Icon, Loading, Screen, SectionTitle, Tappable } from '../kit';
+import { Button, Card, CheckboxRow, ErrorNote, Field, Group, Help, Icon, Loading, RemovableChip, Screen, SectionTitle, Tappable } from '../kit';
 import { radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useKeyboardScroll } from '../useKeyboardScroll';
@@ -218,17 +218,7 @@ export function CramLesson({ repo, id, onDone }: { repo: NoteStore; id: string; 
           <Card>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
               {captured.map((text) => (
-                <Tappable
-                  key={text}
-                  onPress={() => { haptic.tap(); keep((now) => withoutCapture(now, text), "Couldn't change the cram."); }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remove ${text}`}
-                  scaleTo={0.95}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, backgroundColor: c.fill, borderRadius: radius.pill, paddingVertical: space.xs + 2, paddingLeft: space.m, paddingRight: space.s }}
-                >
-                  <Text style={{ ...type.subhead, ...(language ? talkTextStyle(LANGUAGES[language], size, 0.8) : {}), color: c.text }}>{text}</Text>
-                  <Icon name="xmark" size={11} color={c.textSecondary} />
-                </Tappable>
+                <RemovableChip key={text} label={text} labelStyle={language ? talkTextStyle(LANGUAGES[language], size, 0.8) : undefined} onRemove={() => keep((now) => withoutCapture(now, text), "Couldn't change the cram.")} />
               ))}
             </View>
             <Help>These stay with the cram. Make cards from them on its page after the lesson.</Help>

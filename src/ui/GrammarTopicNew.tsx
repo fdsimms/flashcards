@@ -5,8 +5,7 @@ import { ApiError, type Api, type GrammarTopic, type GrammarTopicRow, type Langu
 import { LANGUAGES } from '../reader/languages';
 import { prefs } from '../reader/storage';
 import { TOPIC_TITLE_MAX, topicIdeas, topicTitle } from '../reader/topics';
-import { haptic } from './haptics';
-import { Button, ErrorNote, Help, Screen, Tappable } from './kit';
+import { Button, Chip, ErrorNote, Help, Screen } from './kit';
 import { TopicImagePicker, type PickedImage } from './TopicImagePicker';
 import { hairline, MIN_TAP, radius, smooth, space, type, useTheme, readable } from './theme';
 import { useKeyboardScroll } from './useKeyboardScroll';
@@ -116,16 +115,7 @@ export function GrammarTopicNew({ api, language, onWriting }: {
             <Text style={{ ...type.overline, color: c.textSecondary }}>Ideas</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s }}>
               {topicIdeas(language, have).map((idea) => (
-                <Tappable
-                  key={idea}
-                  onPress={() => { haptic.tap(); setTitle(idea); }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Use the idea: ${idea}`}
-                  hitSlop={{ top: space.s, bottom: space.s }}
-                  style={{ backgroundColor: c.accentFill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.s }}
-                >
-                  <Text style={{ ...type.subhead, color: c.text }}>{idea}</Text>
-                </Tappable>
+                <Chip key={idea} label={idea} accessibilityLabel={`Use the idea: ${idea}`} onPress={() => setTitle(idea)} />
               ))}
             </View>
           </View>

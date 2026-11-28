@@ -4,6 +4,9 @@ store.py's schema (`podcast_texts`)."""
 import json
 import sqlite3
 from dataclasses import dataclass
+from datetime import datetime
+
+from franki_reader.video import Cue
 
 
 @dataclass(frozen=True)
@@ -44,3 +47,35 @@ def of(conn: sqlite3.Connection, text_id: int) -> PodcastText | None:
     return PodcastText(
         row[0], row[1], row[2], row[3], row[4], tuple((a, b) for a, b in json.loads(row[5]))
     )
+
+
+def keep_transcript(
+    conn: sqlite3.Connection, feed: str, guid: str, cues: list[Cue], cost_usd: float, now: datetime
+) -> None:
+    """An episode's transcript made by Azure (podcast.py), kept so it's never paid for twice."""
+    with conn:
+        conn.execute(
+            "INSERT OR REPLACE INTO podcast_transcripts (feed, guid, cues, cost_usd, made_at)"
+            " VALUES (?, ?, ?, ?, ?)",
+            (
+                feed,
+                guid,
+                json.dumps([[c.start_ms, c.end_ms, c.text] for c in cues], ensure_ascii=False),
+                cost_usd,
+                now.isoformat(),
+            ),
+        )
+
+
+def transcript(conn: sqlite3.Connection, feed: str, guid: str) -> list[Cue] | None:
+    row = conn.execute(
+        "SELECT cues FROM podcast_transcripts WHERE feed = ? AND guid = ?", (feed, guid)
+    ).fetchone()
+    return None if row is None else [Cue(a, b, t) for a, b, t in json.loads(row[0])]
+
+
+def transcribed(conn: sqlite3.Connection, feed: str) -> set[str]:
+    """The episodes of a show with a transcript Azure made."""
+    return {
+        g for (g,) in conn.execute("SELECT guid FROM podcast_transcripts WHERE feed = ?", (feed,))
+    }

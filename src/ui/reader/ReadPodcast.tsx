@@ -1,10 +1,10 @@
 import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { Keyboard, ScrollView, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Alert, Keyboard, ScrollView, Text, View } from 'react-native';
 import { type Api, ApiError, type GlossLanguage, type PodcastEpisodes, type PodcastPreview, type PodcastShow } from '../../reader/api';
 import { flaggedName, glossInfo, TEXT_LANGUAGE_ORDER } from '../../reader/languages';
 import { coverageNote, costText, moreNewWords, newWordsTitle, percentKnown } from '../../reader/ownText';
-import { episodeDetail, hasNewEpisode, isLink, newestWithTranscript, rememberShow, transcriptsLabel, type RememberedShow } from '../../reader/podcasts';
+import { canPick, episodeRowDetail, hasNewEpisode, isLink, newestWithTranscript, rememberShow, transcribeAsk, transcriptsLabel, type RememberedShow } from '../../reader/podcasts';
 import { loadShows, saveShows } from '../../reader/podcastStorage';
 import { prefs } from '../../reader/storage';
 import { videoLength } from '../../reader/video';
@@ -13,6 +13,9 @@ import { haptic } from '../haptics';
 import { Button, Card, ErrorNote, Field, Group, Help, Loading, Meter, NavRow, Screen, Select } from '../kit';
 import { radius, readable, space, type, useTheme } from '../theme';
 import { useKeyboardScroll } from '../useKeyboardScroll';
+
+/** How often a transcription is asked about while Azure works. */
+const TRANSCRIBE_POLL_MS = 4000;
 
 type Step =
   | { kind: 'find' }
@@ -29,6 +32,7 @@ type Step =
  * `toolbar` is New text's Cancel.
  */
 export function ReadPodcast({ api, language: readerLanguage, shared, toolbar, onDone }: { api: Api; language: GlossLanguage; shared?: SharedItem; toolbar: React.ReactNode; onDone: () => void }) {
+  const c = useTheme();
   const [language, setLanguage] = useState<GlossLanguage>(readerLanguage);
   const [query, setQuery] = useState(shared?.url ?? shared?.text ?? '');
   const [step, setStep] = useState<Step>({ kind: 'find' });
@@ -109,6 +113,42 @@ export function ReadPodcast({ api, language: readerLanguage, shared, toolbar, on
     }
   };
 
+  // Azure transcribes the episode in the background; the screen asks until it's ready, then checks
+  // it as any episode. A screen left meanwhile stops asking (the server carries on).
+  const opening = useRef(0);
+  useEffect(() => () => { opening.current++; }, []);
+  const transcribe = async (listed: PodcastEpisodes, guid: string) => {
+    const mine = ++opening.current;
+    setBusy('transcribe');
+    setError(null);
+    try {
+      let state = await api.transcribePodcast(language, listed.show.feed, guid);
+      while (state.state === 'transcribing') {
+        await new Promise((resolve) => setTimeout(resolve, TRANSCRIBE_POLL_MS));
+        if (opening.current !== mine) return;
+        state = await api.podcastTranscript(listed.show.feed, guid);
+      }
+      if (opening.current !== mine) return;
+      if (state.state !== 'ready') {
+        setBusy(null);
+        setError(state.error ?? "Couldn't transcribe the episode. Try again.");
+        return;
+      }
+      await check(listed, guid);
+    } catch (e) {
+      if (opening.current !== mine) return;
+      setBusy(null);
+      fail(e, "Couldn't transcribe the episode. Try again.");
+    }
+  };
+  const askTranscribe = (listed: PodcastEpisodes, e: PodcastEpisodes['episodes'][number]) => {
+    if (busy || e.transcribe_usd == null) return;
+    Alert.alert('Transcribe this episode?', transcribeAsk(e), [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Transcribe', onPress: () => void transcribe(listed, e.guid) },
+    ]);
+  };
+
   const add = async () => {
     if (step.kind !== 'preview' || busy) return;
     setBusy('add');
@@ -169,7 +209,7 @@ export function ReadPodcast({ api, language: readerLanguage, shared, toolbar, on
               returnKeyType="search"
               onSubmitEditing={search}
             />
-            <Help>{`Search Apple's podcast directory, or paste a show's feed or an Apple Podcasts link. Only episodes with a transcript can be added: there'd be nothing to read along with otherwise.`}</Help>
+            <Help>{`Search Apple's podcast directory, or paste a show's feed or an Apple Podcasts link. An episode with no transcript of its own can be transcribed by Azure, for its price.`}</Help>
             {remembered.length ? (
               <ShowList title="Used before" shows={remembered.map((s) => ({ ...s, detail: newer.has(s.feed) ? 'New episode with a transcript' : s.author }))} onPick={(feed) => void openShow(feed)} />
             ) : null}
@@ -181,18 +221,26 @@ export function ReadPodcast({ api, language: readerLanguage, shared, toolbar, on
           </>
         ) : step.kind === 'episodes' ? (
           busy === 'check' ? <Loading /> : (
-            <Group>
-              {step.listed.episodes.map((e, i) => (
-                <NavRow
-                  key={e.guid}
-                  first={i === 0}
-                  label={e.title}
-                  detail={e.transcript ? episodeDetail(e, new Date()) : `No transcript · ${episodeDetail(e, new Date())}`}
-                  disabled={!e.transcript}
-                  onPress={() => void check(step.listed, e.guid)}
-                />
-              ))}
-            </Group>
+            busy === 'transcribe' ? (
+              <Card style={{ gap: space.s }}>
+                <Text style={{ ...type.overline, color: c.textTertiary }}>Transcribing</Text>
+                <Help>About a minute for a half-hour episode. You can leave this screen: it carries on, and the episode shows as transcribed next time.</Help>
+                <Loading />
+              </Card>
+            ) : (
+              <Group>
+                {step.listed.episodes.map((e, i) => (
+                  <NavRow
+                    key={e.guid}
+                    first={i === 0}
+                    label={e.title}
+                    detail={episodeRowDetail(e, new Date())}
+                    disabled={!canPick(e)}
+                    onPress={() => (e.transcript ? void check(step.listed, e.guid) : askTranscribe(step.listed, e))}
+                  />
+                ))}
+              </Group>
+            )
           )
         ) : (
           <PodcastPreviewCards preview={step.found} />

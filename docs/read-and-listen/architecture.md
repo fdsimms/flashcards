@@ -360,7 +360,7 @@ answers aren't kept.
   already in the retelling, with the line it's in, which a tap shows and plays) and what it left out.
 - **A picture of the word, first on the meaning-to-word card** (21 November 2026, the owner, after a trial of drawn icons and two mocks; the Icon field, `src/core/noteIcon.ts`, `renderOmnilanguage` in `src/core/cards.ts`). A note for a thing that can be pictured may hold a picture in `Icon`: one emoji where an emoji shows exactly the thing, else a Tabler icon (MIT) whose own name is exactly the thing, kept as its SVG path data joined by `|` for a 24 by 24 box (24 November 2026, the owner: a drawing Claude made up is never a picture, since an approximate one such as a stadium for a running track teaches the wrong thing, so a thing with neither stays without one; `server/speech/franki_speech/icons.py`, the set built by `scripts/build_tabler_icons.py`, `note_queue.py`'s `icon_name` and the MCP's `tabler:` names). It shows in two places. With the meaning on the forward and listening cards' answer sides, where the learner meets the picture with what it stands for. And as the headline of the reverse card's front, with the English behind a Show meaning tap, so the word is recalled from the thing itself and not by translating. Never on a front that asks for the meaning. Beside the English on a prompt it would only be decoration (the owner's own question, and what studies of pictures added to a translation find). Of twelve icons drawn in the trial, four could be read as something else; the owner judged them clear enough once the meaning has been seen with them, which is why the answer side shows the picture too, and a reverse card waits for the forward card to settle anyway (`heldReverseCards`). Only path data is kept, never markup, so nothing needs sanitizing: the app (`parsePicture`), the note queue and the MCP's lint (`is_emoji`, `is_drawing`) each take one emoji or path data and nothing else.
 - **A card's answer side shows a line from the learner's reading** (21 November 2026, the owner, from a mock: under the note's sentence, not in place of it; `reading_lines.py`, `POST /api/reading-lines`, `src/reader/readingLines.ts`, `useReadingLines`). A card showed the one example sentence saved on its note, the same at every review, and a word is learned from meeting it in several contexts. Review asks once a session, one call a language, for lines from texts read to the end that use each card's word (up to 5 a word, one a text, the latest read first; a line uses a word when a token is its deck entry, `Checker.entry_of`). The answer side shows one in a box labeled "From your reading: <text's title>", right after the note's own example, and they take turns by the card's answer count, so each review shows the next. No translation is shown with it: the line is from a text written at the learner's level, and the word's meaning is on the card. It's read-only on the server and never a rating, kept only for the session, and absent when Read & Listen is signed out or out of reach.
-- **The home shows the week's time in each language** (21 November 2026, the owner, from a mock of two versions; `ReadInputTime.tsx`, `src/reader/inputTime.ts`, `GET /api/input-time`). With several languages on rotation, one can go a week or more with almost no input and nothing said so. The This week card has one bar a language for the last 7 days, split into reading and listening, most time first, and "Last read N days ago" under a language with none. Reading is the time logged on texts read; listening is the time on texts played with their words hidden plus the length of each lesson played to the end. A text heard again (`listens`) keeps no time, so it isn't counted. It reports only and sets no goal, as the progress card does, and nothing reads it to steer a text. Hidden with fewer than two languages read, and when the server can't be reached.
+- **The home shows the week's time in each language** (21 November 2026, the owner, from a mock of two versions; `ReadInputTime.tsx`, `src/reader/inputTime.ts`, `GET /api/input-time`). With several languages on rotation, one can go a week or more with almost no input and nothing said so. The This week card has one bar a language for the last 7 days, split into reading and listening, most time first, and "Last read N days ago" under a language with none. Reading is the time logged on texts read; listening is the time on texts played with their words hidden plus the length of each lesson played to the end, plus each text heard again for as long as it played (`listens.seconds`, sent by the app with the listen; 28 November 2026, from #837). It reports only and sets no goal, as the progress card does, and nothing reads it to steer a text. Hidden with fewer than two languages read, and when the server can't be reached.
 - **Sentences work in the grammar being practiced** (21 November 2026, the owner; `sentences.py`). A grammar point was only ever recognized: its drills are multiple choice, and Forms practice is typed forms. The request for a batch of sentences now names the points set to Practice and asks for about a third of the sentences to be built on one, where the word allows it. Prompt only: no sentence is dropped for using none. Which point a sentence uses is found in code when it's served (`grammar_of`, the texts' finders), so the tool can say "Grammar you're practicing: ..." on the answer side, and a sentence written before the point was chosen counts too. A point the finders can't see (docs/grammar.md lists what they skip) is asked for but never named.
 - **Sentences** (`sentences.py`, `POST /api/sentences`, the Practice tab's Sentences tool): an
   English sentence built around a word, to say or type, then compared with the sentence written for
@@ -509,6 +509,30 @@ everyday speech they make up, and the trend.
   latest figure from four weeks back or more, and says nothing under a week.
 - Toki Pona has no level (its list is particles that all count): `GET /api/level` is 404 and the card
   isn't shown. Before a language's deck has been read it's 409, and the page says so.
+
+## Today's plan
+
+Decided 28 November 2026, the owner choosing from a mock with each recommendation picked. A card at the
+top of Today (`TodayPlanCard.tsx`, `useTodayPlan.ts`; the planning in `src/tools/plan.ts`) with a few
+things for the day, in one language, sized to the time set (Settings, Today's plan: 15, 30, 45 or 60
+minutes, 30 by default).
+
+- **Reviews first, then new words, one thing to take in and one to produce.** When reviews would fill the
+  time, the plan is reviews alone and new words wait. Taking in is a shelf text nearest 95% known, a video
+  or podcast on the Your texts row, or a Your words lesson; producing is Daily extras' drill for the
+  language (first when something in it was missed lately), a Situations scene or a journal entry. Each
+  takes its turn day by day (`dayNumberOf`), among those on offer and turned on.
+- **One language a day:** the one with the most due, then new, among the decks Read & Listen knows the
+  language of, or always one chosen. Without Read & Listen's deck settings there's no plan.
+- **Kept for the day once made** (`SavedPlan`), so done items stay listed, and made again for a new
+  study day, language or length.
+- **Ticked off from what Franki records, wherever it's done:** reviews and new words when the deck has
+  none left; a text or a video or episode by Daily extras' reads (Watch's Finished counts now too); a
+  drill by its five answers; a lesson heard, a scene finished and an entry checked or held by the plan's
+  own record (`recordPlanItem`, called from the lesson player, Situations and the journal). The week's
+  dots are each study day's outcome, kept for a fortnight on the phone (Keychain).
+- **It replaces Daily extras' list on Today**, which keeps only Grammar due while the plan shows; their
+  drills are one kind of item here, and the end-of-session card is unchanged. Nothing moves a schedule.
 
 ## Situations
 
@@ -798,6 +822,17 @@ for all of it: **Answer by speaking** (Settings, Speaking), off until turned on.
   in TypeScript), so the take still never leaves it. Shown in Thai, Japanese and Norwegian, where pitch
   tells words apart, or every language with Settings, Speaking's "Pitch line in every language". Review's
   cards only for now: a sentence's line is longer and harder to read.
+- **Tone check** (28 November 2026, the owner, from a mock with each recommendation picked;
+  `src/core/toneCheck.ts`, `src/ui/ToneCheck.tsx`): under a Thai card's pitch line, each syllable of the
+  word (from its Transliteration, `thaiSyllables`) with the recording's tone shape, the take's, and Same
+  or Different. It reads the two lines already drawn, so nothing new is measured or sent. A line is cut at
+  its gaps when there's one per syllable, else into equal stretches; a syllable's shape is rising or
+  falling by more than 2 semitones across it (a rising tone may dip first), else high, low or mid by its
+  level around the speaker's middle. It compares the take with the recording, not with a textbook shape,
+  since real speech bends tones, and says "Pitch not clear enough to say" for a syllable with under
+  60 ms of voice in either rather than guessing. Unlike Score it, it names a shape the learner can hear
+  and fix, but it's still a guide: never a score and never a rating. Thai only: Japanese pitch accent and
+  Norwegian's word tones work differently and would be their own step.
 
 ## Hosting
 
@@ -1274,6 +1309,12 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   scheduled or graded. Not a second rating: it sits
   with Length because grammar has no dial a rating could move, and a "too hard" caused by grammar
   still moves only the words. Texts already on the shelf keep the allowance they were written with.
+- **The New words dial** (owner's request, 28 November 2026: texts felt light on new content). The
+  end view's "For the next ones" card has a New words row between Length and Grammar: Fewer, Same
+  or More, stepped from where it was when the view opened. It moves the language's text difficulty
+  (`PUT /api/difficulty`, the same setting as Settings, Read & Listen) one level, Easier 3 new words in
+  100, Standard 5, Harder 7, held at the ends. Nothing new on the server, and a rating still moves
+  nothing; the check after reading can still step the level by itself.
 - **Generate, then verify, as for coverage.** The request names the points to practice and avoid,
   and the server finds them in the draft. A practiced point used fewer than twice, or an avoided one
   used at all, sends the draft back with the words named ("Don't use the Preterite; this draft has:
@@ -1858,9 +1899,17 @@ video (`EpisodePane.tsx` in place of `VideoPane.tsx`).
   kept on the phone (`podcastStorage.ts`, at most eight) and listed first, with a note when one has a
   newer episode with a transcript than when it was last used.
 - **Only an episode with a transcript with times can be added**: `<podcast:transcript>` as JSON,
-  WebVTT or SRT, the best kind first (HTML has no times). Every episode is listed, the others greyed
-  with No transcript. Transcribing those with Azure was left to be asked about with its price.
+  WebVTT or SRT, the best kind first (HTML has no times), or one Azure made. Every episode is listed.
   Episodes up to two hours.
+- **Transcribe** (28 November 2026, the owner, from a mock with each recommendation picked): an
+  episode with no transcript of its own shows its price to transcribe (`transcribe_usd`, at
+  `franki_speech.transcribe.USD_PER_HOUR`, an estimate of about $1 an hour that Azure's pricing page
+  didn't confirm), and a tap asks first with the length and the price. The server has Azure's fast
+  transcription fetch the episode's audio itself (`audioUrl`, so nothing is downloaded), in the
+  background, and the app asks `/api/podcasts/transcript` until it's ready; the phrases become cues,
+  kept in `podcast_transcripts` so an episode is never paid for twice, and the cost goes in
+  `call_costs` ("transcribe"). Then it's checked and added as any episode. Podcasts only: a video
+  without subtitles would need its audio taken from YouTube, which its terms don't allow.
 - **Feeds are untrusted.** Read with defusedxml (no entity expansion), size-capped (15 MB a feed, 5 MB
   a transcript), and only from a public web address, redirects included (`public_url`), so a feed
   can't be pointed at the server's own network.

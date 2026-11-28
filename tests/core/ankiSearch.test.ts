@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { glob, matchesSearch, parseSearch, rankedWords, UNSUPPORTED, type SearchNode } from '../../src/core/ankiSearch';
+import { browseProblem, glob, matchesSearch, parseSearch, rankedWords, readsAnswers, UNSUPPORTED, type SearchNode } from '../../src/core/ankiSearch';
+import { nextStudyDayStart } from '../../src/core/day';
 import { addCalendarDays } from '../../src/core/day';
 import type { Card, Note } from '../../src/core/types';
 import { NOW } from '../support/fixtures';
@@ -84,15 +85,37 @@ describe('reading a search', () => {
     expect(error('a and')).toMatch(/"and" needs a search on each side/);
     expect(error('a -')).toMatch(/"-" needs a search right after it/);
     expect(error('flag:9')).toBe('flag: takes a number from 0 (no flag) to 7.');
-    expect(error('is:old')).toBe('is: takes due, new, learn, review, suspended or buried.');
+    expect(error('is:old')).toBe('is: takes due, new, learn, review, suspended, buried, buried-manually or buried-sibling.');
     expect(error('added:0')).toMatch(/added: takes a number of days/);
     expect(error('deck:')).toBe('deck: needs a deck name, e.g. deck:Polski.');
   });
 
   it("refuses Anki's searches it doesn't read rather than searching them as a field", () => {
-    expect(UNSUPPORTED).toContain('rated');
-    expect(error('rated:7')).toBe("Browse can't search by rated: yet. Take it out to search by the rest.");
-    expect(error('prop:ivl>10')).toMatch(/prop:/);
+    expect(UNSUPPORTED).toContain('dupe');
+    expect(error('dupe:1,kot')).toBe("Franki can't search by dupe: yet. Take it out to search by the rest.");
+  });
+
+  it('reads rated:, resched: and prop: as Anki parses them', () => {
+    expect(parsed('rated:7')).toEqual({ kind: 'rated', op: '>', days: -7, ease: 'any' });
+    expect(parsed('rated:0:1')).toEqual({ kind: 'rated', op: '>', days: -1, ease: 1 });
+    expect(parsed('resched:3')).toEqual({ kind: 'rated', op: '>', days: -3, ease: 'manual' });
+    expect(parsed('prop:rated>=-7:2')).toEqual({ kind: 'rated', op: '>=', days: -7, ease: 2 });
+    expect(parsed('prop:ivl>=21')).toEqual({ kind: 'prop', prop: 'ivl', op: '>=', value: 21 });
+    expect(parsed('prop:due<=-1')).toEqual({ kind: 'prop', prop: 'due', op: '<=', value: -1 });
+    expect(parsed('prop:r<0.9')).toEqual({ kind: 'prop', prop: 'r', op: '<', value: 0.9 });
+    expect(error('rated:7:5')).toBe('The answer button in rated:7:5 is 1 (Again) to 4 (Easy).');
+    expect(error('rated:x')).toMatch(/rated: takes a number of days/);
+    expect(error('prop:ivl>1.5')).toMatch(/prop:ivl needs a whole number/);
+    expect(error('prop:size>3')).toMatch(/prop: takes a property/);
+    expect(readsAnswers(parsed('deck:Polski (rated:3 or is:new)'))).toBe(true);
+    expect(readsAnswers(parsed('prop:ivl>3'))).toBe(false);
+  });
+
+  it("says what Browse can't answer from Franki's own copy of a card", () => {
+    expect(browseProblem(parsed('is:due prop:ease<2'))).toMatch(/prop:ease/);
+    expect(browseProblem(parsed('-resched:3'))).toMatch(/resched:/);
+    expect(browseProblem(parsed('is:buried-sibling'))).toMatch(/is:buried-sibling/);
+    expect(browseProblem(parsed('rated:3 prop:ivl>2 is:buried'))).toBeUndefined();
   });
 
   it('ranks by the plain words a note is meant to hold: not under a "-", and without wildcards', () => {
@@ -195,3 +218,30 @@ describe('matching a note', () => {
     expect(matches('added:2', added(new Date(2026, 10, 9, 23)))).toBe(false);
   });
 });
+
+describe("rated: and prop: on Franki's copy of a card", () => {
+  const next = nextStudyDayStart(NOW, H).getTime();
+  const answered = (at: number, ease: number) => ({ ...ctx, answersOf: () => [{ at, ease }] });
+  const rated = (q: string, at: number, ease = 3) => matchesSearch(parsed(q), note(), [card()], answered(at, ease));
+  it('counts answers back from the next study day, by button', () => {
+    expect(rated('rated:1', next - 1000)).toBe(true);
+    expect(rated('rated:1', next - 86_400_000 - 1000)).toBe(false);
+    expect(rated('rated:2', next - 86_400_000 - 1000)).toBe(true);
+    expect(rated('rated:2:1', next - 1000, 3)).toBe(false);
+    expect(rated('rated:2:1', next - 1000, 1)).toBe(true);
+    expect(matches('rated:30')).toBe(false); // no answers known
+  });
+  it('compares interval, reps, lapses, due and FSRS values', () => {
+    const review = card({ state: 2, scheduledDays: 30, reps: 5, lapses: 2, stability: 40, difficulty: 6.4, due: addCalendarDays(NOW, 3).toISOString() });
+    const m = (q: string, c: Card = review) => matchesSearch(parsed(q), note(), [c], { ...ctx, retrievabilityOf: () => 0.8 });
+    expect(m('prop:ivl>=21')).toBe(true);
+    expect(m('prop:ivl>30')).toBe(false);
+    expect(m('prop:reps=5 prop:lapses>1')).toBe(true);
+    expect(m('prop:due=3')).toBe(true);
+    expect(m('prop:due<3')).toBe(false);
+    expect(m('prop:s>39 prop:d>0.5')).toBe(true);
+    expect(m('prop:r<0.9')).toBe(true);
+    expect(m('prop:ivl>0', card({ state: 0 }))).toBe(false);
+  });
+});
+

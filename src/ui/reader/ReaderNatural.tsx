@@ -3,7 +3,7 @@ import { ActivityIndicator, Text, View } from 'react-native';
 import { failureText } from '../../core/failure';
 import type { Api, NaturalCheck } from '../../reader/api';
 import { isOff, registerLabel, verdictLabel } from '../../reader/register';
-import { ErrorNote, Icon, Tappable } from '../kit';
+import { ErrorNote, Icon, Tag, Tappable } from '../kit';
 import { haptic } from '../haptics';
 import { hairline, radius, space, type, useTheme, smooth } from '../theme';
 
@@ -97,9 +97,8 @@ export function NaturalResult({ state, ask }: ReturnType<typeof useNaturalCheck>
   return (
     <View style={{ gap: space.s, paddingTop: space.s, borderTopWidth: hairline, borderTopColor: c.border }} accessibilityLabel={`Does this sound natural? ${verdictLabel(verdict)}. ${reason}`}>
       <Text accessibilityRole="header" style={{ ...type.overline, color: c.textSecondary }}>Does this sound natural?</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, alignSelf: 'flex-start', backgroundColor: off ? c.warningFill : c.goodFill, borderRadius: radius.pill, paddingHorizontal: space.m, paddingVertical: space.xs }}>
-        <Icon name={off ? 'exclamationmark.triangle' : 'checkmark'} size={14} color={off ? c.warning : c.good} weight="bold" />
-        <Text style={{ ...type.footnote, fontWeight: '600', color: c.text }}>{verdictLabel(verdict)}</Text>
+      <View style={{ alignSelf: 'flex-start' }}>
+        <Tag text={verdictLabel(verdict)} color={off ? c.warningInk : c.goodInk} fill={off ? c.warningFill : c.goodFill} icon={off ? 'exclamationmark.triangle' : 'checkmark'} />
       </View>
       <Text style={{ ...type.subhead, color: c.text }}>{reason}</Text>
       {alternative ? (

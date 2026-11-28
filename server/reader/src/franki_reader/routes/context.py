@@ -82,6 +82,7 @@ class AppContext:
     commons: Commons | None
     fetch_captions: video.FetchCaptions | None
     podcasts: podcast.Podcasts | None
+    transcribe: podcast.Transcribe | None
     native_dir: Path | None
     write_aspect: aspect.WriteAspect | None
     ask_about_card: ask_card.AskCard | None

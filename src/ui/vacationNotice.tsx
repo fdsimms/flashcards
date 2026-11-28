@@ -40,7 +40,7 @@ export function VacationCard({ notice, due }: { notice: VacationNotice; due: num
     : `Vacation: ${notice.mode === 'light' ? 'Light' : 'Paused'}${notice.until ? ` until ${vacationDate(notice.until)}` : ''}`;
   const detail = !away
     ? `${due.toLocaleString()} ${due === 1 ? 'card is' : 'cards are'} due. Until you've caught up, the ones you're likeliest to remember come first.`
-    : notice.mode === 'light' ? 'Fewer new cards and reviews, weakest first.' : 'No cards are offered.';
+    : notice.mode === 'light' ? `Fewer new cards and reviews, the ones you're likeliest to remember first.` : 'No cards are offered.';
   return (
     <Reveal>
       <Banner icon={away ? 'airplane' : 'house.fill'} iconColor={c.accent} title={title} hint={detail} onPress={() => router.push('/vacation')} accessibilityHint="Opens Vacation mode" />

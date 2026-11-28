@@ -11,7 +11,7 @@ import { NORMAL_RATE, SLOW_RATE } from '../../reader/playbackRate';
 import { hasSlow, speedFor } from '../../reader/prefs';
 import { prefs } from '../../reader/storage';
 import { haptic } from '../haptics';
-import { Button, Card, Chip, Help, Icon, NavRow, ProgressBar, Tappable } from '../kit';
+import { Button, Card, Chip, Help, NavRow, ProgressBar } from '../kit';
 import { Reveal } from '../motion';
 import type { ReadTextStyle } from './ReadWord';
 import { RecordYourself } from '../RecordYourself';
@@ -26,7 +26,7 @@ import { useSelfRecording } from '../useSelfRecording';
 import { ListeningNote, SpeakButton } from '../SpeakButton';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 import { MissingKeyboardNote } from '../useMissingKeyboard';
-import { PlayCircle } from '../PlayCircle';
+import { PlayCircle, PlayDot } from '../PlayCircle';
 import { RoundScore } from '../RoundScore';
 
 const AUDIO_MODE = LISTENING_MODE;
@@ -178,14 +178,7 @@ export function ReadLineDrill({ api, text, kind, textStyle, explain, onDone }: {
                     ))) : expected}
                   </Text>
                   {line.audio ? (
-                    <Tappable
-                      onPress={() => lineButton.tap(() => play())}
-                      accessibilityRole="button"
-                      accessibilityLabel={lineButton.playing ? 'Pause' : 'Play the line'}
-                      style={{ width: MIN_TAP, height: MIN_TAP, borderRadius: radius.pill, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <Icon name={lineButton.playing ? 'pause.fill' : 'play.fill'} size={16} color={c.accent} />
-                    </Tappable>
+                    <PlayDot label="Play the line" playing={lineButton.playing} onPress={() => lineButton.tap(() => play())} />
                   ) : null}
                 </View>
                 {kind === 'hear' ? <TranslationRow><Text style={{ ...type.subhead, color: c.textSecondary }}>{line.english}</Text></TranslationRow> : null}
