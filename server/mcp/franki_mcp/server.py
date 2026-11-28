@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from mcp.server.mcpserver import MCPServer
 
-from . import forms, frequency, known_words, lint, pronunciation, skills, stress, tiers, tools
+from franki_speech.commons import Commons
+
+from . import forms, frequency, known_words, lint, native, pronunciation, skills, stress, tiers, tools
 from . import reader as reader_tools
 from .collection import CollectionManager
 from .downloads import AudioFetcher
@@ -14,13 +16,16 @@ from .speech import SpeechClient
 
 def build_server(cm: CollectionManager, speech: SpeechClient | None = None, unimorph: forms.UniMorph | None = None,
                  reader_settings: ReaderSettings | None = None, reader: ReaderClient | None = None,
-                 downloads: AudioFetcher | None = None, **kwargs) -> MCPServer:
+                 downloads: AudioFetcher | None = None, commons: Commons | None = None, **kwargs) -> MCPServer:
     """The server with every tool. kwargs go to MCPServer (sign-in settings, for one)."""
     server = MCPServer("Franki", instructions=tools.INSTRUCTIONS, **kwargs)
     # Read & Listen's server (optional): its costs, word ranks and Japanese readings.
     client = reader or ReaderClient(reader_settings)
     # add_audio_from_url's downloads: a real fetcher unless a test passes a faked one.
-    tools.register(server, cm, speech, client, downloads)
+    # Native speakers' recordings from Wikimedia Commons (tests pass one with a faked network).
+    recorder = native.NativeRecorder(cm, commons or Commons(user_agent="franki-mcp-native/1.0"))
+    tools.register(server, cm, speech, client, downloads, recorder)
+    native.register(server, cm, recorder)
     # Wiktionary's inflection tables, kept beside the collection's folder.
     tables = unimorph or forms.UniMorph(cm.path.parent.parent / "unimorph")
     forms.register(server, cm, tables, client)

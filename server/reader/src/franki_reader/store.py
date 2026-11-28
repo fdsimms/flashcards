@@ -405,6 +405,17 @@ CREATE TABLE IF NOT EXISTS grammar_answers (
     PRIMARY KEY (point_id, drill_id, answered_at)
 );
 
+-- Native speakers' recordings found on Wikimedia Commons for a word (native_store.py,
+-- franki_speech.commons): the recordings as JSON, newest lookup kept, so a word is asked about
+-- again only once its answer is old (`native_store.FOUND_DAYS`, `NONE_DAYS`).
+CREATE TABLE IF NOT EXISTS native_lookups (
+    language TEXT NOT NULL,
+    word TEXT NOT NULL,
+    recordings TEXT NOT NULL,
+    looked_at TEXT NOT NULL,
+    PRIMARY KEY (language, word)
+);
+
 -- The writing journal (journal.py, journal_store.py): each entry as last written and checked, and
 -- the mistakes its first check found, one row each, which the home counts by kind and rotation.py
 -- reads for a practiced point. `client_key` is the phone's own id for the entry, so an entry held

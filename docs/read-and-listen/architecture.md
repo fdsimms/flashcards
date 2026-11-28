@@ -446,6 +446,45 @@ No server change: it connects what was there.
 - Nothing grades a card: words reach the deck only through Words to add's approval, and the path only
   reads the cards to count what's studied.
 
+## Native recordings
+
+Decided 28 November 2026, the owner choosing from a mock and a coverage check (`franki_speech/commons.py`,
+the reader's `routes/native.py` and `native_store.py`, the MCP's `native.py`; the app's
+`src/core/nativeRecording.ts`, `src/anki/nativeRecordings.ts`, `NativeRecordingsSetting.tsx`,
+`NativeAudioActions.tsx`, `DeckNative.tsx`). A word's Audio is a native speaker's recording from
+Wikimedia Commons where there is one, in place of an Azure one; a sentence keeps its Azure voice.
+
+- **Where they come from.** Lingua Libre's recordings first (newer, one word each, the speaker named),
+  found through its query service by the language's item and the word, in as written, lowercased
+  and capitalized spellings; then Wiktionary's older files ("De-Hund.ogg"). Measured against the
+  frequency lists in November 2026: over 90% of the 5,000 most common words in German, Russian and
+  French, about 80% in Spanish, half in Norwegian, two thirds of the top 1,000 in Japanese, at least
+  40% in Polish (its older files weren't counted), and few in Thai and Greek.
+- **Each file's own license, read from Commons** (`extmetadata`), never assumed: Lingua Libre's are
+  CC BY-SA 4.0 or CC0, the older ones CC BY, older CC BY-SA versions or public domain. A file under
+  anything that doesn't allow keeping a copy with a credit (GFDL alone, none given) is left out, and so
+  is Lingua Libre's test account.
+- **The credit goes in the note's AudioCredit field**, the owner's choice over a line in Notes: who,
+  the license and its link, the file's page, and "trimmed and loudness-evened" (CC BY-SA 4.0, section
+  3, asks for all four when a deck is shared; for one's own use nothing is owed). The card itself is
+  unchanged (the owner's choice: a badge and a credit line under the play button were too busy). A
+  note type without the field gets no native recording. Franki never adds fields, so the owner adds it
+  with the MCP's `add_field`, after syncing every device.
+- **One setting, off until turned on** (Settings, Voices; the collection value
+  `frankiNativeRecordings`, which the MCP reads too), then on for every language but Thai and Greek,
+  each of which can be changed.
+- **The server asks Commons**, one request a second at most, a 429 waited out, and keeps every lookup
+  (`native_lookups`: 180 days, 30 when none was found) and every prepared file (trimmed at both ends
+  and leveled, `audio_dir/native`). `GET /api/native/audio` serves only a file some lookup found, so
+  it can't fetch anything else. Words beyond the first three of a request are looked up in the
+  background and come back `pending`.
+- **New notes** get one as they're recorded (`recordNote` asks `RecordDeps.native` before Azure;
+  Commons out of reach falls back to Azure); the MCP's `add_notes` does the same. **A note being
+  edited** has Another speaker, Use Azure voice, or Find a native recording. **Words already in a
+  deck**: Deck options' Native recordings looks them up, shows each to play and untick, and replaces
+  the Azure recordings only on Use these (`replaceWithNative`, which leaves a note changed meanwhile
+  alone), as the MCP's `add_native_recordings` does with a preview.
+
 ## Situations
 
 Decided 14 November 2026, the owner choosing from a mock (active learning, phase 2): the brief's

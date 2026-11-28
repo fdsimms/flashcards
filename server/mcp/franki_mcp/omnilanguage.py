@@ -50,7 +50,7 @@ SWITCHES = ("GenerateReverse", "GenerateAudioCard", "SuppressFrontCard")
 # Fields whose text is one value from a list: stored lowercase, with no markup.
 LIST_FIELDS = ("Language", "Register", "PartOfSpeech", "Gender", "VerbClass", "Auxiliary")
 # Fields no rule reads for punctuation: machine-written tables and file names.
-NOT_PROSE = frozenset({"Audio", "Forms", "Pronunciation", "Stress", "Icon", *SWITCHES})
+NOT_PROSE = frozenset({"Audio", "AudioCredit", "Forms", "Pronunciation", "Stress", "Icon", *SWITCHES})
 
 # What an emoji is made of: the pictographs, with the joiner, variation selector, skin tones and
 # flag letters that build one out of several code points. Read & Listen's note queue checks an
@@ -968,6 +968,8 @@ Language: the language's English name in lowercase. GenerateReverse, GenerateAud
   GenerateReverse (meaning to word) only for a word the learner would say or write themselves; GenerateAudioCard
   (hear it, recall the meaning) only for one they would hear in everyday speech. A word to recognize only
   (literary, technical, rare, met on signs or in the news) gets neither. Never change either on an existing note unasked.
+AudioCredit: the credit for a native speaker's recording in Audio (speaker, license and link, the file's page,
+  and that it was trimmed), written by add_native_recordings and by Franki. Never written by hand; empty otherwise.
 KeyForms: what the card's Grammar box shows, one "label: form" to a line (<br>). First "pattern:", a short
   sentence or two on what kind of word it is and what is unusual about it (pattern: Masculine inanimate.
   Genitive in -u. The e drops out.). Then the forms the rest can be worked out from, each under what it is

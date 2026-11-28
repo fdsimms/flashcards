@@ -1,4 +1,5 @@
 import { needsRecording, recordingName, recordingRequest, recordingText, RECORDING_RATE, withRecording, type RecordingRequest } from '../core/recording';
+import { canKeepNative, nativeName, withNative } from '../core/nativeRecording';
 import type { Note } from '../core/types';
 import { sha1Hex } from './sha1';
 import { saveNote, type NoteStore } from './noteService';
@@ -16,6 +17,12 @@ export interface RecordDeps {
    * Japanese word's KanaReading (`recordingRequest`).
    */
   speak(text: string, voice: string, rate: number, language?: string, reading?: string): Promise<Uint8Array>;
+  /**
+   * A native speaker's recording of the note's word, where native recordings are on for its language and
+   * Wikimedia Commons has one (src/core/nativeRecording.ts): its Commons file's title, its credit and the
+   * audio. Null when there's none to keep; absent while native recordings are off.
+   */
+  native?(note: Note): Promise<NativeFound | null>;
   media: {
     exists(name: string): boolean;
     read(name: string): Promise<Uint8Array | undefined>;
@@ -24,6 +31,12 @@ export interface RecordDeps {
     recorded(name: string): Promise<string | undefined>;
     setPending(name: string, sha1: string): Promise<void>;
   };
+}
+
+export interface NativeFound {
+  title: string;
+  credit: string;
+  bytes: Uint8Array;
 }
 
 /** A recording kept in the media folder: its name, and its SHA-1 for the list of files to send. */
@@ -63,12 +76,51 @@ export async function recordNote(deps: RecordDeps, noteId: string, voice: string
   if (!before || !needsRecording(before)) return undefined;
   const request = recordingRequest(before);
   const text = request.text;
+  // A native speaker's recording first, where there's one to keep; else Azure's, as before. Commons out of
+  // reach isn't a failure: the word still gets a recording.
+  if (deps.native && canKeepNative(before)) {
+    const found = await deps.native(before).catch(() => null);
+    if (found) {
+      const kept = await keepNative(deps, noteId, text, found);
+      if (kept !== null) return kept;
+    }
+  }
   const recording = await makeRecording(deps, request, voice);
 
   const note = await deps.store.getNote(noteId);
   if (!note || !needsRecording(note) || recordingText(note) !== text) return undefined;
   const saved = await saveNote(deps.store, { id: note.id, deck: note.deck, model: note.model, fields: withRecording(note, recording.name), tags: note.tags });
   await sendRecording(deps, recording);
+  return saved;
+}
+
+/**
+ * Keeps a native recording in the note: the file in the media folder, the note's Audio pointed at it and
+ * its credit in AudioCredit, the way any edit is saved. Read again first, and left alone (null) if it was
+ * deleted, given a recording or had its word changed meanwhile.
+ */
+export async function keepNative(deps: RecordDeps, noteId: string, text: string, found: NativeFound): Promise<Note | null> {
+  const name = nativeName(found.title);
+  if (!deps.media.exists(name)) await deps.media.write(name, found.bytes);
+  const note = await deps.store.getNote(noteId);
+  if (!note || !needsRecording(note) || recordingText(note) !== text || !canKeepNative(note)) return null;
+  const saved = await saveNote(deps.store, { id: note.id, deck: note.deck, model: note.model, fields: withNative(note, name, found.credit), tags: note.tags });
+  await sendRecording(deps, { name, sha1: sha1Hex(found.bytes) });
+  return saved;
+}
+
+/**
+ * Puts a native recording in place of a note's recording now (Deck options' Native recordings): the file
+ * kept, Audio and AudioCredit set, as any edit is saved. Left alone (null) when the note was deleted or
+ * its Audio or credit changed since `was` was read, so a change made meanwhile isn't written over.
+ */
+export async function replaceWithNative(deps: RecordDeps, noteId: string, was: { audio: string; credit: string }, found: NativeFound): Promise<Note | null> {
+  const name = nativeName(found.title);
+  if (!deps.media.exists(name)) await deps.media.write(name, found.bytes);
+  const note = await deps.store.getNote(noteId);
+  if (!note || !canKeepNative(note) || (note.fields.Audio ?? '') !== was.audio || (note.fields.AudioCredit ?? '') !== was.credit) return null;
+  const saved = await saveNote(deps.store, { id: note.id, deck: note.deck, model: note.model, fields: withNative(note, name, found.credit), tags: note.tags });
+  await sendRecording(deps, { name, sha1: sha1Hex(found.bytes) });
   return saved;
 }
 

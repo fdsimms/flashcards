@@ -901,6 +901,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/native/find": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Native Find
+         * @description Each word's recordings, Lingua Libre's first. Reads only: nothing is kept on a note here.
+         */
+        post: operations["native_find_api_native_find_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/native/audio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Native Audio
+         * @description One found recording, trimmed of the silence at its ends and leveled, as MP3; kept on disk
+         *     after the first time.
+         */
+        get: operations["native_audio_api_native_audio_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/grammar-topics": {
         parameters: {
             query?: never;
@@ -2673,6 +2714,50 @@ export interface components {
              * @default
              */
             context: string;
+        };
+        /** NativeFindIn */
+        NativeFindIn: {
+            /**
+             * Language
+             * @enum {string}
+             */
+            language: "th" | "es" | "de" | "fr" | "ru" | "el" | "pl" | "nb" | "ja" | "en" | "tok";
+            /** Words */
+            words: string[];
+        };
+        /** NativeFindOut */
+        NativeFindOut: {
+            /** Results */
+            results: components["schemas"]["NativeWordOut"][];
+            /** Pending */
+            pending: string[];
+        };
+        /** NativeRecordingOut */
+        NativeRecordingOut: {
+            /** Title */
+            title: string;
+            /**
+             * Source
+             * @enum {string}
+             */
+            source: "lingualibre" | "wiktionary";
+            /** Speaker */
+            speaker: string;
+            /** License */
+            license: string;
+            /** License Url */
+            license_url: string;
+            /** Page Url */
+            page_url: string;
+            /** Credit */
+            credit: string;
+        };
+        /** NativeWordOut */
+        NativeWordOut: {
+            /** Word */
+            word: string;
+            /** Recordings */
+            recordings: components["schemas"]["NativeRecordingOut"][];
         };
         /** NewTopic */
         NewTopic: {
@@ -5355,6 +5440,74 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    native_find_api_native_find_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NativeFindIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NativeFindOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    native_audio_api_native_audio_get: {
+        parameters: {
+            query: {
+                title: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
             };
             /** @description Validation Error */
             422: {

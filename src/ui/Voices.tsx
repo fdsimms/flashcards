@@ -12,9 +12,11 @@ import { RECORDING_RATE } from '../core/recording';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
+import { LANGUAGES } from '../reader/languages';
 import { searchVoices } from '../reader/voiceSlots';
 import { AzureVoiceRows, AzureVoiceTerms, useAzureSample, useAzureVoices } from './AzureVoices';
 import { CheckRow, ErrorNote, Group, Help, Loading, NavRow, Screen, Section, SECTION_GAP, Segments } from './kit';
+import { NativeRecordingsSetting } from './NativeRecordingsSetting';
 import { space, readable } from './theme';
 import { stopSpeechIfRunning } from './usePhoneSpeech';
 
@@ -28,7 +30,7 @@ const DOWNLOAD_HELP =
  * back from the background, so a voice just downloaded in iOS Settings shows up.
  */
 /** The repo these screens use: the voice choices live in SQLite, and an Azure voice is copied to the Anki collection for the MCP. */
-type VoicesRepo = Repo & Pick<AnkiLink, 'setAnkiAudioVoice'>;
+type VoicesRepo = Repo & Pick<AnkiLink, 'setAnkiAudioVoice' | 'ankiNativeRecordings' | 'setAnkiNativeRecordings'>;
 
 function useVoiceChoices(repo: VoicesRepo) {
   const [languages, setLanguages] = useState<DeckLanguage[]>();
@@ -129,6 +131,7 @@ export function Voices({ repo, onLanguage }: { repo: VoicesRepo; onLanguage: (ke
             <ErrorNote message={error} onRetry={retry} />
           ) : <Loading />}
         </Section>
+        {languages?.length ? <NativeRecordingsSetting repo={repo} languages={languages.filter((l) => l.key in LANGUAGES)} /> : null}
       </ScrollView>
     </Screen>
   );

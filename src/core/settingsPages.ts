@@ -55,6 +55,7 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'wanikani', page: 'settings', label: 'WaniKani', keywords: ['token', 'japanese', 'kanji', 'type', 'typing', 'answer', 'meaning', 'reading'], route: '/wanikani-settings' },
   { id: 'font', page: 'settings', label: 'Font', keywords: ['typeface', 'text', 'language', 'text size'], route: '/app-font' },
   { id: 'voices', page: 'settings', label: 'Voices', keywords: ['text to speech', 'tts', 'azure', 'read aloud'], route: '/voices' },
+  { id: 'nativeRecordings', page: 'settings', label: 'Native recordings', keywords: ['native speaker', 'pronunciation', 'lingua libre', 'wiktionary', 'commons', 'audio'], route: '/voices' },
   { id: 'speaking', page: 'settings', label: 'Speaking', keywords: ['answer by speaking', 'microphone', 'dictation', 'recognizer'], route: '/speaking' },
   { id: 'pitchLine', page: 'settings', label: 'Pitch line in every language', keywords: ['record yourself', 'tone', 'intonation', 'pitch accent', 'pronunciation'], route: '/speaking' },
   { id: 'deckOptions', page: 'settings', label: 'Deck options', keywords: ['per deck', 'each deck', 'subdeck'], route: DECK_OPTIONS_LIST },
@@ -72,6 +73,7 @@ export const SETTINGS_ENTRIES: readonly SettingsEntry[] = [
   { id: 'deckAspect', page: 'deck', label: 'Ask imperfective or perfective', keywords: ['verb aspect', 'russian', 'polish'], route: DECK_OPTIONS_LIST },
   { id: 'deckLookalikes', page: 'deck', label: 'Lookalike words', keywords: ['confused', 'similar', 'apart', 'sooner'], route: DECK_OPTIONS_LIST },
   { id: 'deckRecordings', page: 'deck', label: 'Record audio', keywords: ['recordings', 'azure', 'voice'], route: DECK_OPTIONS_LIST },
+  { id: 'deckNativeRecordings', page: 'deck', label: 'Native recordings', keywords: ['native speaker', 'lingua libre', 'wiktionary', 'commons', 'pronunciation'], route: DECK_OPTIONS_LIST },
 
   { id: 'reminder', page: 'today', label: 'Study reminder', keywords: ['notification', 'daily'], route: '/reminder' },
   { id: 'vacation', page: 'today', label: 'Vacation mode', keywords: ['pause', 'break', 'away'], route: '/vacation' },

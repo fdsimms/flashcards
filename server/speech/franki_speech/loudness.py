@@ -38,6 +38,7 @@ __all__ = [
     "LoudnessUnavailable",
     "measure_loudness",
     "normalize_loudness",
+    "trim_silence",
     "trim_trailing_silence",
 ]
 
@@ -163,6 +164,35 @@ async def trim_trailing_silence(audio: bytes, *, sample_rate: int = 24000) -> by
         "libmp3lame",
         "-b:a",
         "48k",
+        "-f",
+        "mp3",
+        "pipe:1",
+    )
+    if not out:
+        raise LoudnessError("ffmpeg returned no audio.")
+    return out
+
+
+async def trim_silence(audio: bytes, *, sample_rate: int = 44100) -> bytes:
+    """The clip with the silence at both ends cut down to `TAIL_KEEP_SECONDS`, as mono MP3: for a
+    recording made by a person (a native speaker's, from Wikimedia Commons), which often starts and
+    ends with a second or more of room noise before and after the word."""
+    trim = (
+        f"silenceremove=start_periods=1:start_silence={TAIL_KEEP_SECONDS}"
+        f":start_threshold={_TAIL_THRESHOLD_DB}dB"
+    )
+    out, _ = await _ffmpeg(
+        audio,
+        "-af",
+        f"{trim},areverse,{trim},areverse",
+        "-ar",
+        str(sample_rate),
+        "-ac",
+        "1",
+        "-c:a",
+        "libmp3lame",
+        "-b:a",
+        "64k",
         "-f",
         "mp3",
         "pipe:1",

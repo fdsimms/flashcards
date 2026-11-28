@@ -233,6 +233,9 @@ export type RetellCheck = WritingCheck & { words: { word: string; english: strin
 export type WritingRequest =
   | { kind: 'sentence'; language: Language; attempt: string; word: string; meaning: string }
   | { kind: 'translate'; language: Language; attempt: string; english: string; reference: string };
+// A native speaker's recording of a word, found on Wikimedia Commons (server/reader routes/native.py).
+export type NativeRecordingFound = Schemas['NativeRecordingOut'];
+export type NativeFind = Schemas['NativeFindOut'];
 // The writing journal (server/reader journal.py): an entry checked by Claude sentence by sentence and kept on
 // the server. A mistake's `kind` is a grammar point's id or a general kind ("case", "word_order"); `case` and
 // `governor` say which case a case ending should be and the word that decides it. Never graded.
@@ -898,6 +901,12 @@ export function createApi(
     // the text's (th-TH, or a code: th), which a Multilingual voice would otherwise guess from the text.
     // `reading` is a Japanese word's KanaReading, said in its place where the server reads the kanji otherwise.
     // `ipa` is said in the text's place, for a word its spelling doesn't say how to say (a Russian word told from another by stress alone).
+    // Native speakers' recordings of words on Wikimedia Commons (server/reader routes/native.py): each word's
+    // recordings, Lingua Libre's first, with the credit to keep; words beyond the first few come back
+    // `pending`, to ask again. Then one recording's audio, trimmed and leveled, as MP3 bytes.
+    nativeFind: (language: Language, words: string[]) => call<NativeFind>('POST', '/api/native/find', { language, words }),
+    nativeAudio: async (title: string) =>
+      new Uint8Array(await (await send('GET', `/api/native/audio?title=${encodeURIComponent(title)}`)).arrayBuffer()),
     speech: async (text: string, voice: string, rate = 1, language?: string, reading?: string, ipa?: string) =>
       new Uint8Array(await (await send('POST', '/api/speech', { text, voice, rate, language, reading, ipa })).arrayBuffer()),
     // One line a story character might say, spoken in `voice` at `pitch` (a percent change), as MP3

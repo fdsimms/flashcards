@@ -3205,6 +3205,119 @@
         }
       }
     },
+    "/api/native/find": {
+      "post": {
+        "summary": "Native Find",
+        "description": "Each word's recordings, Lingua Libre's first. Reads only: nothing is kept on a note here.",
+        "operationId": "native_find_api_native_find_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NativeFindIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NativeFindOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/native/audio": {
+      "get": {
+        "summary": "Native Audio",
+        "description": "One found recording, trimmed of the silence at its ends and leveled, as MP3; kept on disk\nafter the first time.",
+        "operationId": "native_audio_api_native_audio_get",
+        "parameters": [
+          {
+            "name": "title",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 6,
+              "maxLength": 300,
+              "title": "Title"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/grammar-topics": {
       "get": {
         "summary": "List Grammar Topics",
@@ -8838,6 +8951,134 @@
           "meaning"
         ],
         "title": "MnemonicIn"
+      },
+      "NativeFindIn": {
+        "properties": {
+          "language": {
+            "type": "string",
+            "enum": [
+              "th",
+              "es",
+              "de",
+              "fr",
+              "ru",
+              "el",
+              "pl",
+              "nb",
+              "ja",
+              "en",
+              "tok"
+            ],
+            "title": "Language"
+          },
+          "words": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Words"
+          }
+        },
+        "type": "object",
+        "required": [
+          "language",
+          "words"
+        ],
+        "title": "NativeFindIn"
+      },
+      "NativeFindOut": {
+        "properties": {
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/NativeWordOut"
+            },
+            "type": "array",
+            "title": "Results"
+          },
+          "pending": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Pending"
+          }
+        },
+        "type": "object",
+        "required": [
+          "results",
+          "pending"
+        ],
+        "title": "NativeFindOut"
+      },
+      "NativeRecordingOut": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "lingualibre",
+              "wiktionary"
+            ],
+            "title": "Source"
+          },
+          "speaker": {
+            "type": "string",
+            "title": "Speaker"
+          },
+          "license": {
+            "type": "string",
+            "title": "License"
+          },
+          "license_url": {
+            "type": "string",
+            "title": "License Url"
+          },
+          "page_url": {
+            "type": "string",
+            "title": "Page Url"
+          },
+          "credit": {
+            "type": "string",
+            "title": "Credit"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "source",
+          "speaker",
+          "license",
+          "license_url",
+          "page_url",
+          "credit"
+        ],
+        "title": "NativeRecordingOut"
+      },
+      "NativeWordOut": {
+        "properties": {
+          "word": {
+            "type": "string",
+            "title": "Word"
+          },
+          "recordings": {
+            "items": {
+              "$ref": "#/components/schemas/NativeRecordingOut"
+            },
+            "type": "array",
+            "title": "Recordings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "word",
+          "recordings"
+        ],
+        "title": "NativeWordOut"
       },
       "NewTopic": {
         "properties": {

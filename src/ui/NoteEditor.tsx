@@ -23,6 +23,7 @@ import type { NoteEditorResult } from './AppContext';
 import type { RecordDeps, Recording } from '../anki/recordService';
 import { Button, Card, Chip, Field, Group, Help, Loading, Screen, Select, SectionTitle, SwitchRow } from './kit';
 import { NoteIcon } from './NoteIcon';
+import { NativeAudioActions } from './NativeAudioActions';
 import { afterSave, RecordAudio, useVoiceSettings } from './RecordAudio';
 import { radius, smooth, space, type, useTheme, readable } from './theme';
 import { useHeaderInset } from './useHeaderInset';
@@ -415,6 +416,13 @@ export function NoteEditor(props: {
                 note={draftNote}
                 settings={voiceSettings}
                 onRecorded={(r) => { setRecording(r); setFields((f) => ({ ...f, Audio: [f.Audio?.trim(), `[sound:${r.name}]`].filter(Boolean).join(' ') })); }}
+              />
+            ) : null}
+            {editing ? (
+              <NativeAudioActions
+                recorder={props.recorder ?? null}
+                note={draftNote}
+                onChange={(next, r) => { if (r) setRecording(r); setFields(next); }}
               />
             ) : null}
           </Card>
