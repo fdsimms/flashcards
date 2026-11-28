@@ -222,6 +222,14 @@ marked words, ideas) is in the current language, the `language` setting.
                                       kept. 503 without Claude. Its cost is kept in `call_costs`
                                       (feature "ask_phrase") and counts under explanations in
                                       /api/costs
+    POST  /api/native/find            {language, words} each word's native speakers' recordings on
+                                      Wikimedia Commons (franki_speech.commons: Lingua Libre's,
+                                      then Wiktionary's older files), each with its speaker,
+                                      license and credit: {results, pending}. Up to 3 new words
+                                      are looked up while it waits; the rest come back `pending`
+                                      and are looked up in the background. Kept 180 days (30 when
+                                      none was found). 503 when Commons can't be reached
+    GET   /api/native/audio?title     a found recording, trimmed and leveled, as MP3 (kept on disk)
     GET   /api/journal?language&days  the writing journal (journal.py): {entries, kinds, idea,
                                       checks}: entries newest first, the kinds of mistake their
                                       first checks found in the last `days` days (60; 0 for all)
@@ -399,6 +407,7 @@ from typing import Annotated
 import anthropic
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from franki_speech import SpeechClient
+from franki_speech.commons import Commons
 
 from franki_reader import (
     ai_ipa,
@@ -532,6 +541,8 @@ def create_app(
     write_given_lesson: WriteGiven | None = None,
     write_lesson_topics: WriteTopics | None = None,
     lessons_dir: Path | None = None,
+    commons: Commons | None = None,
+    native_dir: Path | None = None,
     write_aspect: aspect.WriteAspect | None = None,
     ask_about_card: ask_card.AskCard | None = None,
     ask_about_phrase: ask_phrase.AskPhrase | None = None,
@@ -631,6 +642,8 @@ def create_app(
         write_given_lesson=write_given_lesson,
         write_lesson_topics=write_lesson_topics,
         lessons_dir=lessons_dir,
+        commons=commons,
+        native_dir=native_dir,
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
         ask_about_phrase=ask_about_phrase,
@@ -827,6 +840,10 @@ def production_app() -> FastAPI:
         write_given_lesson=write_given_lesson,
         write_lesson_topics=write_lesson_topics,
         lessons_dir=settings.audio_dir / "lessons",
+        # Native recordings ask Lingua Libre and Commons directly: no key, and the app's own
+        # setting (off until turned on) decides whether anything is asked.
+        commons=Commons(user_agent="franki-reader-native/1.0"),
+        native_dir=settings.audio_dir / "native",
         write_aspect=write_aspect,
         ask_about_card=ask_about_card,
         ask_about_phrase=ask_about_phrase,

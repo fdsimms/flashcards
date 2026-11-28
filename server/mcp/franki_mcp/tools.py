@@ -29,11 +29,13 @@ from mcp.server.mcpserver.exceptions import ToolError  # its message reaches the
 from mcp.types import ToolAnnotations
 from pydantic import BaseModel, Field
 
+from . import native as native_module
 from . import omnilanguage
 from .articles import article_for, marker_for, with_article
 from .collection import CollectionManager
 from .decks import deck_id
 from .downloads import AudioFetcher, DownloadError, linked_filename
+from .native import NativeRecorder
 from .pronunciation import LANGUAGE_CODES
 from .presets import TIER_PRESET_KEY, share_params, tier_presets_for
 from .reader import ReaderClient
@@ -376,7 +378,8 @@ instructions off, so each tool's own description holds its details.
 
 
 def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | None = None,
-             reader: ReaderClient | None = None, downloads: AudioFetcher | None = None) -> None:
+             reader: ReaderClient | None = None, downloads: AudioFetcher | None = None,
+             native: NativeRecorder | None = None) -> None:
     """Adds every tool to the server. Without `speech`, the audio tools say how to turn them on.
     `reader` (Read & Listen) says which Japanese words to record from their reading. `downloads`
     fetches add_audio_from_url's links (tests pass one with a faked network)."""
@@ -544,6 +547,24 @@ def register(server: MCPServer, cm: CollectionManager, speech: SpeechClient | No
         rows = [r for r in results if "note_id" in r]
         if not rows:
             return
+        # A native speaker's recording first, where Settings, Voices has them on for the language
+        # (native.py); the rest are recorded with Azure as before.
+        if native is not None and native.commons is not None:
+            try:
+                kept = await native.keep([r["note_id"] for r in rows][: native_module.MAX_NOTES])
+            except Exception as e:  # noqa: BLE001 - Commons out of reach: Azure records them instead
+                kept = [{"note_id": r["note_id"], "error": str(e)} for r in rows]
+            by_id = {k["note_id"]: k for k in kept}
+            for r in rows:
+                k = by_id.get(r["note_id"], {})
+                if "audio" in k:
+                    r["audio"] = k["audio"]
+                    r["audio_credit"] = k["recording"]["credit"]
+                elif "error" in k:
+                    r["native_error"] = k["error"]
+            rows = [r for r in rows if "audio" not in r]
+            if not rows:
+                return
 
         def survey(col: Collection) -> tuple[dict[str, Any], dict[int, str]]:
             voices = col.get_config(AUDIO_VOICES_KEY, {}) or {}

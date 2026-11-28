@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { recordNote, recordNotes, type RecordDeps } from '../../src/anki/recordService';
+import { recordNote, recordNotes, replaceWithNative, type RecordDeps } from '../../src/anki/recordService';
 import { sha1Hex } from '../../src/anki/sha1';
 import type { NoteStore } from '../../src/anki/noteService';
 import { makeCards } from '../../src/core/cards';
@@ -86,5 +86,52 @@ describe('recording notes', () => {
     expect(r.recorded).toBe(2);
     expect(r.stopped).toEqual(new Error("Couldn't reach the server."));
     expect(progress).toEqual([1, 2]);
+  });
+});
+
+describe('a native recording first', () => {
+  const FOUND = { title: 'File:LL-Q9217 (tha)-A-หนังสือ.wav', credit: 'A (Lingua Libre), CC0, https://commons.wikimedia.org/wiki/x, trimmed and loudness-evened', bytes: new TextEncoder().encode('native') };
+
+  it("keeps it with its credit, and Azure isn't asked", async () => {
+    const f = await franki([omniNote({ AudioCredit: '' })]);
+    f.deps.native = async () => FOUND;
+    const saved = await recordNote(f.deps, 'n1', VOICE);
+    expect(saved!.fields.Audio).toMatch(/^\[sound:franki-native-[0-9a-f]{16}\.mp3\]$/);
+    expect(saved!.fields.AudioCredit).toBe(FOUND.credit);
+    expect(f.spoken).toEqual([]);
+    expect([...f.pending.values()]).toEqual([sha1Hex(FOUND.bytes)]);
+  });
+
+  it('records with Azure when none is found, Commons is out of reach, or the note type has no credit field', async () => {
+    const none = await franki([omniNote({ AudioCredit: '' })]);
+    none.deps.native = async () => null;
+    expect((await recordNote(none.deps, 'n1', VOICE))!.fields.Audio).toMatch(/franki-tts-/);
+
+    const down = await franki([omniNote({ AudioCredit: '' })]);
+    down.deps.native = async () => { throw new Error('offline'); };
+    expect((await recordNote(down.deps, 'n1', VOICE))!.fields.Audio).toMatch(/franki-tts-/);
+
+    const noField = await franki([omniNote()]);
+    let asked = false;
+    noField.deps.native = async () => { asked = true; return FOUND; };
+    expect((await recordNote(noField.deps, 'n1', VOICE))!.fields.Audio).toMatch(/franki-tts-/);
+    expect(asked).toBe(false);
+  });
+});
+
+describe('replacing a recording with a native one', () => {
+  const FOUND = { title: 'File:Th-x.ogg', credit: 'B (Wiktionary), CC BY 3.0', bytes: new TextEncoder().encode('n') };
+
+  it('replaces the Azure recording and keeps the credit', async () => {
+    const f = await franki([omniNote({ Audio: '[sound:franki-tts-a.mp3]', AudioCredit: '' })]);
+    const saved = await replaceWithNative(f.deps, 'n1', { audio: '[sound:franki-tts-a.mp3]', credit: '' }, FOUND);
+    expect(saved!.fields.Audio).toMatch(/^\[sound:franki-native-/);
+    expect(saved!.fields.AudioCredit).toBe(FOUND.credit);
+  });
+
+  it('leaves a note alone whose Audio changed since it was read', async () => {
+    const f = await franki([omniNote({ Audio: '[sound:mine.mp3]', AudioCredit: '' })]);
+    expect(await replaceWithNative(f.deps, 'n1', { audio: '[sound:franki-tts-a.mp3]', credit: '' }, FOUND)).toBeNull();
+    expect((await f.store.getNote('n1'))!.fields.Audio).toBe('[sound:mine.mp3]');
   });
 });

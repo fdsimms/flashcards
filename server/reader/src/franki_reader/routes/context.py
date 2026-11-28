@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from franki_speech.commons import Commons
+
 from franki_reader import (
     ask_card,
     aspect,
@@ -75,6 +77,8 @@ class AppContext:
     write_given_lesson: WriteGiven | None
     write_lesson_topics: WriteTopics | None
     lessons_dir: Path | None
+    commons: Commons | None
+    native_dir: Path | None
     write_aspect: aspect.WriteAspect | None
     ask_about_card: ask_card.AskCard | None
     fix_flagged_card: fix_card.FixCard | None

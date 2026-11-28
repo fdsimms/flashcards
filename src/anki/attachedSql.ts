@@ -1,6 +1,7 @@
 import { STRIP_UNICASE_SQL } from './collection';
 import { DAILY_GOALS_KEY } from './dailyGoals';
 import { PROGRESS_GATES_KEY } from './progressGates';
+import { NATIVE_RECORDINGS_KEY } from './nativeRecordings';
 import { SKILL_CARDS_KEY } from './skillSettings';
 import { BURY_CARD_SQL, CARD_ROW_SQL, CARD_STATE_SQL, CARD_STATE_UPDATE_SQL, CARD_UPDATE_SQL, COL_MODIFIED_SQL, REVLOG_INSERT_SQL } from './writeback';
 
@@ -50,6 +51,8 @@ export const keptSql = (schema = 'anki') => ({
   dailyGoals: `SELECT val FROM ${schema}.config WHERE KEY = '${DAILY_GOALS_KEY}'`,
   // Each deck's skill card settings (skillSettings.ts), kept the same way.
   skillSettings: `SELECT val FROM ${schema}.config WHERE KEY = '${SKILL_CARDS_KEY}'`,
+  // Whether words get native speakers' recordings (nativeRecordings.ts), kept the same way.
+  nativeRecordings: `SELECT val FROM ${schema}.config WHERE KEY = '${NATIVE_RECORDINGS_KEY}'`,
   // An answer's "studied today" counts (deckStats.ts). Only `common` and the stamps change, which no index covers.
   deckStats: `SELECT id, name, mtime_secs, usn, common FROM ${schema}.decks NOT INDEXED`,
   deckStatsUpdate: `UPDATE ${schema}.decks SET common = ?, mtime_secs = ?, usn = ? WHERE id = ?`,

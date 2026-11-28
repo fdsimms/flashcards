@@ -6,6 +6,7 @@ import { queryCollectionRows, type CollectionRows } from '../anki/collection';
 import { dailyGoalsByName, setAnkiDailyGoal } from '../anki/dailyGoals';
 import { gatesByName, setAnkiProgressGate } from '../anki/progressGates';
 import { setAnkiAudioVoice, type AudioVoice } from '../anki/audioVoices';
+import { NATIVE_OFF, nativeConfigFromValue, setAnkiNativeRecordings, type NativeRecordingsConfig } from '../anki/nativeRecordings';
 import { setAnkiSkillSettings, skillSettingsByName, type SkillSettings } from '../anki/skillSettings';
 import { ankiFolder, keptCollectionFile, pathOf, workFolder } from '../anki/files';
 import {
@@ -121,6 +122,10 @@ export interface AnkiLink {
    * there is nothing yet for the MCP to read. Waits for the lock.
    */
   setAnkiAudioVoice(language: string, voice: AudioVoice | null, now?: Date): Promise<void>;
+  /** Whether words get native speakers' recordings (`src/anki/nativeRecordings.ts`); off without a collection. Read without the lock. */
+  ankiNativeRecordings(): Promise<NativeRecordingsConfig>;
+  /** Saves that setting in the kept collection; nothing without one. */
+  setAnkiNativeRecordings(config: NativeRecordingsConfig, now?: Date): Promise<void>;
   /** For backup and restore, which carry the kept collection: let go of the file, and take it back. */
   detachAnki(): Promise<void>;
   attachAnki(): Promise<void>;
@@ -446,6 +451,18 @@ export function makeAnkiLink(db: SQLite.SQLiteDatabase, collectionSettings: () =
     setAnkiAudioVoice: async (language, voice, now = new Date()) => {
       if (!keptCollectionFile().exists) return;
       await lockAnki(() => link.withSyncConnection((c) => setAnkiAudioVoice(c, language, voice, now)));
+    },
+
+    async ankiNativeRecordings() {
+      await attach();
+      if (!attached) return NATIVE_OFF;
+      const row = await db.getFirstAsync<{ val: Uint8Array | string }>(SQL.nativeRecordings);
+      return nativeConfigFromValue(row?.val);
+    },
+
+    setAnkiNativeRecordings: async (config, now = new Date()) => {
+      if (!keptCollectionFile().exists) return;
+      await lockAnki(() => link.withSyncConnection((c) => setAnkiNativeRecordings(c, config, now)));
     },
 
     detachAnki: detach,
