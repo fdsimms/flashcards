@@ -10,6 +10,26 @@
 	header Strict-Transport-Security "max-age=31536000"
 	@anki path /sync/* /msync/* /health
 	handle @anki {
+		# Anki's sync server unpacks a request's body before it checks who sent it, up to three times
+		# MAX_SYNC_PAYLOAD_MEGS, so a small zstd file from anyone could make it allocate gigabytes
+		# (#709). With ANKI_HKEY set (.env, README.md: Sync key), a request that doesn't carry that
+		# key is refused here: in the anki-sync header's JSON ("k"), or media sync's ?k= on its
+		# first request. Old clients that send the key inside a multipart body are refused too;
+		# every current Anki, AnkiMobile, AnkiDroid and Franki send the header. A login carries no key
+		# yet, so its body is capped instead: one is about 100 bytes, and 1 KB unpacks to tens of MB
+		# at most. Without ANKI_HKEY, only the login cap applies.
+		@unkeyed {
+			path /sync/* /msync/*
+			not path /sync/hostKey
+			expression `"{$ANKI_HKEY}" != ""`
+			not header_regexp anki-sync `"k":"{$ANKI_HKEY}"`
+			not query k={$ANKI_HKEY}
+		}
+		respond @unkeyed "Sign in to sync." 403
+		@login path /sync/hostKey
+		request_body @login {
+			max_size 1KB
+		}
 		# A larger read buffer, as Anki's manual says for Caddy (sync-server.md, "Reverse Proxies"):
 		# with Caddy's default, downloading media can fail mid-stream, which AnkiMobile shows as
 		# "stream failure (code=303)" (#156).

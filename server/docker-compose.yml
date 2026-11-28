@@ -45,6 +45,8 @@ services:
       TZ: ${TZ:-UTC}
       MCP_PUBLIC_URL: "https://${DOMAIN}"
       MCP_PASSWORD: ${MCP_PASSWORD:-}
+      # More sign-in callbacks to accept besides Claude's, space-separated (franki_mcp/__main__.py).
+      MCP_EXTRA_REDIRECT_URIS: ${MCP_EXTRA_REDIRECT_URIS:-}
       ANKI_SYNC_ENDPOINT: "http://anki:8080/"
       ANKI_USER: ${ANKI_USER}
       ANKI_PASSWORD: ${ANKI_PASSWORD}
@@ -120,6 +122,8 @@ services:
       - "443:443"
     environment:
       DOMAIN: ${DOMAIN}
+      # The sync key, so Caddy refuses a sync request without it (Caddyfile, README.md: Sync key).
+      ANKI_HKEY: ${ANKI_HKEY:-}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
