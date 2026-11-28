@@ -123,6 +123,8 @@ export type GrammarPointPage = {
   state: GrammarState;
   seen: GrammarSeen;
   choices: Record<string, GrammarState>;
+  /** Know it only by the catalog's default, not the owner's choice, so not drilled on a schedule. Absent from a server older than it. */
+  default?: boolean;
   /** How many points may be practiced at once. Absent from a server older than it. */
   max_practice?: number;
   examples: GrammarExample[];
@@ -795,8 +797,9 @@ export function createApi(
     moreTopicExamples: async (id: number): Promise<GrammarTopic> => (await send('POST', `/api/grammar-topics/${id}/examples`)).json(),
     rewriteTopic: async (id: number): Promise<GrammarTopic> => (await send('POST', `/api/grammar-topics/${id}/rewrite`)).json(),
     deleteTopic: (id: number) => call<void>('DELETE', `/api/grammar-topics/${id}`),
-    // Every language's choices by point id (a point not set isn't listed), for Forms practice.
-    grammarChoices: () => call<{ choices: Record<string, GrammarChoice> }>('GET', '/api/grammar/choices'),
+    // Every language's choices by point id (a point not set isn't listed), for Forms practice. `defaults`: the
+    // points that are Know it only by the catalog's default, which aren't drilled (absent from an older server).
+    grammarChoices: () => call<{ choices: Record<string, GrammarChoice>; defaults?: string[] }>('GET', '/api/grammar/choices'),
     // The grammar points Claude wrote, every language's, for `setWrittenPoints` (read with `parseWrittenPoints`).
     writtenPoints: () => call<{ points: unknown[] }>('GET', '/api/grammar/written'),
     // A point's lesson; asking for one that has none starts writing it. Rewrite asks for fresh examples.

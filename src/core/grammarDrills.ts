@@ -83,6 +83,14 @@ export function practiceKinds(point: GrammarPointInfo): PracticeKind[] {
   return point.forms.length ? ['questions', 'forms'] : ['questions'];
 }
 
+const CASES = ['nominative', 'genitive', 'dative', 'accusative', 'instrumental', 'locative', 'prepositional', 'vocative'];
+
+/** What Forms practice on a point's forms asks, for its page: "Conjugate past verbs.", "Put words in the genitive." */
+export function formsPracticeDetail(forms: readonly string[]): string {
+  const named = forms.join(' and ');
+  return forms.length && forms.every((f) => CASES.includes(f.toLocaleLowerCase())) ? `Put words in the ${named}.` : `Conjugate ${named} verbs.`;
+}
+
 /** Whether the spaced drills have anything to ask about a point (not Forms practice, which is its own tool). */
 export function hasDrill(pointId: string): boolean {
   const point = grammarPoint(pointId);
@@ -128,23 +136,28 @@ export function duePoints(
   answers: GrammarAnswer[],
   now: Date,
   dayStartsAtHour: number,
+  defaults: readonly string[] = [],
 ): PointSchedule[] {
   const today = studyDayStart(now, dayStartsAtHour);
-  return scheduledPoints(language, choices, answers, now, dayStartsAtHour)
+  return scheduledPoints(language, choices, answers, now, dayStartsAtHour, defaults)
     .filter((s) => s.due <= today)
     .sort((a, b) => Number(b.state === 'practice') - Number(a.state === 'practice') || a.due.getTime() - b.due.getTime());
 }
 
-/** Every point drilled in a language, with when it's next due, soonest first. */
+/**
+ * Every point drilled in a language, with when it's next due, soonest first. `defaults` (the server's) are Know it
+ * only by the catalog's default, not the owner's choice, and aren't drilled until the owner sets them.
+ */
 export function scheduledPoints(
   language: string,
   choices: Record<string, DrillState>,
   answers: GrammarAnswer[],
   now: Date,
   dayStartsAtHour: number,
+  defaults: readonly string[] = [],
 ): PointSchedule[] {
   return Object.entries(choices)
-    .filter(([id, state]) => isDrilled(state) && hasDrill(id) && grammarPoint(id)?.language === language)
+    .filter(([id, state]) => isDrilled(state) && !defaults.includes(id) && hasDrill(id) && grammarPoint(id)?.language === language)
     .map(([id, state]) => pointSchedule(id, state, answers, now, dayStartsAtHour))
     .sort((a, b) => a.due.getTime() - b.due.getTime() || a.pointId.localeCompare(b.pointId));
 }
@@ -287,10 +300,11 @@ export function grammarListGroups(
   answers: GrammarAnswer[],
   now: Date,
   dayStartsAtHour: number,
+  defaults: readonly string[] = [],
 ): GrammarListGroups {
-  const scheduled = scheduledPoints(language, choices, answers, now, dayStartsAtHour);
+  const scheduled = scheduledPoints(language, choices, answers, now, dayStartsAtHour, defaults);
   const row = (s: PointSchedule): GrammarListRow => ({ pointId: s.pointId, state: s.state, schedule: s });
-  const due = duePoints(language, choices, answers, now, dayStartsAtHour);
+  const due = duePoints(language, choices, answers, now, dayStartsAtHour, defaults);
   const dueIds = new Set(due.map((s) => s.pointId));
   const drilled = new Set(scheduled.map((s) => s.pointId));
   return {
@@ -307,9 +321,10 @@ export function dueByLanguage(
   answers: GrammarAnswer[],
   now: Date,
   dayStartsAtHour: number,
+  defaults: readonly string[] = [],
 ): { language: string; count: number }[] {
   return languages
-    .map((language) => ({ language, count: duePoints(language, choices, answers, now, dayStartsAtHour).length }))
+    .map((language) => ({ language, count: duePoints(language, choices, answers, now, dayStartsAtHour, defaults).length }))
     .filter((d) => d.count > 0)
     .sort((a, b) => b.count - a.count);
 }
