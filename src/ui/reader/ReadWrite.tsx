@@ -157,7 +157,7 @@ export function ReadWrite({ api, language, kind: initialKind, shared, onDone }: 
             accessibilityState={{ disabled: busy !== null, busy: busy === 'surprise' }}
             style={{ flexDirection: 'row', alignItems: 'center', gap: space.m, padding: space.l, opacity: busy === 'write' ? 0.5 : 1 }}
           >
-            <View style={{ width: 44, height: 44, borderRadius: radius.m, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}>
+            <View style={{ width: 44, height: 44, borderRadius: radius.m, ...smooth, backgroundColor: c.accentFill, alignItems: 'center', justifyContent: 'center' }}>
               <Icon name="dice" size={22} color={c.accentInk} />
             </View>
             <View style={{ flex: 1 }}>

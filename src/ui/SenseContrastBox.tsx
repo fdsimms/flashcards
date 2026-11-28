@@ -44,7 +44,7 @@ export function SenseContrastBox({ pairs, actions, thaiSize }: { pairs: { label:
               <Tappable accessibilityRole="button" accessibilityLabel={`Add ${row.word} to your deck`} onPress={() => actions.onAdd(row)} scaleTo={0.95} style={{ minHeight: MIN_TAP, justifyContent: 'center', paddingHorizontal: space.s }}>
                 <Text style={{ ...type.subhead, fontWeight: '600', color: c.accentInk }}>Add</Text>
               </Tappable>
-              <Tappable accessibilityRole="button" accessibilityLabel={`Remove ${row.word} from this card`} onPress={() => actions.onRemove(row)} scaleTo={0.9} style={{ minHeight: MIN_TAP, minWidth: MIN_TAP - space.s, alignItems: 'center', justifyContent: 'center' }}>
+              <Tappable accessibilityRole="button" accessibilityLabel={`Remove ${row.word} from this card`} onPress={() => actions.onRemove(row)} hitSlop={{ right: space.s }} scaleTo={0.9} style={{ minHeight: MIN_TAP, minWidth: MIN_TAP - space.s, alignItems: 'center', justifyContent: 'center' }}>
                 <Icon name="xmark" size={13} color={c.textSecondary} weight="semibold" />
               </Tappable>
             </>

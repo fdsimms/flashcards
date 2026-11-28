@@ -8,8 +8,8 @@ import { preview } from '../../reader/journal';
 import { LANGUAGES } from '../../reader/languages';
 import { useHeldJournal, heldJournal } from '../held';
 import { homeCopy, journalDrafts, keepHomeCopy, useJournalDrafts } from '../journal/journalWork';
-import { Button, Card, ErrorNote, Group, Help, Loading, NavRow, Tappable } from '../kit';
-import { radius, space, type, useTheme } from '../theme';
+import { Button, Card, ErrorNote, Group, Help, Loading, Meter, NavRow, Tappable } from '../kit';
+import { space, type, useTheme } from '../theme';
 import type { ToolScreenProps } from './index';
 import { ToolScreen, useToolLanguage } from './ToolScreen';
 
@@ -96,9 +96,7 @@ export function JournalTool({ tool, readerApi }: ToolScreenProps) {
             {shown.kinds.slice(0, 3).map((k) => (
               <View key={k.group} accessible accessibilityLabel={`${k.name}, ${k.count} times`} style={{ flexDirection: 'row', alignItems: 'center', gap: space.m }}>
                 <Text style={{ ...type.subhead, color: c.text, flex: 1 }}>{k.name}</Text>
-                <View style={{ width: 60, height: 6, borderRadius: radius.pill, backgroundColor: c.fill, overflow: 'hidden' }}>
-                  <View style={{ width: `${(k.count / max) * 100}%`, height: '100%', backgroundColor: c.danger }} />
-                </View>
+                <Meter width={60} value={k.count / max} color={c.danger} />
                 <Text style={{ ...type.footnote, color: c.textSecondary, minWidth: 20, textAlign: 'right', fontVariant: ['tabular-nums'] }}>{k.count}</Text>
               </View>
             ))}

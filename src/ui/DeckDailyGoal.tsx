@@ -5,7 +5,7 @@ import { GOAL_DAYS, parseDailyGoal, type GoalResult, type GoalTarget } from '../
 import { failureText } from '../core/failure';
 import type { DeckSettings } from '../core/types';
 import { Bars } from './StatsBars';
-import { Card, Field, Group, Help, Section, SwitchRow } from './kit';
+import { Card, ErrorNote, Field, Group, Help, Section, SwitchRow } from './kit';
 import { radius, space, type, useTheme } from './theme';
 
 /** Where the line under the switch is shown before a goal is set. */
@@ -99,7 +99,7 @@ export function DeckDailyGoal({ settings, target, onChange, retune }: {
           />
           {error ? <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text> : null}
           {busy ? <Help>Working out today's value.</Help>
-            : problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text>
+            : problem ? <ErrorNote message={problem} />
             : tuned ? <Outcome result={tuned} /> : null}
         </Card>
       ) : null}

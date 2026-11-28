@@ -7,7 +7,7 @@ import type { TextSize } from '../../reader/fonts';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
 import { Card, Icon, Tappable } from '../kit';
-import { space, type, useTheme } from '../theme';
+import { MIN_TAP, space, type, useTheme } from '../theme';
 import { usePhoneSpeech } from '../usePhoneSpeech';
 import { TalkLine } from './TalkLine';
 
@@ -40,7 +40,7 @@ export function CramTalk({ repo, talk, language, size, open, onToggle, onMenu }:
           <Text style={overline}>{talk.title.toUpperCase()}</Text>
           {!open ? <Text style={{ ...type.subhead, color: c.textSecondary }}>{talkSummary(talk)}</Text> : null}
         </Tappable>
-        <Tappable onPress={onMenu} hitSlop={space.s} accessibilityRole="button" accessibilityLabel={`More for ${talk.title}`}>
+        <Tappable onPress={onMenu} hitSlop={(MIN_TAP - 22) / 2} accessibilityRole="button" accessibilityLabel={`More for ${talk.title}`}>
           <Icon name="ellipsis.circle" size={22} color={c.accent} />
         </Tappable>
       </View>

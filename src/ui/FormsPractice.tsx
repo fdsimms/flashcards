@@ -9,7 +9,7 @@ import type { Card as StoredCard, Note } from '../core/types';
 import type { Repo } from '../db/repo';
 import type { Api } from '../reader/api';
 import { practicingPoints } from '../reader/grammar';
-import { Button, Card, Chip, Help, Loading, Screen, SectionTitle, Segments } from './kit';
+import { Button, Card, Chip, EmptyState, Help, Loading, Screen, SectionTitle, Segments } from './kit';
 import { space, type, useTheme, readable } from './theme';
 
 type Answering = 'pick' | 'type' | 'sentence';
@@ -98,12 +98,11 @@ export function FormsPractice({ repo, readerApi, deck, startGroups, onStart }: {
     >
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l, gap: space.l }}>
         {!words ? <Loading error={loadError} onRetry={() => setLoads((n) => n + 1)} /> : !words.length ? (
-          <Card>
-            <Text style={{ ...type.headline, color: c.text }}>No words to practice yet</Text>
-            <Help>
-              {`Practice uses words in ${name} that you've already studied and whose notes list their forms: a Forms field with one form per line, like "present · yo: espero", or a Gender, Plural or Classifier field.`}
-            </Help>
-          </Card>
+          <EmptyState
+            icon="textformat"
+            title="No words to practice yet"
+            body={`Practice uses words in ${name} that you've already studied and whose notes list their forms: a Forms field with one form per line, like "present · yo: espero", or a Gender, Plural or Classifier field.`}
+          />
         ) : (
           <>
             <ChipGroup label="Pattern" options={choices.patterns} selected={patterns} onToggle={(v) => toggle(patterns, setPatterns, v)} />

@@ -2,7 +2,7 @@ import React from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { deckTint } from '../../core/deckBadge';
 import { haptic } from '../haptics';
-import { Tappable } from '../kit';
+import { Meter, Tappable } from '../kit';
 import { MIN_TAP, radius, smooth, space, type, useTheme } from '../theme';
 import { HoverPressable } from '../hover';
 
@@ -65,9 +65,7 @@ export function Cover({ tint, kind, title, meta, metaColor, progress, width = 22
       <View style={{ gap: space.s }}>
         {children}
         {progress != null ? (
-          <View style={{ height: 4, borderRadius: 2, backgroundColor: c.border, overflow: 'hidden' }}>
-            <View style={{ height: 4, width: `${Math.round(progress * 100)}%`, backgroundColor: c.accent }} />
-          </View>
+          <Meter value={progress} color={c.accent} track={c.border} />
         ) : null}
         {meta ? <Text style={{ ...type.footnote, color: metaColor ?? c.textSecondary }}>{meta}</Text> : null}
       </View>

@@ -4,7 +4,7 @@ import { ApiError, type Api, type PastText, type Rating } from '../../reader/api
 import { pastItem } from '../../reader/audioQueue';
 import { isGlossOnly } from '../../reader/languages';
 import { useApp } from '../AppContext';
-import { ErrorNote, Group, Help, Loading, NavRow, Screen, SwipeAction, SwipeToReveal } from '../kit';
+import { EmptyState, ErrorNote, Group, Help, Loading, NavRow, Screen, SwipeAction, SwipeToReveal } from '../kit';
 import { useAudioQueue } from '../useAudioQueue';
 import { useQueueMenu } from '../useQueueMenu';
 import { space, readable } from '../theme';
@@ -56,7 +56,7 @@ export function ReadPastTexts({ api, onOpen, onListen }: { api: Api; onOpen: (te
         {error ? <ErrorNote message={error} onRetry={load} /> : null}
         {texts === null && !error ? <Loading /> : null}
         {texts !== null && texts.length === 0 ? (
-          <Help>No past texts yet. Texts you finish show up here, to read or listen to again.</Help>
+          <EmptyState icon="clock.arrow.circlepath" title="No past texts yet" body="Texts you finish show up here, to read or listen to again." />
         ) : null}
         {texts !== null && texts.length > 0 ? (
           <>

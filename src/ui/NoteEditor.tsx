@@ -21,7 +21,7 @@ import { parsePicture } from '../core/noteIcon';
 import { reviewWrites } from '../core/writeQueue';
 import type { NoteEditorResult } from './AppContext';
 import type { RecordDeps, Recording } from '../anki/recordService';
-import { Button, Card, Chip, Field, Group, Help, Loading, Screen, Select, SectionTitle, SwitchRow } from './kit';
+import { Button, Card, Chip, ErrorNote, Field, Group, Help, Loading, Screen, SectionTitle, Select, SwitchRow } from './kit';
 import { NoteIcon } from './NoteIcon';
 import { NativeAudioActions } from './NativeAudioActions';
 import { afterSave, RecordAudio, useVoiceSettings } from './RecordAudio';
@@ -318,11 +318,7 @@ export function NoteEditor(props: {
       ) : (
         <View ref={header.ref} onLayout={header.onLayout} style={{ flex: 1 }}>
         <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: space.m }} keyboardShouldPersistTaps="handled" {...scrollProps}>
-          {error ? (
-            <View accessibilityRole="alert" style={{ backgroundColor: c.dangerFill, borderRadius: radius.m, ...smooth, padding: space.m }}>
-              <Text style={{ ...type.subhead, color: c.danger }}>{error}</Text>
-            </View>
-          ) : null}
+          {error ? <ErrorNote message={error} /> : null}
           {added ? <Help>Added {added === 1 ? '1 note' : `${added} notes`} to {untiered(deck)}.</Help> : null}
           {'choice' in props.target && props.target.choice ? (
             <WordChoiceCard

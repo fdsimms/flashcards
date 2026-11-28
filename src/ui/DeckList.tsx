@@ -9,7 +9,7 @@ import { isInDeck, shownDeckRows, type DeckRow } from '../core/deckTree';
 import { useDeckDrag } from './DeckDrag';
 import { DISCLOSURE, ROW_PAD } from './deckLayout';
 import { haptic } from './haptics';
-import { Button, Card, Group, Help, Icon, Loading, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
+import { Button, EmptyState, Group, Help, Icon, Loading, Screen, SwipeAction, SwipeToReveal, Tappable } from './kit';
 import { CountingText, Reveal, useReduceMotion } from './motion';
 import { useHeaderInset } from './useHeaderInset';
 import { DeckPanel } from './DeckPanel';
@@ -41,7 +41,7 @@ function Disclosure({ open, fill, color }: { open: boolean; fill: string; color:
     Animated.timing(turn, { toValue: open ? 1 : 0, duration: reduce ? 0 : 180, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
   }, [open, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <View style={{ width: DISCLOSURE, height: DISCLOSURE, borderRadius: DISCLOSURE / 2, backgroundColor: fill, alignItems: 'center', justifyContent: 'center' }}>
+    <View style={{ width: DISCLOSURE, height: DISCLOSURE, borderRadius: radius.pill, backgroundColor: fill, alignItems: 'center', justifyContent: 'center' }}>
       <Animated.View style={{ transform: [{ rotate: turn.interpolate({ inputRange: [0, 1], outputRange: ['-90deg', '0deg'] }) }] }}>
         <Icon name="chevron.down" size={12} color={color} weight="semibold" />
       </Animated.View>
@@ -77,6 +77,8 @@ function DeckBadge({ deck, emoji }: { deck: string; emoji: string }) {
   );
 }
 const BADGE = 36;
+/** The red minus dot on a deck row while editing; its tap target is MIN_TAP around it. */
+const DELETE_DOT = 22;
 
 /** A deck as the small pill that follows the finger while it's dragged (DeckDrag.tsx): its mark and its name. */
 function DeckChip({ row }: { row: ShownRow }) {
@@ -160,10 +162,13 @@ export function DeckRowView({ row, first, picked = false, toggleSlot = false, de
           accessibilityRole="button"
           accessibilityLabel={`Delete ${row.name}`}
           scaleTo={0.85}
-          hitSlop={space.s}
-          style={{ width: 22, height: 22, borderRadius: radius.pill, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center' }}
+          // A full tap target around the 22pt dot: the negative margins keep the row's height and the
+          // dot's place, and the target's right half pushes the name over rather than lying on it.
+          style={{ width: MIN_TAP, height: MIN_TAP, marginVertical: -(MIN_TAP - DELETE_DOT) / 2, marginLeft: -(MIN_TAP - DELETE_DOT) / 2, alignItems: 'center', justifyContent: 'center' }}
         >
-          <Icon name="minus" size={12} color={c.onRating} weight="bold" />
+          <View style={{ width: DELETE_DOT, height: DELETE_DOT, borderRadius: radius.pill, backgroundColor: c.danger, alignItems: 'center', justifyContent: 'center' }}>
+            <Icon name="minus" size={12} color={c.onRating} weight="bold" />
+          </View>
         </Tappable>
       ) : null}
       {badge.emoji ? <DeckBadge deck={row.deck} emoji={badge.emoji} /> : null}
@@ -322,19 +327,13 @@ export function DeckRowLink({ row, first, toggleSlot, open, picked, onPick, onOp
 
 /** With no decks at all: make one (NewDeck.tsx), or bring in an Anki collection. */
 export function NoDecksCard({ onImport }: { onImport: () => void }) {
-  const c = useTheme();
   const router = useRouter();
   return (
-    <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.s }}>
-      <Icon name="rectangle.stack" size={40} color={c.textTertiary} weight="regular" />
-      <Text style={{ ...type.title, color: c.text, marginTop: space.s }}>No decks yet</Text>
-      <Text style={{ ...type.subhead, color: c.textSecondary, lineHeight: 21, textAlign: 'center', marginBottom: space.m }}>
-        Make a deck for what you're learning and add words to it, or bring in your Anki collection.
-      </Text>
-      <Button label="Make a deck" onPress={() => router.push('/deck-new')} style={{ alignSelf: 'stretch' }} />
-      <Button variant="secondary" label="Bring in from Anki" onPress={onImport} style={{ alignSelf: 'stretch' }} />
+    <EmptyState icon="rectangle.stack" title="No decks yet" body="Make a deck for what you're learning and add words to it, or bring in your Anki collection.">
+      <Button label="Make a deck" onPress={() => router.push('/deck-new')} />
+      <Button variant="secondary" label="Bring in from Anki" onPress={onImport} />
       <Help>Anki users: sync with your own Anki server, or choose a collection exported from AnkiMobile.</Help>
-    </Card>
+    </EmptyState>
   );
 }
 

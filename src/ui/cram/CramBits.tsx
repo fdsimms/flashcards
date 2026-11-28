@@ -29,6 +29,7 @@ export function Pill({ label, selected, onPress, ink, fill, icon, accessibilityL
       accessibilityRole="button"
       accessibilityState={{ selected: !!selected }}
       accessibilityLabel={accessibilityLabel ?? label}
+      hitSlop={{ top: 2, bottom: 2 }}
       scaleTo={0.95}
       style={{
         minHeight: MIN_TAP - 4, flexDirection: 'row', alignItems: 'center', gap: space.xs + 2, paddingHorizontal: space.m + 2,

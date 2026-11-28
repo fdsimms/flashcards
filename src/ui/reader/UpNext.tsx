@@ -4,7 +4,7 @@ import { Animated, Image, PanResponder, ScrollView, Text, View } from 'react-nat
 import { dropIndex, itemDetail, keyOf, languageOf, shiftFor, titleOf, type QueueItem } from '../../reader/audioQueue';
 import { FLAG_IMAGES } from '../flagImages';
 import { haptic } from '../haptics';
-import { Group, Help, HeaderAction, Icon, NavRow, Screen, SectionTitle, SwipeAction, SwipeToReveal, SwitchRow, Tappable } from '../kit';
+import { EmptyState, Group, HeaderAction, Icon, NavRow, Screen, SectionTitle, SwipeAction, SwipeToReveal, SwitchRow, Tappable } from '../kit';
 import { lift, MIN_TAP, radius, readable, smooth, space, type, useTheme } from '../theme';
 import { useAudioQueue } from '../useAudioQueue';
 import { useQueueMenu } from '../useQueueMenu';
@@ -65,9 +65,7 @@ export function UpNext() {
           </View>
         ) : null}
         {next.length === 0 ? (
-          <View style={{ paddingHorizontal: space.l }}>
-            <Help>Nothing is queued. Touch and hold a text on the Read & Listen shelf or in Reread, or a lesson on the Lessons tab, and choose Play Next or Play Later.</Help>
-          </View>
+          <EmptyState icon="list.bullet" title="Nothing is queued" body="Touch and hold a text on the Read & Listen shelf or in Reread, or a lesson on the Lessons tab, and choose Play Next or Play Later." />
         ) : (
           <DragList
             items={next}

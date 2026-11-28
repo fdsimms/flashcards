@@ -41,11 +41,11 @@ export function ReadChoices({ choices, chosen, textStyle, onChoose, error, showE
           } as const;
           const body = (
             <>
-              <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, ...textStyle.font.strong, color: selected ? c.accent : c.text }}>
+              <Text style={{ fontSize: textStyle.fontSize, lineHeight: textStyle.lineHeight, ...textStyle.font.strong, color: selected ? c.accentInk : c.text }}>
                 {choiceText(choice)}
               </Text>
               {showEnglish ? (
-                <Text style={{ ...type.footnote, color: selected ? c.accent : c.textSecondary }}>{choice.english}</Text>
+                <Text style={{ ...type.footnote, color: selected ? c.accentInk : c.textSecondary }}>{choice.english}</Text>
               ) : null}
             </>
           );

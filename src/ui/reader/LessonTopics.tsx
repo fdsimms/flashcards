@@ -79,7 +79,7 @@ export function LessonTopics({ api, language, words, onPick }: {
               </Tappable>
             ))}
           </View>
-          <Tappable onPress={ask} disabled={asking} accessibilityRole="button" accessibilityLabel="More ideas" style={{ alignSelf: 'flex-end' }}>
+          <Tappable onPress={() => { haptic.tap(); void ask(); }} disabled={asking} accessibilityRole="button" accessibilityLabel="More ideas" style={{ alignSelf: 'flex-end' }}>
             {asking ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.s }}>
                 <WorkingMark />
@@ -90,7 +90,7 @@ export function LessonTopics({ api, language, words, onPick }: {
         </>
       ) : (
         <Tappable
-          onPress={ask}
+          onPress={() => { haptic.tap(); void ask(); }}
           disabled={asking}
           accessibilityRole="button"
           accessibilityLabel="Suggest topics"

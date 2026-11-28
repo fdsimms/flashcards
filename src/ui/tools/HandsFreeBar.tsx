@@ -4,7 +4,7 @@ import { Animated, Easing, Text, View } from 'react-native';
 import { handsFreeStatus, REVIEW_MS } from '../../reader/handsFree';
 import { haptic } from '../haptics';
 import { Button, Help, Icon, Tappable } from '../kit';
-import { radius, space, type, useTheme } from '../theme';
+import { radius, smooth, space, type, useTheme } from '../theme';
 import { useSpokenAnswer } from '../useSpokenAnswer';
 import type { useHandsFree } from './useHandsFree';
 
@@ -54,7 +54,7 @@ export function HandsFreeBar({ run, name, lang, look, typing }: {
           accessibilityRole="button"
           accessibilityLabel={`${state.line}. Tap to fix it before it's sent`}
           scaleTo={0.99}
-          style={{ backgroundColor: c.accentFill, borderRadius: radius.l, padding: space.m, gap: space.s }}
+          style={{ backgroundColor: c.accentFill, borderRadius: radius.l, ...smooth, padding: space.m, gap: space.s }}
         >
           <Text accessibilityLanguage={lang} style={{ ...look, color: c.text }}>{state.line}</Text>
           <View style={{ height: 4, borderRadius: 2, backgroundColor: c.fill, overflow: 'hidden' }}>

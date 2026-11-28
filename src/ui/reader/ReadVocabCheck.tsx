@@ -277,7 +277,7 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
         <Reveal key={item.word} rise={10} style={{ gap: space.m }}>
           <Card style={{ alignItems: 'center', paddingVertical: space.xl, gap: space.xs }}>
             <Text style={{ ...type.footnote, color: c.textSecondary }}>What does this mean?</Text>
-            <Text selectable style={{ ...withThaiLineHeight(type.cardFront, item.word), color: c.text, textAlign: 'center' }}>{item.word}</Text>
+            <Text selectable accessibilityLanguage={LANGUAGES[language].speech} style={{ ...withThaiLineHeight(type.cardFront, item.word), color: c.text, textAlign: 'center' }}>{item.word}</Text>
             <View style={{ marginTop: space.s }}>
               <PlayPill label={`Play ${item.word}`} onPlay={() => onPlayWord(item.word, language, item.reading)} speech={LANGUAGES[language].speech} />
             </View>
@@ -301,13 +301,13 @@ export function ReadVocabCheck({ api, language, current, onSettings, onPlayWord,
               const content = (
                 <>
                   {i ? <Divider inset={space.l} /> : null}
-                  <View style={{ width: 28, height: 28, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderColor: mark ?? c.border, borderWidth: 1 }}>
+                  <View style={{ minWidth: 28, minHeight: 28, borderRadius: radius.pill, alignItems: 'center', justifyContent: 'center', borderColor: mark ?? c.border, borderWidth: 1 }}>
                     <Text style={{ ...type.footnote, color: mark ?? c.textSecondary, fontWeight: '600' }}>{'ABCD'[i]}</Text>
                   </View>
                   <Text accessibilityLabel={canAdd ? label : undefined} style={{ ...type.body, color: c.text, flex: 1, fontWeight: showRight ? '600' : '400' }}>{choice}</Text>
                   {canAdd ? (
                     <Tappable
-                      onPress={() => add(item)}
+                      onPress={() => { haptic.tap(); void add(item); }}
                       disabled={isAdded}
                       accessibilityRole="button"
                       hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
