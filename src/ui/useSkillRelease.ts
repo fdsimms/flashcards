@@ -18,10 +18,16 @@ import { coverable, drillOfTags, holdable, knownIn, missingByCard, releasable } 
  * of is set aside once that one has settled (`coverable`): tagged `skill::covered` and suspended. A drill card due more than a week
  * out is brought into the week with Set Due Date (`drillDueTooFar`), so the weekly cap holds for one scheduled before it. Nothing is released or held while the deck's skill
  * cards are paused. Run once when a review session's cards are first loaded, behind any answer being
- * written; a step released now comes up from the next session. Suspending and unsuspending go through
- * `setCardStates`, as the review menu's do, so Anki and sync carry them.
+ * written. Suspending and unsuspending go through `setCardStates`, as the review menu's do, so Anki and
+ * sync carry them. `onSaved` gets the cards and notes as written, for the open session to take them in:
+ * a step set aside leaves it, and a card brought into the week can come up in it.
  */
-export function useSkillRelease(repo: NoteStore & Pick<AnkiLink, 'setAnkiCardStates' | 'ankiSkillSettings'>, cards: Card[] | null, notes: Map<string, Note>, dayStartsAtHour: number) {
+export function useSkillRelease(
+  repo: NoteStore & Pick<AnkiLink, 'setAnkiCardStates' | 'ankiSkillSettings'>, cards: Card[] | null, notes: Map<string, Note>, dayStartsAtHour: number,
+  onSaved: (cards: Card[], notes: Note[]) => void,
+) {
+  const saved = useRef(onSaved);
+  saved.current = onSaved;
   const done = useRef(false);
   useEffect(() => {
     if (done.current || !cards || !notes.size) return;
@@ -48,16 +54,25 @@ export function useSkillRelease(repo: NoteStore & Pick<AnkiLink, 'setAnkiCardSta
       const targets = (ids: Set<string>) => skill.filter((s) => ids.has(s.card.id)).map((s) => s.card);
       reviewWrites.add(async () => {
         const now = new Date();
-        // The tag first, so a card the suspend below doesn't reach is still passed by from now on.
-        const covering = targets(cover);
-        for (const noteId of new Set(covering.map((cd) => cd.noteId))) {
-          const n = notes.get(noteId);
-          if (n && !n.tags.includes(SKILL_COVERED_TAG)) await saveNote(repo, { id: n.id, deck: n.deck, model: n.model, fields: n.fields, tags: [...n.tags, SKILL_COVERED_TAG] }, now);
+        // Each card as last written, so a later write starts from an earlier one's and the session gets the last.
+        const written = new Map<string, Card>();
+        const savedNotes: Note[] = [];
+        const latest = (list: Card[]) => list.map((cd) => written.get(cd.id) ?? cd);
+        const keep = (list: Card[]) => { for (const cd of list) written.set(cd.id, cd); };
+        try {
+          // The tag first, so a card the suspend below doesn't reach is still passed by from now on.
+          const covering = targets(cover);
+          for (const noteId of new Set(covering.map((cd) => cd.noteId))) {
+            const n = notes.get(noteId);
+            if (n && !n.tags.includes(SKILL_COVERED_TAG)) savedNotes.push(await saveNote(repo, { id: n.id, deck: n.deck, model: n.model, fields: n.fields, tags: [...n.tags, SKILL_COVERED_TAG] }, now));
+          }
+          const toSuspend = new Set([...hold, ...covering.filter((cd) => !cd.suspended).map((cd) => cd.id)]);
+          if (release.size) keep((await setCardStates(repo, targets(release), (s) => ({ ...s, suspended: false }), now, dayStartsAtHour)).cards);
+          if (toSuspend.size) keep((await setCardStates(repo, latest(targets(toSuspend)), (s) => ({ ...s, suspended: true }), now, dayStartsAtHour)).cards);
+          if (far.length) keep((await setDueDates(repo, latest(far), { min: 0, max: DRILL_MAX_INTERVAL_DAYS, forceReset: false }, now)).cards);
+        } finally {
+          if (written.size || savedNotes.length) saved.current([...written.values()], savedNotes);
         }
-        const toSuspend = new Set([...hold, ...covering.filter((cd) => !cd.suspended).map((cd) => cd.id)]);
-        if (release.size) await setCardStates(repo, targets(release), (s) => ({ ...s, suspended: false }), now, dayStartsAtHour);
-        if (toSuspend.size) await setCardStates(repo, targets(toSuspend), (s) => ({ ...s, suspended: true }), now, dayStartsAtHour);
-        if (far.length) await setDueDates(repo, far, { min: 0, max: DRILL_MAX_INTERVAL_DAYS, forceReset: false }, now);
       }).catch(() => undefined); // Nothing to show: what didn't happen is worked out again at the next session.
     })();
   }, [repo, cards, notes, dayStartsAtHour]);

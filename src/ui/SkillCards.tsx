@@ -54,7 +54,7 @@ export function SkillCards({ deck, onDone }: { deck: string; onDone: () => void 
         const n = skillNotes.get(cd.noteId)!;
         const r = retrievability(cd, now, paramsForDeck(n.deck, params)?.weights ?? []);
         // A drill card's run of clean weeks, from every device's answers: six or more offers Stop practicing.
-        const weeks = isDrillNote(n) && cd.sched.state === 2 ? cleanWeeks(await cardHistory(repo, cd).catch(() => [])) : undefined;
+        const weeks = isDrillNote(n) && cd.sched.state === 2 ? cleanWeeks(await cardHistory(repo, cd).catch(() => []), H) : undefined;
         return {
           noteId: n.id, weeks,
           tags: n.tags, suspended: !!cd.suspended, started: cd.sched.state !== 0, settled: cd.sched.state !== 0 && !isInProgress(cd),

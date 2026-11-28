@@ -1,6 +1,6 @@
 import type { Phrase } from './phrase';
 import { pickOther } from './random';
-import { knownAmong } from './skillWords';
+import { knownAmong } from './knownWords';
 
 /**
  * Counting things: a number with a noun, as each language says it. What's hard differs by

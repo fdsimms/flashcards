@@ -29,7 +29,7 @@ type Picked = { choice: number | Tone | null };
 function voiceLine(heard: HeardIn | null): string | undefined {
   if (!heard) return undefined;
   if (heard.kind === 'voice') return heard.of > 1 ? `Voice ${heard.index + 1} of ${heard.of}. Play it again for another voice.` : undefined;
-  if (heard.kind === 'none') return "Couldn't play this word: it needs its recording, and Read & Listen couldn't be reached. Choose I don't know to go on.";
+  if (heard.kind === 'none') return "Couldn't play this word. It needs its recording, and Read & Listen is off or couldn't be reached. Skip it to go on.";
   if (heard.why === 'off') return "Only the phone's voice. Turn on Read & Listen to hear each word in 3 or 4 voices.";
   if (heard.why === 'unreachable') return "Only the phone's voice: Read & Listen couldn't be reached. Words recorded before still play in their voices.";
   return "Only the phone's voice: Read & Listen has no voices for this language.";
@@ -222,7 +222,10 @@ export function HearingTool({ tool, repo, readerApi, params }: ToolScreenProps) 
           ))}
         {answered
           ? <Button label={roundDone ? 'See how you did' : 'Next'} onPress={next} />
-          : <Button variant="secondary" label="I don't know" onPress={() => choose(null)} />}
+          // A word that couldn't be played is skipped, not counted as missed: there was nothing to hear.
+          : heard?.kind === 'none'
+            ? <Button variant="secondary" label="Skip" onPress={() => { haptic.tap(); ask(question); }} />
+            : <Button variant="secondary" label="I don't know" onPress={() => choose(null)} />}
         <Text style={{ ...type.caption, color: c.textSecondary, textAlign: 'center' }}>{`${Math.min(answers.length + (answered ? 0 : 1), ROUND_LENGTH)} of ${ROUND_LENGTH}`}</Text>
       </View>
     );

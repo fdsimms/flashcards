@@ -1,5 +1,7 @@
+import asyncio
 import json
 import random
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -264,7 +266,13 @@ def test_an_entry_is_checked_kept_and_its_cost_counted() -> None:
     assert seen == [CheckRequest("pl", TEXT, "What did you do?")]
     assert app.get(f"/api/journal/{got['id']}", headers=AUTH).json() == got
     other = app.get("/api/costs", headers=AUTH).json()["other_calls"]
-    assert {"feature": "journal", "asked": 1, "cost_usd": 2.0} in other["features"]
+    assert {
+        "feature": "journal",
+        "asked": 1,
+        "cost_usd": 2.0,
+        "audio_chars": 0,
+        "azure_usd": 0,
+    } in other["features"]
 
 
 def test_an_entry_sent_twice_is_checked_once() -> None:
@@ -274,6 +282,26 @@ def test_an_entry_sent_twice_is_checked_once() -> None:
     first = app.post("/api/journal/check", json=body, headers=AUTH).json()
     again = app.post("/api/journal/check", json=body, headers=AUTH).json()
     assert first == again and len(seen) == 1
+
+
+def test_an_entry_resent_while_its_check_runs_is_checked_once() -> None:
+    seen: list[CheckRequest] = []
+    first_check = checker(seen)
+
+    async def slow(request: CheckRequest) -> tuple[dict[str, Any], Usage]:
+        await asyncio.sleep(0.3)  # longer than the phone waits before sending a held entry again
+        checked: tuple[dict[str, Any], Usage] = await first_check(request)
+        return checked
+
+    app, _ = client(slow)
+    body = {"language": "pl", "text": TEXT, "key": "held-2"}
+    with ThreadPoolExecutor(2) as pool:
+        sent = [
+            pool.submit(app.post, "/api/journal/check", json=body, headers=AUTH) for _ in range(2)
+        ]
+        answers = [f.result() for f in sent]
+    assert [a.status_code for a in answers] == [200, 200]
+    assert answers[0].json() == answers[1].json() and len(seen) == 1
 
 
 def test_writing_again_counts_the_first_checks_mistakes_only() -> None:
@@ -354,7 +382,13 @@ def test_a_failed_check_keeps_what_it_cost_and_keeps_no_entry() -> None:
     got = app.post("/api/journal/check", json={"language": "pl", "text": TEXT}, headers=AUTH)
     assert got.status_code == 503 and got.json()["detail"].startswith("Claude didn't")
     other = app.get("/api/costs", headers=AUTH).json()["other_calls"]
-    assert {"feature": "journal", "asked": 1, "cost_usd": 2.0} in other["features"]
+    assert {
+        "feature": "journal",
+        "asked": 1,
+        "cost_usd": 2.0,
+        "audio_chars": 0,
+        "azure_usd": 0,
+    } in other["features"]
     assert app.get("/api/journal?language=pl", headers=AUTH).json()["entries"] == []
 
 

@@ -19,16 +19,44 @@ const tidy = (p: CramPhrase): CramPhrase => ({
   ...(p.reading?.trim() ? { reading: p.reading.replace(/\s+/g, ' ').trim() } : {}),
 });
 
-/** The cram with `added` on the end of its phrases: one already there (by its text) or with no text or meaning is left out, and only the first `MAX_PHRASES` are kept. */
-export function withPhrases(cram: Cram, added: CramPhrase[]): Cram {
+/** What adding phrases did: the cram, and how many were added, were already on it, or didn't fit (`MAX_PHRASES`). */
+export interface PhraseAddition {
+  cram: Cram;
+  added: number;
+  already: number;
+  full: number;
+}
+
+/**
+ * The cram with `added` on the end of its phrases: one already there (by its text) or with no text or
+ * meaning is left out, and none past `MAX_PHRASES` is added. Says what became of each, so a screen never
+ * reports one it left out as added.
+ */
+export function addPhrases(cram: Cram, added: CramPhrase[]): PhraseAddition {
   const have = new Set((cram.phrases ?? []).map(phraseKey));
   const next = [...(cram.phrases ?? [])];
+  let already = 0;
+  let full = 0;
   for (const phrase of added.map(tidy)) {
-    if (!phrase.text || !phrase.english || have.has(phraseKey(phrase))) continue;
+    if (!phrase.text || !phrase.english) continue;
+    if (have.has(phraseKey(phrase))) { already++; continue; }
+    if (next.length >= MAX_PHRASES) { full++; continue; }
     have.add(phraseKey(phrase));
     next.push(phrase);
   }
-  return { ...cram, phrases: next.slice(0, MAX_PHRASES) };
+  return { cram: { ...cram, phrases: next }, added: next.length - (cram.phrases ?? []).length, already, full };
+}
+
+/**
+ * What a screen says after adding phrases, or undefined when every one was added (the screen's own
+ * success says that): "Added 2 phrases. 1 was already on the cram. 3 didn't fit: a cram holds 60 phrases."
+ */
+export function phrasesNotAddedText({ added, already, full }: Omit<PhraseAddition, 'cram'>): string | undefined {
+  if (!already && !full) return undefined;
+  const parts = [added ? `Added ${added === 1 ? '1 phrase' : `${added} phrases`}.` : 'Nothing was added.'];
+  if (already) parts.push(already === 1 ? '1 was already on the cram.' : `${already} were already on the cram.`);
+  if (full) parts.push(`${full === 1 ? "1 didn't" : `${full} didn't`} fit: a cram holds ${MAX_PHRASES} phrases.`);
+  return parts.join(' ');
 }
 
 /** The cram without the phrase with this text, and without its check mark. */

@@ -1,5 +1,5 @@
-import { useLocalSearchParams } from 'expo-router';
-import React from 'react';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import React, { useCallback, useRef } from 'react';
 import { useApp } from '../ui/AppContext';
 import { CramPage } from '../ui/cram/CramPage';
 import { useNoteQueue } from '../ui/useNoteQueue';
@@ -13,6 +13,9 @@ export default function CramRoute() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const queue = useNoteQueue(reader.api);
   const review = useReviewQueued(queue.add);
+  // Read a text waits on a sync and the server: once this page is out of sight (Back, or another tab), the reader doesn't open.
+  const here = useRef(false);
+  useFocusEffect(useCallback(() => { here.current = true; return () => { here.current = false; }; }, []));
   return (
     <CramPage
       repo={repo}
@@ -28,7 +31,7 @@ export default function CramRoute() {
       } : undefined}
       retry={reader.api ? queue.retry : undefined}
       onEditNote={(noteId, onClose) => openNoteEditor({ noteId }, () => onClose())}
-      onRead={(language, words, own) => { readWithWords(language, words, undefined, own); }}
+      onRead={(language, words, own) => { readWithWords(language, words, () => here.current, own); }}
     />
   );
 }

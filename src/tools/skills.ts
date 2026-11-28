@@ -1,5 +1,6 @@
 import type { Language } from '../reader/api';
 import { speechLangFor } from '../core/cards';
+import { studyDayStart } from '../core/day';
 import { isInDeck } from '../core/deckTree';
 import { headword } from '../core/forms';
 import { setAsideOf, SKILL_DRILL_TAG, SKILL_TAG, SKILLS_SUBDECK, type SetAside } from '../core/skillTag';
@@ -16,7 +17,7 @@ import { CURRENCIES, randomAmount, type MoneyMax } from './money';
 import { CLASS_NAMES, CONSONANTS, VOWELS, vowelSteps, vowelSyllable } from './thai/letters';
 import { drawUnseen } from './drillSeen';
 import { stepNeeds, stillNeeded, wordDrafts, type SkillWordDraft } from './skillWords';
-import { countEnding, nounGloss, type CountQuestion } from './counting';
+import { countEnding, knownCountNouns, nounGloss, type CountQuestion } from './counting';
 import { COUNTING, CURRENCY_OF, DATE_SAYERS, MONEY_SAYERS, NUMBER_SAYERS, TIME_SAYERS } from './tools';
 import { CONTRAST_SETS, CONTRAST_STEP_PREFIX, GAP_SHOWN, contrastKey, contrastSet, contrastTitle, drawSentence, showSentence, type ContrastQuestion } from './contrasts';
 
@@ -638,7 +639,12 @@ export function coverable(cards: readonly SkillCardState[]): string[] {
 export const STOP_SUGGESTED_AFTER = 6;
 
 /** A review counts as a week's when it came at least this long after the answer before it (a week, less a day for a study day's drift). */
-const WEEK_GAP_MS = 6 * 86_400_000;
+/**
+ * The study days between two answers that make a week: a drill card's interval is capped at 7 days and
+ * Anki's fuzz takes that to 5 to 7, so a gap of 5 study days is a week at the cap. Study days, not hours,
+ * so an answer earlier in the day than the one before still counts.
+ */
+const WEEK_GAP_DAYS = 5;
 
 /**
  * How many weeks running a drill card has been answered Good or Easy: its reviews newest first, each
@@ -646,14 +652,16 @@ const WEEK_GAP_MS = 6 * 86_400_000;
  * card was still climbing to the week, isn't a week). Any Again or Hard, or a learning or relearning
  * answer, ends the run. Answers made by hand (rating 0: Set Due Date, Forget) are passed over.
  */
-export function cleanWeeks(history: readonly { at: Date; kind: string; rating: number }[]): number {
+export function cleanWeeks(history: readonly { at: Date; kind: string; rating: number }[], dayStartsAtHour: number): number {
   const answers = history.filter((h) => h.rating > 0);
+  const dayOf = (d: Date) => studyDayStart(d, dayStartsAtHour).getTime();
   let weeks = 0;
   for (let i = 0; i < answers.length; i++) {
     const a = answers[i];
     if (a.kind !== 'Review' || a.rating < 3) break;
     const before = answers[i + 1];
-    if (before && a.at.getTime() - before.at.getTime() >= WEEK_GAP_MS) weeks++;
+    // Rounded: a study day across a clock change is 23 or 25 hours.
+    if (before && Math.round((dayOf(a.at) - dayOf(before.at)) / 86_400_000) >= WEEK_GAP_DAYS) weeks++;
   }
   return weeks;
 }
@@ -761,6 +769,16 @@ export function knownHeadwords(notes: Iterable<Note>, cards: Iterable<KnownCard>
   const out: string[] = [];
   for (const n of notes) if (settled.has(n.id) && !n.tags.includes(SKILL_TAG) && (deck === undefined || isInDeck(n.deck, deck))) out.push(headword(n));
   return out;
+}
+
+/** `knownHeadwords` of a language's decks (Counting things asks only about counters these have). */
+export const languageHeadwords = (language: Language, notes: readonly Note[], cards: Iterable<KnownCard>): string[] =>
+  knownHeadwords(notes.filter((n) => languageOfDeck(n.deck)?.language === language), cards);
+
+/** The nouns Counting things can ask in a language (`knownCountNouns`), as its screen works them out; undefined where there's no Counting. */
+export function countNounsKnown(language: Language, notes: readonly Note[], cards: Iterable<KnownCard>): number[] | undefined {
+  const counting = COUNTING[language];
+  return counting && knownCountNouns(counting, languageHeadwords(language, notes, cards));
 }
 
 /** `knownHeadwords` for any language deck, each worked out once. */

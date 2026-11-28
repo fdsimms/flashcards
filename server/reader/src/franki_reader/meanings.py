@@ -30,7 +30,7 @@ from anthropic.types.beta import BetaMessageParam, BetaOutputConfigParam
 
 from franki_reader import store
 from franki_reader.claude_errors import didnt_answer
-from franki_reader.coverage import Checker, is_word, segment_line
+from franki_reader.coverage import Checker, is_word, parse_line, segment_line
 from franki_reader.generator import CHEAP_MODEL, REGISTERS, Usage, usage_of
 from franki_reader.languages import LANGUAGES, Code
 from franki_reader.reader import gloss_for
@@ -144,7 +144,16 @@ def missing(texts: Iterable[StoredText], lexicon: Checker, deck: dict[str, str])
                     continue
                 seen.add(word)
                 if gloss_for(piece, own, lexicon, deck) is None:
-                    found.append(Wanted(word, line.english, text.id, None, line.text))
+                    # The line as read, without its markup: the request row already uses `|` between its parts.
+                    found.append(
+                        Wanted(
+                            word,
+                            line.english,
+                            text.id,
+                            None,
+                            parse_line(line.text, lexicon.spaced)[0],
+                        )
+                    )
     return found
 
 

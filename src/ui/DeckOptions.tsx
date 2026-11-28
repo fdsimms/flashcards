@@ -10,7 +10,7 @@ import { deckHasAspectLanguage } from '../core/aspectCheck';
 import { deckHasForms } from '../core/forms';
 import { newCardOrderOf } from '../core/newCardOrder';
 import { paramsForDeck } from '../core/scheduler';
-import { goalTarget } from '../core/dailyGoal';
+import { goalTarget, goalTurnedOff } from '../core/dailyGoal';
 import type { DeckParams, DeckSettings, Note } from '../core/types';
 import type { AnkiLink } from '../db/ankiLink';
 import type { Repo } from '../db/repo';
@@ -20,7 +20,7 @@ import type { Script } from '../core/fonts';
 import { useApp } from './AppContext';
 import { DeckDailyGoal } from './DeckDailyGoal';
 import { DeckDailyLimits } from './DeckDailyLimits';
-import { tuneDeck } from './dailyGoals';
+import { tuneDeck, turnGoalOff } from './dailyGoals';
 import { DeckFontOptions } from './DeckFontOptions';
 import { DeckFormsOptions } from './DeckFormsOptions';
 import { DeckNewCardOrder } from './DeckNewCardOrder';
@@ -100,6 +100,16 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onBrowse,
     try { await tuneDeck(repo, deck); } finally { setAttempt((n) => n + 1); refresh().catch(() => undefined); }
   };
 
+  // The goal off, and what it replaced put back (in Anki too, for its own deck limit), behind the saves before it.
+  const turnGoalOffHere = () => {
+    if (!settings) return;
+    setSettings(goalTurnedOff(settings, goalTarget(deck, settings, params)).settings);
+    saving.current = saving.current
+      .then(() => turnGoalOff(repo, deck))
+      .catch((e) => { Alert.alert("Couldn't turn the goal off", failureText(e, { next: 'Try again.' })); })
+      .finally(() => { setAttempt((n) => n + 1); refresh().catch(() => undefined); });
+  };
+
   const toggle = (on: boolean) => {
     if (!settings) return;
     // With a daily goal, the gate decides what the goal sets: work today's value out again for it.
@@ -175,7 +185,7 @@ export function DeckOptions({ repo, deck, onCustomStudy, onSkillCards, onBrowse,
       <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={{ ...readable, paddingHorizontal: space.l, paddingBottom: space.l + bottomPadding, gap: SECTION_GAP }} keyboardShouldPersistTaps="handled" keyboardDismissMode="interactive" {...scrollProps}>
         <View style={{ gap: space.m }}>
           <PageTitle>{name ?? ''}</PageTitle>
-          {goalShown ? <DeckDailyGoal settings={settings} target={target} onChange={(patch) => save({ ...settings, ...patch })} retune={retune} /> : gateSection}
+          {goalShown ? <DeckDailyGoal settings={settings} target={target} onChange={(patch) => save({ ...settings, ...patch })} retune={retune} turnOff={turnGoalOffHere} /> : gateSection}
         </View>
         {goalShown ? gateSection : null}
         {filtered ? null : <DeckNewCardOrder repo={repo} deck={deck} />}

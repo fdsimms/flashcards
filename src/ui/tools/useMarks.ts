@@ -24,9 +24,10 @@ export function useMarks(tool: ToolId, language: Language) {
         noteDrillAsked(language, tool, keyOf(picked));
         return picked;
       },
-      mark: (patterns: string[], right: boolean) => {
-        // Every answer counts toward today's extra for this drill (Daily extras).
-        recordExtraAnswer(tool, language);
+      /** `again`: a second mark for a question already counted (Which case's typed form), tallied but not counted twice toward Daily extras. */
+      mark: (patterns: string[], right: boolean, again = false) => {
+        // Every question counts once toward today's extra for this drill (Daily extras).
+        if (!again) recordExtraAnswer(tool, language);
         // After the stored tallies are in, so a mark made while they load isn't overwritten by them.
         loadToolMarks().then(() => saveToolMarks(recordMark(toolMarks(), list, patterns, right, Date.now())));
       },

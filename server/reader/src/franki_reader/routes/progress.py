@@ -161,6 +161,7 @@ def router(ctx: AppContext) -> APIRouter:
         ipa_written = store.ipa_spending(engine.conn, since)
         recorded, recorded_chars = store.recording_spending(engine.conn, since)
         others = store.other_call_spending(engine.conn, since)
+        other_chars = sum(o.audio_chars for o in others.values())
         rows = by_language.values()
         total = store.Spending(
             sum(r.read for r in rows),
@@ -402,14 +403,27 @@ def router(ctx: AppContext) -> APIRouter:
                 "cost_usd": round(sum(c for _, c in cram_themes.values()), 4),
             },
             # Every other Claude call (asking about a card, fixing one, verb aspect, a lesson's
-            # words, rare words, looking a word up...), failed ones included, by feature
-            # (`store.REPORTED_FEATURES`), so a call with no section above is still counted.
+            # words, rare words, looking a word up...), failed ones included, and the audio Azure
+            # spoke for those features (a grammar lesson's examples), by feature
+            # (`store.REPORTED_FEATURES`), so a call or a clip with no section above is still
+            # counted. A clip is audio, not one more call. Most expensive first, Azure included.
             "other_calls": {
-                "asked": sum(n for n, _ in others.values()),
-                "cost_usd": round(sum(c for _, c in others.values()), 4),
+                "asked": sum(o.asked for o in others.values()),
+                "cost_usd": round(sum(o.cost_usd for o in others.values()), 4),
+                "audio_chars": other_chars,
+                "azure_usd": round(azure_usd(other_chars), 4),
                 "features": [
-                    {"feature": feature, "asked": n, "cost_usd": round(c, 4)}
-                    for feature, (n, c) in others.items()
+                    {
+                        "feature": feature,
+                        "asked": o.asked,
+                        "cost_usd": round(o.cost_usd, 4),
+                        "audio_chars": o.audio_chars,
+                        "azure_usd": round(azure_usd(o.audio_chars), 4),
+                    }
+                    for feature, o in sorted(
+                        others.items(),
+                        key=lambda item: -(item[1].cost_usd + azure_usd(item[1].audio_chars)),
+                    )
                 ],
             },
             # Cards recorded by an Azure voice in the app (POST /api/speech): Azure's alone, an

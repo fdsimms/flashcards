@@ -127,6 +127,8 @@ def test_a_word_is_asked_with_its_own_line_as_well_as_its_english() -> None:
     lexicon = lexicon_from(DECK, "nb", 1000)
     asked = missing([text], lexicon, {"mat": "food"})
     assert all(w.line for w in asked)
+    # The line as read, not as stored: its `|` would split the request's own row.
+    assert {w.line for w in asked} <= {"Hei! Vi har varm mat og vann.", "Varm mat!"}
     writer = Writer()
     asyncio.run(fill(conn, writer, "nb", [text], lexicon, {"mat": "food"}, lambda: NOW))
     assert all(writer.lines[0])

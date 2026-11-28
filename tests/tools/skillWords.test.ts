@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Language } from '../../src/reader/api';
 import { DRILL_STEPS, drawQuestion, drillAnswer, hasDrills, type DrillQuestion, type DrillStep } from '../../src/tools/skills';
 import {
-  DIGIT_WORDS, groupWords, knownAmong, knownDays, knownMonths, MIN_MONTHS, MIN_ORDINALS, MONTH_MEANINGS, MONTH_WORDS, ORDINAL_DAY_WORDS, SKILL_WORD_NOTE_TYPE, stepNeeds, stillNeeded, WEEKDAY_MEANINGS, WEEKDAY_WORDS, WORD_SETS, wordDrafts,
+  DIGIT_WORDS, groupWords, knownDays, knownMonths, MIN_MONTHS, MIN_ORDINALS, MONTH_MEANINGS, MONTH_WORDS, ORDINAL_DAY_WORDS, SKILL_WORD_NOTE_TYPE, stepNeeds, stillNeeded, WEEKDAY_MEANINGS, WEEKDAY_WORDS, WORD_SETS, wordDrafts,
 } from '../../src/tools/skillWords';
 import { weekdayOf } from '../../src/tools/date';
 import { DATE_SAYERS } from '../../src/tools/tools';
@@ -216,13 +216,7 @@ describe('what a drill step waits for', () => {
     expect(words('dates-year', 'es')).not.toContain('cien');
   });
 
-  it('counts a word known when a studied headword is it or has it as a word of its own', () => {
-    expect(knownAmong(['februar', 'mars'], ['Februar', 'mars, måned', 'marsipan'])).toEqual([true, true]);
-    expect(knownAmong(['mars'], ['marsipan'])).toEqual([false]);
-    // Russian ё and Greek tone marks are not told apart; other accents are.
-    expect(knownAmong(['четвёртый', 'μία', 'δεκατέσσερα'], ['четвертый', 'Μια', 'δεκατεσσερα'])).toEqual([true, true, true]);
-    expect(knownAmong(['być', 'wpół'], ['byc', 'wpol'])).toEqual([false, false]);
-    expect(knownAmong(['ร้อย'], ['หนึ่งร้อย', 'แมว'])).toEqual([false]);
+  it('counts a month known by the known headwords', () => {
     expect(knownMonths('nb', ['januar', 'mai', 'bil'])).toEqual([1, 5]);
     expect(knownMonths('en', ['january'])).toEqual([]);
   });

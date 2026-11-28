@@ -1,6 +1,8 @@
 import random
+import re
 import shutil
 import subprocess
+import urllib.parse
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
@@ -48,7 +50,11 @@ class Wikimedia:
     def __call__(self, request: httpx.Request) -> httpx.Response:
         self.asked.append(request.url.host)
         if request.url.host == "lingualibre.org":
-            rows = [{"file": {"value": LL}}] if self.found else []
+            # The row names the spelling it matched (?t): the first the query asks for.
+            query = urllib.parse.parse_qs(request.content.decode())["query"][0]
+            spelling = re.findall(r'"([^"]*)"', query.split("VALUES ?t {", 1)[1])[0]
+            row = {"r": {"value": "https://lingualibre.org/entity/Q1"}, "t": {"value": spelling}}
+            rows = [row | {"file": {"value": LL}}] if self.found else []
             return httpx.Response(200, json={"results": {"bindings": rows}})
         if request.url.host == "upload.wikimedia.org":
             return httpx.Response(200, content=tone())
@@ -138,6 +144,8 @@ def test_many_words_beyond_the_first_few_are_looked_up_in_the_background(tmp_pat
         "/api/native/find", json={"language": "de", "words": words}, headers=AUTH
     ).json()
     assert [r["word"] for r in again["results"]] == words and again["pending"] == []
+    # The three looked up while the request waited went in one query, and the three after in another.
+    assert wiki.asked.count("lingualibre.org") == 2
 
 
 @pytest.mark.skipif(shutil.which("ffmpeg") is None, reason="needs ffmpeg")

@@ -85,6 +85,11 @@ export function ReadGrammarLesson({ api, id, glossing, onSay, onPractice }: {
     player.play();
   };
 
+  // A rewrite keeps the old examples on screen until the new ones land: a new count when they do, so an opened translation closes.
+  const shown = useRef({ lines: '', generation: 0 });
+  const lines = lesson?.examples.map((ex) => ex.line).join('\n') ?? '';
+  if (lines !== shown.current.lines) shown.current = { lines, generation: shown.current.generation + 1 };
+
   if (!point) {
     return (
       <Screen title="Lesson">
@@ -122,7 +127,7 @@ export function ReadGrammarLesson({ api, id, glossing, onSay, onPractice }: {
           {lesson?.note ? <ErrorNote message={lesson.note} onRetry={rewriting ? undefined : () => { void rewrite(); }} /> : null}
           {ready ? (
             <GrammarExamples
-              generation={0}
+              generation={shown.current.generation}
               examples={lesson.examples.map((ex) => ({ line: ex.line, english: ex.english, words: ex.words, onPlay: () => { void play(ex); } }))}
             />
           ) : null}

@@ -203,13 +203,24 @@ export interface PlanInput {
   /** Whether Read & Listen is signed in, so a text can be offered. */
   readerOn: boolean;
   marks: Marks;
+  /**
+   * The languages whose Counting things has nothing to ask yet: its counters are words to learn (Thai,
+   * Japanese) and the deck knows none of them (`knownCountNouns` is empty). Counting isn't planned for
+   * them, since it couldn't be done.
+   */
+  noCounters: readonly Language[];
   now: Date;
   dayStartsAtHour: number;
 }
 
+/** The drills a language can be given today. */
+function drillsIn(language: Language, noCounters: readonly Language[]): ExtraTool[] {
+  return EXTRA_TOOLS.filter((t) => toolLanguages(t).includes(language) && !(t === 'counting' && noCounters.includes(language)));
+}
+
 /** Whether a language has anything to offer: a drill in it (with drills on), or a text. */
-function hasExtras(language: Language, prefs: ExtraPrefs, readerOn: boolean): boolean {
-  return (prefs.drills && EXTRA_TOOLS.some((t) => toolLanguages(t).includes(language))) || (prefs.read && readerOn);
+function hasExtras(language: Language, prefs: ExtraPrefs, readerOn: boolean, noCounters: readonly Language[]): boolean {
+  return (prefs.drills && drillsIn(language, noCounters).length > 0) || (prefs.read && readerOn);
 }
 
 /**
@@ -217,17 +228,17 @@ function hasExtras(language: Language, prefs: ExtraPrefs, readerOn: boolean): bo
  * app's order. A language with nothing to offer (no drill in it and no text) is left out: its time
  * would never move on, so it would take every turn and the strip would stay empty.
  */
-export function turnOrder({ prefs, state, languages, readerOn }: Pick<PlanInput, 'prefs' | 'state' | 'languages' | 'readerOn'>): Language[] {
+export function turnOrder({ prefs, state, languages, readerOn, noCounters }: Pick<PlanInput, 'prefs' | 'state' | 'languages' | 'readerOn' | 'noCounters'>): Language[] {
   return LANGUAGE_ORDER
-    .filter((l) => languages.includes(l) && modeOf(prefs, l) === 'turns' && hasExtras(l, prefs, readerOn))
+    .filter((l) => languages.includes(l) && modeOf(prefs, l) === 'turns' && hasExtras(l, prefs, readerOn, noCounters))
     .sort((a, b) => lastPracticed(state, a) - lastPracticed(state, b) || LANGUAGE_ORDER.indexOf(a) - LANGUAGE_ORDER.indexOf(b));
 }
 
 /** `count` extras for one language: the drill missed most lately, then (with a second) a text, else the next drill. */
 function extrasFor(language: Language, count: number, why: Extra['why'], input: PlanInput, start: number): Extra[] {
-  const { prefs, marks, now, readerOn } = input;
+  const { prefs, marks, now, readerOn, noCounters } = input;
   const drills = prefs.drills
-    ? EXTRA_TOOLS.filter((t) => toolLanguages(t).includes(language))
+    ? drillsIn(language, noCounters)
       .map((tool) => ({ tool, misses: liveMisses(marks[markList(tool, language)], now.getTime()) }))
       .sort((a, b) => b.misses - a.misses || hash(`${start}|${language}|${a.tool}`) - hash(`${start}|${language}|${b.tool}`))
     : [];
@@ -245,6 +256,7 @@ function extrasFor(language: Language, count: number, why: Extra['why'], input: 
   return out.slice(0, count).map((kind) => ({ language, kind, why }));
 }
 
+// Not `noCounters`: a counter learned during the day leaves the day's list as it was, and tomorrow's can have Counting.
 function signature({ prefs, languages, readerOn }: PlanInput): string {
   return JSON.stringify([EXTRA_TOOLS, prefs.on, prefs.turnsPerDay, prefs.drills, prefs.read, readerOn, LANGUAGE_ORDER.filter((l) => languages.includes(l)).map((l) => `${l}:${modeOf(prefs, l)}`)]);
 }

@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, Alert, ScrollView, Text, View } from 'react-native';
 import {
   cramLanguageOf, cramNotes, cramTag, daysUntil, fullDate, isAwaitingFinish, isRunning, lessonPhrases, meaningOf, MISSED_MAX, pendingRequests, practiceLabel, practiceOrder, practiceProgress,
-  practiceSummary, phrasesSummary, preparedLines, cramTextTopic, talkScene, textWords, themeTopic, withoutCapture, withoutRequest, withoutTalk, wordState, type Cram, type CramPhrase, type CramTalk as Talk, type WordState,
+  practiceSummary, preparedLines, cramTextTopic, talkScene, textWords, themeTopic, withoutCapture, withoutRequest, withoutTalk, wordState, type Cram, type CramPhrase, type CramTalk as Talk, type WordState,
 } from '../../core/cram';
 import { phraseIsUsed, withoutPhrase } from '../../core/cramPhrases';
 import { cramTextAbout } from '../../core/cramThemes';
@@ -302,7 +302,7 @@ export function CramPage(props: {
             </>
           ) : (
             <>
-              <Text style={{ ...type.headline, color: c.text }}>{!ids.length && phrases.length ? phrasesSummary(phrases.length) : practiceSummary(cram, ids)}</Text>
+              <Text style={{ ...type.headline, color: c.text }}>{practiceSummary(cram, ids)}</Text>
               {cram.rounds.length && ids.length ? <ProgressBar value={solid / ids.length} label="Solid words" /> : null}
               {ids.length || phrases.length ? <Button label={practiceLabel(cram, ids, phrases.length)} onPress={() => go('/cram-round')} /> : null}
               {!ids.length && !phrases.length && props.readerApi && language ? <Button label="Suggest words" onPress={() => go('/cram-suggest')} /> : null}

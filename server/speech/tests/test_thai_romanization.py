@@ -40,6 +40,7 @@ def test_marks_that_disagree_with_the_ipa_are_reported() -> None:
     assert tone_mismatch("phukhao", "/pʰuː˧.kʰaw˩˩˦/") == (["mid"], ["mid", "rising"])
     assert tone_mismatch("phukhǎo", "/pʰuː˧.kʰaw˩˩˦/") is None
     assert tone_mismatch("mai", "/maj˧/") is None
+    assert tone_mismatch("", "/pʰuː˧.kʰaw˩˩˦/") is None
     # A syllable missing from the romanization drops a marked tone.
     assert tone_mismatch("gaan-khàaeng", "/kaːn˧.kʰɛŋ˨˩.kʰan˩˩˦/") is not None
 

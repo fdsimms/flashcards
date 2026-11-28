@@ -577,6 +577,17 @@ describe('treeQueue, tagged cards first', () => {
     expect(q.fresh[3].id).toBe(cards[0].id);
     expect(q.fresh).toHaveLength(5);
   });
+  it('keeps tagged cards first when the collection has an aspect pair somewhere else', () => {
+    // The tagged cards are reverse cards, which the template sort would put after every forward card.
+    const reverse = Array.from({ length: 2 }, () => makeCards({ ...omniNote({ GenerateReverse: 'y' }), id: `n${n++}` }, NOW).find((c) => c.kind === 'reverse')!);
+    const cards = [...newCards(8), ...reverse].map((c, i) => ({ ...c, position: i }));
+    const boosted = new Set(reverse.map((c) => c.noteId));
+    const base = { ...input({ Thai: cards }, { Thai: { newPerDay: 5, reviewsPerDay: 200 } }), boostFor: () => ({ noteIds: boosted, percent: 50 }) };
+    const alone = treeQueue('Thai', base).fresh.map((c) => c.id);
+    const paired = treeQueue('Thai', { ...base, partnerOf: new Map([['ru1', 'ru2'], ['ru2', 'ru1']]) }).fresh.map((c) => c.id);
+    expect(paired.slice(0, 2).sort()).toEqual(reverse.map((c) => c.id).sort());
+    expect(paired).toEqual(alone);
+  });
   it('leaves the order alone with nothing tagged', () => {
     const { q, cards } = withBoost(4, 0, 20, 50);
     expect(q.fresh.map((c) => c.id)).toEqual(cards.map((c) => c.id));

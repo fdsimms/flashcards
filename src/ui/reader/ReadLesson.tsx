@@ -83,6 +83,8 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
     return words ? { api, onPlayWord, onAddWord, language: lesson.language, words, english: [...lesson.phrases, ...lesson.dialogue].find((l) => l.text === text)?.english } : null;
   };
 
+  // A start in flight (`toggle`), so a Pause or leaving the screen while it waits calls it off.
+  const starting = useRef({ seq: 0, pending: false });
   useEffect(() => {
     // Opened from the mini-player: this lesson is already on the player, and plays on.
     const resumed = host.resumeLesson(lesson.id);
@@ -90,6 +92,7 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
     setMine(resumed);
     if (resumed) showActivity(); else host.lessonLoop.clear(lesson.id);
     return () => {
+      starting.current = { seq: starting.current.seq + 1, pending: false };
       if (!owned.current) return;
       owned.current = false;
       // Playing carries on in the mini-player; a paused or finished lesson stops, as the reader's does,
@@ -142,15 +145,25 @@ export function ReadLesson({ api, lesson, onDeleted, onAddToDeck, onPlayWord, on
       waits.goOn();
       return;
     }
-    if (mine && status.playing) {
+    // A tap while a start is still waking the output counts as Pause: the start is called off.
+    if ((mine && status.playing) || starting.current.pending) {
+      starting.current = { seq: starting.current.seq + 1, pending: false };
       player.pause();
       return;
     }
-    await takeOver();
-    if (atEnd(status.currentTime, status.duration)) await player.seekTo(0);
-    // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake).
-    await wake();
-    player.play();
+    const seq = starting.current.seq + 1;
+    starting.current = { seq, pending: true };
+    try {
+      await takeOver();
+      if (atEnd(status.currentTime, status.duration)) await player.seekTo(0);
+      // Bluetooth headphones that have been quiet lose the start of the next sound (useOutputWake).
+      await wake();
+      // Paused again or left while waking: the host has already put the lesson down, so nothing starts.
+      if (starting.current.seq !== seq) return;
+      player.play();
+    } finally {
+      if (starting.current.seq === seq) starting.current = { seq, pending: false };
+    }
   };
   const skip = (by: number) => {
     haptic.tap();

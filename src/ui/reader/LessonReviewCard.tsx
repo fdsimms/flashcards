@@ -20,7 +20,7 @@ export function LessonReviewCard({ review, onMake, busy, error }: { review: Less
       </View>
       <Text style={{ ...type.subhead, color: c.textSecondary }}>{reviewDetail(review)}</Text>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.xs }}>
-        {review.lessons.map((l) => <Chip key={l.title} label={`${l.title} · ${l.count}`} />)}
+        {review.lessons.map((l, i) => <Chip key={`${i}:${l.title}`} label={`${l.title} · ${l.count}`} />)}
       </View>
       <Button label="Make the review" onPress={onMake} busy={busy} />
       {error ? <ErrorNote message={error} /> : null}

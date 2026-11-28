@@ -1,6 +1,7 @@
 import asyncio
 import random
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi.testclient import TestClient
@@ -12,6 +13,7 @@ from franki_reader.engine import Engine
 from franki_reader.generator import Usage
 from franki_reader.grammar_lessons import LessonFailed, check_examples, request_message
 from franki_reader.lexicon import Entry
+from franki_reader.tts import ClipCache, Spoken, azure_usd, billed_chars
 
 NOW = datetime(2026, 11, 25, 9, 0)
 AUTH = {"Authorization": "Bearer open sesame"}
@@ -112,7 +114,50 @@ def test_asking_for_a_lesson_writes_it_then_serves_it() -> None:
         assert c.get("/api/grammar/xx.none/lesson", headers=AUTH).status_code == 404
 
 
+def test_a_lessons_recorded_examples_are_its_audio_not_more_calls(tmp_path: Path) -> None:
+    conn = store.connect(":memory:")
+    store.save_snapshot(conn, ENTRIES, NOW)
+
+    async def synthesize(text: str, voice: str, locale: str, rate: float = 1.0) -> Spoken:
+        return Spoken(b"mp3")
+
+    async def write(entries: list[Entry], point: grammar.Point) -> tuple[dict[str, Any], Usage]:
+        return {"examples": GOOD}, Usage(usd=0.5)
+
+    e = Engine(conn, None, None, lambda: NOW, random.Random(1), synthesize=synthesize)
+    app = create_app(e, "open sesame", write_grammar_lesson=write, clips=ClipCache(tmp_path))
+    with TestClient(app) as c:
+        c.get("/api/grammar/th.future/lesson", headers=AUTH)
+        ready = c.get("/api/grammar/th.future/lesson", headers=AUTH).json()
+        assert all(example["audio"] for example in ready["examples"])
+        other = c.get("/api/costs", headers=AUTH).json()["other_calls"]
+    chars = sum(billed_chars(g["line"]) for g in GOOD)
+    assert other["features"] == [
+        {
+            "feature": "grammar_lessons",
+            "asked": 1,  # the one call that wrote it, not one more for each of the four clips
+            "cost_usd": 0.5,
+            "audio_chars": chars,
+            "azure_usd": round(azure_usd(chars), 4),
+        }
+    ]
+    assert other["audio_chars"] == chars and other["azure_usd"] == round(azure_usd(chars), 4)
+
+
 def test_without_claude_a_lesson_can_not_be_written() -> None:
     with TestClient(create_app(_engine(), "open sesame")) as c:
         assert c.get("/api/grammar/th.future/lesson", headers=AUTH).status_code == 503
         assert c.post("/api/grammar/th.future/lesson", headers=AUTH).status_code == 503
+
+
+def test_a_write_cut_off_by_a_restart_can_be_started_again() -> None:
+    conn = store.connect(":memory:")
+    assert store.start_grammar_lesson(conn, "th.future", NOW)
+    # The server restarted mid-write: nothing will ever finish it, and a new start was refused.
+    assert not store.start_grammar_lesson(conn, "th.future", NOW)
+    store.fail_interrupted_grammar_lessons(conn, grammar_lessons.FAILED)
+    lesson = store.get_grammar_lesson(conn, "th.future")
+    assert (
+        lesson is not None and lesson.status == "failed" and lesson.note == grammar_lessons.FAILED
+    )
+    assert store.start_grammar_lesson(conn, "th.future", NOW)

@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { readDeckConfig, readDeckKind } from '../../src/anki/collection';
 import { decodeMessage, uint } from '../../src/anki/protobuf';
-import { readAnkiPreset, setAnkiDeckNewLimit, setAnkiNewMix, setAnkiPresetOptions } from '../../src/anki/presetWrites';
+import { readAnkiDeckNewLimit, readAnkiPreset, setAnkiDeckNewLimit, setAnkiNewMix, setAnkiPresetOptions } from '../../src/anki/presetWrites';
 import { deckConfigJson } from '../../src/anki/sync/deckConfigRow';
 import { nodeSyncDb } from '../support/syncDb';
 
@@ -140,6 +140,17 @@ describe("a deck's own daily new card limit in the kept collection", () => {
   it('is false for a deck Anki does not have', async () => {
     const db = await kept();
     expect(await setAnkiDeckNewLimit(db, 'Nope', 5, NOW)).toBe(false);
+    db.close();
+  });
+
+  it('takes the limit off with null, so the deck follows its preset again, and reads it back', async () => {
+    const db = await kept();
+    expect(await readAnkiDeckNewLimit(db, '🧠 Trivia')).toBe(3);
+    expect(await setAnkiDeckNewLimit(db, '🧠 Trivia', null, NOW)).toBe(true);
+    expect(readDeckKind((await deckRow(db, '🧠 Trivia')).kind)?.newLimit).toBeUndefined();
+    expect((await readAnkiPreset(db, 1))!.decks.find((d) => d.name === '🧠 Trivia')!.own).toEqual({});
+    expect(await readAnkiDeckNewLimit(db, '🧠 Trivia')).toBeNull();
+    expect(await readAnkiDeckNewLimit(db, 'Nope')).toBeUndefined();
     db.close();
   });
 });
