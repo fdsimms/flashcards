@@ -15,7 +15,7 @@ import type { SyncDb } from './sync/collectionSync';
 /**
  * Adding, editing and deleting a note: in the kept Anki collection when the note is Anki's (so
  * Send to Anki and sync carry the change back), and in Franki's own tables either way. A note in
- * a deck the Anki collection doesn't have (a TSV import's) lives in Franki only.
+ * a deck the Anki collection doesn't have (a word list imported before imports went into Anki) lives in Franki only.
  *
  * Cards follow Anki's rules: a note gets a card for each template whose front shows something
  * (`makeCards`); an edit adds any card the note now generates, and keeps the rest, studied or not,
