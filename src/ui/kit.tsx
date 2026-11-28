@@ -316,16 +316,29 @@ export function NavRow({ label, detail, badge, facts, loading, making, working, 
   );
 }
 
-type TagProps = { text: string; color: string; fill: string; /** What VoiceOver says when the text alone is cryptic ("AI", "N5"). */ accessibilityLabel?: string };
+type TagProps = {
+  text: string;
+  color: string;
+  fill: string;
+  /** What VoiceOver says when the text alone is cryptic ("AI", "N5"). */
+  accessibilityLabel?: string;
+  /** A symbol before the text (a card's state, a verdict). */
+  icon?: SFSymbol;
+  /** The symbol's color, when it isn't the text's (an amber mark beside amber ink). */
+  iconColor?: string;
+  /** Drawn before the text in place of a symbol (a learning card's step dots). */
+  leading?: React.ReactNode;
+};
 
 /**
  * A short colored label (a grammar point's state, a count beside a heading): its text in a color
  * on a faint fill of the same color, which the theme pairs to pass 4.5:1 (`violetInk` on
  * `violetFill`, `goodInk` on `goodFill`).
  */
-export function Tag({ text, color, fill, accessibilityLabel }: TagProps) {
+export function Tag({ text, color, fill, accessibilityLabel, icon, iconColor, leading }: TagProps) {
   return (
-    <View accessible={!!accessibilityLabel} accessibilityLabel={accessibilityLabel} style={{ borderRadius: radius.pill, ...smooth, backgroundColor: fill, paddingHorizontal: space.s, paddingVertical: 2 }}>
+    <View accessible={!!accessibilityLabel} accessibilityLabel={accessibilityLabel} style={{ flexDirection: 'row', alignItems: 'center', gap: space.xs, borderRadius: radius.pill, ...smooth, backgroundColor: fill, paddingHorizontal: space.s, paddingVertical: 2 }}>
+      {leading ?? (icon ? <Icon name={icon} size={12} color={iconColor ?? color} weight="semibold" /> : null)}
       <Text style={{ ...type.footnote, fontWeight: '600', color, fontVariant: ['tabular-nums'] }}>{text}</Text>
     </View>
   );
