@@ -6,7 +6,7 @@ import { candidateWord, lessonWordHint, noCandidatesText, type LessonWordCandida
 import type { Language } from '../../reader/api';
 import { LANGUAGES } from '../../reader/languages';
 import { haptic } from '../haptics';
-import { Button, Card, Field, Help, Icon, Screen, Tappable } from '../kit';
+import { Button, Card, ErrorNote, Field, Help, Icon, Screen, Tappable } from '../kit';
 import { CandidateChips } from '../cram/CramBits';
 import { radius, smooth, readable, space, type, useTheme } from '../theme';
 import { useLessonWords } from './useLessonWords';
@@ -31,6 +31,8 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
   const { bottomPadding } = useKeyboardScroll();
   const [text, setText] = useState('');
   const [problem, setProblem] = useState<string>();
+  /** A failure, shown as an ErrorNote; `problem` is what to fix in what was typed. */
+  const [failed, setFailed] = useState<string>();
   const [candidates, setCandidates] = useState<LessonWordCandidate[]>();
   const [picked, setPicked] = useState<LessonWordCandidate>();
   const [finding, setFinding] = useState(false);
@@ -46,12 +48,12 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
     setCandidates(undefined);
     setPicked(undefined);
     setFinding(false);
-    setProblem(undefined);
+    setProblem(undefined); setFailed(undefined);
   };
 
   const find = async () => {
     const mine = ++asked.current;
-    setProblem(undefined);
+    setProblem(undefined); setFailed(undefined);
     setCandidates(undefined);
     setPicked(undefined);
     setFinding(true);
@@ -63,7 +65,7 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
       else if (found.length === 1) setPicked(found[0]);
     } catch (e) {
       if (asked.current !== mine) return;
-      setProblem(failureText(e, { next: 'Try again.' }));
+      setFailed(failureText(e, { next: 'Try again.' }));
     } finally {
       if (asked.current === mine) setFinding(false);
     }
@@ -71,13 +73,13 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
 
   const addPicked = () => {
     if (!picked) return;
-    setProblem(undefined);
+    setProblem(undefined); setFailed(undefined);
     try {
       add(candidateWord(picked));
       haptic.tap();
       edit('');
     } catch (e) {
-      setProblem(failureText(e, { next: 'Try again.' }));
+      setFailed(failureText(e, { next: 'Try again.' }));
     }
   };
 
@@ -115,6 +117,7 @@ export function LessonWordAdd({ language, findWords }: { language: Language; fin
             </View>
           ) : null}
           {problem ? <Text style={{ ...type.subhead, color: c.danger }}>{problem}</Text> : null}
+          {failed ? <ErrorNote message={failed} /> : null}
           {picked ? <Button label={`Add ${picked.text}`} onPress={addPicked} /> : <Button label="Find word" onPress={() => void find()} busy={finding} disabled={!text.trim()} />}
         </Card>
         <Help>Added to this lesson only. It isn't saved to a deck.</Help>
