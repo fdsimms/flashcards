@@ -510,6 +510,30 @@ everyday speech they make up, and the trend.
 - Toki Pona has no level (its list is particles that all count): `GET /api/level` is 404 and the card
   isn't shown. Before a language's deck has been read it's 409, and the page says so.
 
+## Today's plan
+
+Decided 28 November 2026, the owner choosing from a mock with each recommendation picked. A card at the
+top of Today (`TodayPlanCard.tsx`, `useTodayPlan.ts`; the planning in `src/tools/plan.ts`) with a few
+things for the day, in one language, sized to the time set (Settings, Today's plan: 15, 30, 45 or 60
+minutes, 30 by default).
+
+- **Reviews first, then new words, one thing to take in and one to produce.** When reviews would fill the
+  time, the plan is reviews alone and new words wait. Taking in is a shelf text nearest 95% known, a video
+  or podcast on the Your texts row, or a Your words lesson; producing is Daily extras' drill for the
+  language (first when something in it was missed lately), a Situations scene or a journal entry. Each
+  takes its turn day by day (`dayNumberOf`), among those on offer and turned on.
+- **One language a day:** the one with the most due, then new, among the decks Read & Listen knows the
+  language of, or always one chosen. Without Read & Listen's deck settings there's no plan.
+- **Kept for the day once made** (`SavedPlan`), so done items stay listed, and made again for a new
+  study day, language or length.
+- **Ticked off from what Franki records, wherever it's done:** reviews and new words when the deck has
+  none left; a text or a video or episode by Daily extras' reads (Watch's Finished counts now too); a
+  drill by its five answers; a lesson heard, a scene finished and an entry checked or held by the plan's
+  own record (`recordPlanItem`, called from the lesson player, Situations and the journal). The week's
+  dots are each study day's outcome, kept for a fortnight on the phone (Keychain).
+- **It replaces Daily extras' list on Today**, which keeps only Grammar due while the plan shows; their
+  drills are one kind of item here, and the end-of-session card is unchanged. Nothing moves a schedule.
+
 ## Situations
 
 Decided 14 November 2026, the owner choosing from a mock (active learning, phase 2): the brief's
