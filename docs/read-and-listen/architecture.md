@@ -1274,6 +1274,12 @@ Added on 26 October 2026 at the owner's request: grammar to practice or avoid, f
   scheduled or graded. Not a second rating: it sits
   with Length because grammar has no dial a rating could move, and a "too hard" caused by grammar
   still moves only the words. Texts already on the shelf keep the allowance they were written with.
+- **The New words dial** (owner's request, 28 November 2026: texts felt light on new content). The
+  end view's "For the next ones" card has a New words row between Length and Grammar: Fewer, Same
+  or More, stepped from where it was when the view opened. It moves the language's text difficulty
+  (`PUT /api/difficulty`, the same setting as Settings, Read & Listen) one level, Easier 3 new words in
+  100, Standard 5, Harder 7, held at the ends. Nothing new on the server, and a rating still moves
+  nothing; the check after reading can still step the level by itself.
 - **Generate, then verify, as for coverage.** The request names the points to practice and avoid,
   and the server finds them in the draft. A practiced point used fewer than twice, or an avoided one
   used at all, sends the draft back with the words named ("Don't use the Preterite; this draft has:
