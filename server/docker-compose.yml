@@ -9,6 +9,13 @@ x-logging: &logging
   options:
     max-size: "10m"
     max-file: "5"
+# Each server runs as its own unprivileged user with no Linux capabilities, and nothing in it can
+# gain more (a setuid binary, say), so a hole in one gives an attacker as little as possible.
+x-hardened: &hardened
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
 services:
   anki:
     build:
@@ -17,6 +24,7 @@ services:
         ANKI_VERSION: ${ANKI_VERSION:-26.09.4}
     restart: unless-stopped
     logging: *logging
+    <<: *hardened
     environment:
       SYNC_USER1: "${ANKI_USER}:${ANKI_PASSWORD}"
       # Anki's default is 100 MB, below what a collection with years of reviews can reach.
@@ -31,6 +39,7 @@ services:
     profiles: [mcp]
     restart: unless-stopped
     logging: *logging
+    <<: *hardened
     environment:
       # Anki decides which study day it is from the time zone (see .env.example).
       TZ: ${TZ:-UTC}
@@ -56,6 +65,13 @@ services:
     profiles: [reader]
     restart: unless-stopped
     logging: *logging
+    <<: *hardened
+    # reader/entrypoint.sh starts as root to hand the data volume to its user, then drops to it,
+    # which takes these three; the server itself runs with none.
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
     environment:
       # Anki decides which study day it is from the time zone (see .env.example).
       TZ: ${TZ:-UTC}
@@ -95,7 +111,8 @@ services:
     depends_on:
       - anki
   caddy:
-    image: caddy:2
+    # Pinned by digest, as the Dockerfiles' images are; Dependabot proposes updates.
+    image: caddy:2@sha256:4851e54a46b206517c574821bb5cc67f170d2156041e9fbc4c9193b45e84a75b
     restart: unless-stopped
     logging: *logging
     ports:

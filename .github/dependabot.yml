@@ -1,0 +1,37 @@
+# Updates for what runs on the server (issue #709): its images, pinned by digest, and the Python
+# packages of the MCP (hashed, server/mcp/requirements.txt) and Read & Listen (server/reader/uv.lock).
+# Each opens a PR that CI tests; merging it deploys the update (server/update.sh). Weekly, and each kind
+# grouped into one PR, so they come as a few PRs a week rather than one per package.
+version: 2
+updates:
+  - package-ecosystem: docker
+    directories: ["/server", "/server/mcp", "/server/reader"]
+    schedule: { interval: weekly }
+    groups:
+      images: { patterns: ["*"] }
+    # Security fixes to the same image (a new digest, a patch release), never a move to a new Python
+    # or tool version, which is a change to make on purpose.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+  - package-ecosystem: docker-compose
+    directory: /server
+    schedule: { interval: weekly }
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+  - package-ecosystem: pip
+    directory: /server/mcp
+    schedule: { interval: weekly }
+    groups:
+      mcp-packages: { patterns: ["*"] }
+    # anki moves with the sync server's ANKI_VERSION, by hand (server/README.md, Upgrading).
+    ignore:
+      - dependency-name: anki
+  - package-ecosystem: uv
+    directory: /server/reader
+    schedule: { interval: weekly }
+    groups:
+      reader-packages: { patterns: ["*"] }
+    ignore:
+      - dependency-name: anki

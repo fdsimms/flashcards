@@ -14,6 +14,9 @@ def _version(text: str) -> tuple[int, ...]:
 def test_anki_matches_the_sync_servers_version():
     server = re.search(r"ANKI_VERSION:\s*\$\{ANKI_VERSION:-([0-9.]+)\}", (SERVER / "docker-compose.yml").read_text())
     assert server, "ANKI_VERSION's default not found in docker-compose.yml"
-    pin = re.search(r"^anki==([0-9.]+)$", (SERVER / "mcp" / "requirements.txt").read_text(), re.M)
-    assert pin, "anki isn't pinned in requirements.txt"
+    # requirements.in is the pin a person edits; requirements.txt is made from it (pip-compile).
+    pin = re.search(r"^anki==([0-9.]+)$", (SERVER / "mcp" / "requirements.in").read_text(), re.M)
+    assert pin, "anki isn't pinned in requirements.in"
+    made = re.search(r"^anki==([0-9.]+) ", (SERVER / "mcp" / "requirements.txt").read_text(), re.M)
+    assert made and made.group(1) == pin.group(1), "requirements.txt is stale: run pip-compile (its header says how)"
     assert _version(pin.group(1)) == _version(server.group(1))

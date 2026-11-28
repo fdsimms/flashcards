@@ -66,7 +66,7 @@ Each Claude app asks for the password once; after that it stays signed in (it's 
 
 **What it keeps.** The MCP keeps its own copy of the collection and its media in Docker's `mcp-data` volume, so the server holds your media twice. It syncs before it reads and after every change. If another device replaces the server's collection (a full sync), the MCP takes the new one, unless it has changes of its own that never reached the server, in which case it stops and says so rather than overwrite either.
 
-**Upgrading:** the MCP's Anki version is in `mcp/requirements.txt`; keep it the same as `ANKI_VERSION`.
+**Upgrading:** the MCP's Anki version is in `mcp/requirements.in`; keep it the same as `ANKI_VERSION`, then remake `mcp/requirements.txt` with the `pip-compile` command in its header.
 
 ## Read & Listen
 
