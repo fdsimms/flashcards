@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Text, View } from 'react-native';
 import { haptic } from './haptics';
-import { Icon, Tappable } from './kit';
+import { Icon, Tappable, TextButton } from './kit';
 import { MIN_TAP, hairline, radius, smooth, space, type, useTheme } from './theme';
 
 /** What the learner said about one sense on this answer. A sense with no verdict counts as recalled (nothing is kept for it). */
@@ -119,16 +119,7 @@ export function SenseReminder({ text, title, detail, got, missed }: { text: stri
       </View>
       {got.length ? (
         <View style={{ borderTopWidth: hairline, borderTopColor: c.border, paddingTop: space.xs, gap: space.s }}>
-          <Tappable
-            onPress={() => { haptic.select(); setOpen(!open); }}
-            accessibilityRole="button"
-            accessibilityState={{ expanded: open }}
-            accessibilityLabel={open ? 'Hide the ones you got' : 'Show the ones you got'}
-            style={{ minHeight: MIN_TAP, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}
-          >
-            <Text style={open ? { ...type.overline, color: c.textSecondary } : { ...type.subhead, fontWeight: '600', color: c.accentInk }}>{open ? 'You got' : 'Show the ones you got'}</Text>
-            <Icon name={open ? 'chevron.up' : 'chevron.down'} size={13} weight="semibold" color={open ? c.textSecondary : c.accentInk} />
-          </Tappable>
+          <TextButton label={open ? 'Hide the ones you got' : 'Show the ones you got'} chevron={open ? 'up' : 'down'} accessibilityState={{ expanded: open }} onPress={() => setOpen(!open)} style={{ alignSelf: 'flex-start' }} />
           {open ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: space.s, paddingBottom: space.xs }}>
               {got.map((sense, k) => (
