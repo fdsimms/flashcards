@@ -104,6 +104,17 @@ export function useHandsFree({ on, speech, onSend, onFix }: {
     return () => { unsubscribe(); clearTimeout(fallback); };
   }, [on, state.step]);
 
+  // A sound started while listening (a line's play button): the microphone closes so it doesn't hear it,
+  // and opens again once the sound is over, keeping what was said before.
+  useEffect(() => {
+    if (!on || state.step !== 'listening') return;
+    return sounding.subscribe(() => {
+      if (sounding.quietSince() !== null || holdingEnglish.current) return;
+      closeTarget();
+      setState((s) => (s.step === 'listening' ? { ...s, step: 'theirs', committed: s.line } : s));
+    });
+  }, [on, state.step]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Review: sent after the wait, unless a tap fixes it first.
   useEffect(() => {
     if (!on || state.step !== 'review') return;
