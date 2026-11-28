@@ -522,6 +522,7 @@ export function Review({ repo, deck, practice, extraCard, suggestHints, askAbout
     };
     return { front: cardDocument(front, opts), back: cardDocument(back, opts), typeAnswer, frontAudio: sideAudio(front), backAudio: sideAudio(back) };
   };
+  // This memo and aheadPage's below render the same page, so they take the same inputs: keep their dependency lists in step.
   const page = useMemo(() => templatePage(current, typedShown), [note, noteType, current?.id, current?.kind, dark, c, typedShown, autoplay, cardFont, thaiSize, textSize]); // eslint-disable-line react-hooks/exhaustive-deps
   // The next card's question, loaded out of sight while this one is studied, so a template card
   // comes up without a blank card while its page loads. After a native card too (a Basic skill card in a
