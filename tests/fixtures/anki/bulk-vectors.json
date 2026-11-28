@@ -1,0 +1,863 @@
+[
+ {
+  "name": "reposition from 1 in steps of 1, keeping the others where they are",
+  "op": "reposition",
+  "cids": [
+   1794408858020,
+   1794408858030,
+   1794408858031
+  ],
+  "start": 1,
+  "step": 1,
+  "shift": false,
+  "cards": [
+   {
+    "id": 1794408858014,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 2,
+    "due": 3,
+    "odue": 0
+   },
+   {
+    "id": 1794408858015,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 2,
+    "due": 4,
+    "odue": 0
+   },
+   {
+    "id": 1794408858016,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 1,
+    "due": 1794408924,
+    "odue": 0
+   },
+   {
+    "id": 1794408858017,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 0,
+    "due": 2,
+    "odue": 0
+   },
+   {
+    "id": 1794408858018,
+    "deck": "Filtered Deck 1",
+    "home": "🧠 Trivia",
+    "queue": 2,
+    "due": -100000,
+    "odue": 10
+   },
+   {
+    "id": 1794408858019,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": -1,
+    "due": 4,
+    "odue": 0
+   },
+   {
+    "id": 1794408858020,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 1,
+    "odue": 0
+   },
+   {
+    "id": 1794408858030,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 2,
+    "odue": 0
+   },
+   {
+    "id": 1794408858031,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 3,
+    "odue": 0
+   },
+   {
+    "id": 1794408858032,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 7,
+    "odue": 0
+   }
+  ],
+  "notes": [
+   {
+    "id": 1794408858013,
+    "tags": " a1 noun "
+   },
+   {
+    "id": 1794408858015,
+    "tags": ""
+   },
+   {
+    "id": 1794408858016,
+    "tags": ""
+   },
+   {
+    "id": 1794408858017,
+    "tags": ""
+   },
+   {
+    "id": 1794408858018,
+    "tags": ""
+   },
+   {
+    "id": 1794408858030,
+    "tags": ""
+   },
+   {
+    "id": 1794408858031,
+    "tags": ""
+   }
+  ]
+ },
+ {
+  "name": "reposition from 3 in steps of 10, shifting the others along",
+  "op": "reposition",
+  "cids": [
+   1794408858020,
+   1794408858030,
+   1794408858031
+  ],
+  "start": 3,
+  "step": 10,
+  "shift": true,
+  "cards": [
+   {
+    "id": 1794408858014,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 2,
+    "due": 3,
+    "odue": 0
+   },
+   {
+    "id": 1794408858015,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 2,
+    "due": 4,
+    "odue": 0
+   },
+   {
+    "id": 1794408858016,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 1,
+    "due": 1794408924,
+    "odue": 0
+   },
+   {
+    "id": 1794408858017,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 0,
+    "due": 2,
+    "odue": 0
+   },
+   {
+    "id": 1794408858018,
+    "deck": "Filtered Deck 1",
+    "home": "🧠 Trivia",
+    "queue": 2,
+    "due": -100000,
+    "odue": 10
+   },
+   {
+    "id": 1794408858019,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": -1,
+    "due": 34,
+    "odue": 0
+   },
+   {
+    "id": 1794408858020,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 3,
+    "odue": 0
+   },
+   {
+    "id": 1794408858030,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 13,
+    "odue": 0
+   },
+   {
+    "id": 1794408858031,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 23,
+    "odue": 0
+   },
+   {
+    "id": 1794408858032,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 37,
+    "odue": 0
+   }
+  ],
+  "notes": [
+   {
+    "id": 1794408858013,
+    "tags": " a1 noun "
+   },
+   {
+    "id": 1794408858015,
+    "tags": ""
+   },
+   {
+    "id": 1794408858016,
+    "tags": ""
+   },
+   {
+    "id": 1794408858017,
+    "tags": ""
+   },
+   {
+    "id": 1794408858018,
+    "tags": ""
+   },
+   {
+    "id": 1794408858030,
+    "tags": ""
+   },
+   {
+    "id": 1794408858031,
+    "tags": ""
+   }
+  ]
+ },
+ {
+  "name": "reposition a review card leaves it alone",
+  "op": "reposition",
+  "cids": [
+   1794408858014,
+   1794408858020
+  ],
+  "start": 50,
+  "step": 1,
+  "shift": false,
+  "cards": [
+   {
+    "id": 1794408858014,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 2,
+    "due": 3,
+    "odue": 0
+   },
+   {
+    "id": 1794408858015,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 2,
+    "due": 4,
+    "odue": 0
+   },
+   {
+    "id": 1794408858016,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 1,
+    "due": 1794408924,
+    "odue": 0
+   },
+   {
+    "id": 1794408858017,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 0,
+    "due": 2,
+    "odue": 0
+   },
+   {
+    "id": 1794408858018,
+    "deck": "Filtered Deck 1",
+    "home": "🧠 Trivia",
+    "queue": 2,
+    "due": -100000,
+    "odue": 10
+   },
+   {
+    "id": 1794408858019,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": -1,
+    "due": 4,
+    "odue": 0
+   },
+   {
+    "id": 1794408858020,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 51,
+    "odue": 0
+   },
+   {
+    "id": 1794408858030,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 6,
+    "odue": 0
+   },
+   {
+    "id": 1794408858031,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 7,
+    "odue": 0
+   },
+   {
+    "id": 1794408858032,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 7,
+    "odue": 0
+   }
+  ],
+  "notes": [
+   {
+    "id": 1794408858013,
+    "tags": " a1 noun "
+   },
+   {
+    "id": 1794408858015,
+    "tags": ""
+   },
+   {
+    "id": 1794408858016,
+    "tags": ""
+   },
+   {
+    "id": 1794408858017,
+    "tags": ""
+   },
+   {
+    "id": 1794408858018,
+    "tags": ""
+   },
+   {
+    "id": 1794408858030,
+    "tags": ""
+   },
+   {
+    "id": 1794408858031,
+    "tags": ""
+   }
+  ]
+ },
+ {
+  "name": "add tags, case aside for one already there",
+  "op": "addTags",
+  "nids": [
+   1794408858013,
+   1794408858016
+  ],
+  "tags": [
+   "Noun",
+   "travel"
+  ],
+  "cards": [
+   {
+    "id": 1794408858014,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 2,
+    "due": 3,
+    "odue": 0
+   },
+   {
+    "id": 1794408858015,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 2,
+    "due": 4,
+    "odue": 0
+   },
+   {
+    "id": 1794408858016,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 1,
+    "due": 1794408924,
+    "odue": 0
+   },
+   {
+    "id": 1794408858017,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 0,
+    "due": 2,
+    "odue": 0
+   },
+   {
+    "id": 1794408858018,
+    "deck": "Filtered Deck 1",
+    "home": "🧠 Trivia",
+    "queue": 2,
+    "due": -100000,
+    "odue": 10
+   },
+   {
+    "id": 1794408858019,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": -1,
+    "due": 4,
+    "odue": 0
+   },
+   {
+    "id": 1794408858020,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 5,
+    "odue": 0
+   },
+   {
+    "id": 1794408858030,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 6,
+    "odue": 0
+   },
+   {
+    "id": 1794408858031,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 7,
+    "odue": 0
+   },
+   {
+    "id": 1794408858032,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 7,
+    "odue": 0
+   }
+  ],
+  "notes": [
+   {
+    "id": 1794408858013,
+    "tags": " a1 noun travel "
+   },
+   {
+    "id": 1794408858015,
+    "tags": ""
+   },
+   {
+    "id": 1794408858016,
+    "tags": " noun travel "
+   },
+   {
+    "id": 1794408858017,
+    "tags": ""
+   },
+   {
+    "id": 1794408858018,
+    "tags": ""
+   },
+   {
+    "id": 1794408858030,
+    "tags": ""
+   },
+   {
+    "id": 1794408858031,
+    "tags": ""
+   }
+  ]
+ },
+ {
+  "name": "remove a tag with its children",
+  "op": "removeTags",
+  "nids": [
+   1794408858013
+  ],
+  "tags": [
+   "a1"
+  ],
+  "cards": [
+   {
+    "id": 1794408858014,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 2,
+    "due": 3,
+    "odue": 0
+   },
+   {
+    "id": 1794408858015,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 2,
+    "due": 4,
+    "odue": 0
+   },
+   {
+    "id": 1794408858016,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 1,
+    "due": 1794408924,
+    "odue": 0
+   },
+   {
+    "id": 1794408858017,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 0,
+    "due": 2,
+    "odue": 0
+   },
+   {
+    "id": 1794408858018,
+    "deck": "Filtered Deck 1",
+    "home": "🧠 Trivia",
+    "queue": 2,
+    "due": -100000,
+    "odue": 10
+   },
+   {
+    "id": 1794408858019,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": -1,
+    "due": 4,
+    "odue": 0
+   },
+   {
+    "id": 1794408858020,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 5,
+    "odue": 0
+   },
+   {
+    "id": 1794408858030,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 6,
+    "odue": 0
+   },
+   {
+    "id": 1794408858031,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 7,
+    "odue": 0
+   },
+   {
+    "id": 1794408858032,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 7,
+    "odue": 0
+   }
+  ],
+  "notes": [
+   {
+    "id": 1794408858013,
+    "tags": " noun "
+   },
+   {
+    "id": 1794408858015,
+    "tags": ""
+   },
+   {
+    "id": 1794408858016,
+    "tags": ""
+   },
+   {
+    "id": 1794408858017,
+    "tags": ""
+   },
+   {
+    "id": 1794408858018,
+    "tags": ""
+   },
+   {
+    "id": 1794408858030,
+    "tags": ""
+   },
+   {
+    "id": 1794408858031,
+    "tags": ""
+   }
+  ]
+ },
+ {
+  "name": "remove tags case aside, with no wildcards",
+  "op": "removeTags",
+  "nids": [
+   1794408858013
+  ],
+  "tags": [
+   "N*",
+   "NOUN"
+  ],
+  "cards": [
+   {
+    "id": 1794408858014,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 2,
+    "due": 3,
+    "odue": 0
+   },
+   {
+    "id": 1794408858015,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 2,
+    "due": 4,
+    "odue": 0
+   },
+   {
+    "id": 1794408858016,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 1,
+    "due": 1794408924,
+    "odue": 0
+   },
+   {
+    "id": 1794408858017,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 0,
+    "due": 2,
+    "odue": 0
+   },
+   {
+    "id": 1794408858018,
+    "deck": "Filtered Deck 1",
+    "home": "🧠 Trivia",
+    "queue": 2,
+    "due": -100000,
+    "odue": 10
+   },
+   {
+    "id": 1794408858019,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": -1,
+    "due": 4,
+    "odue": 0
+   },
+   {
+    "id": 1794408858020,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 5,
+    "odue": 0
+   },
+   {
+    "id": 1794408858030,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 6,
+    "odue": 0
+   },
+   {
+    "id": 1794408858031,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 7,
+    "odue": 0
+   },
+   {
+    "id": 1794408858032,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 7,
+    "odue": 0
+   }
+  ],
+  "notes": [
+   {
+    "id": 1794408858013,
+    "tags": " a1 "
+   },
+   {
+    "id": 1794408858015,
+    "tags": ""
+   },
+   {
+    "id": 1794408858016,
+    "tags": ""
+   },
+   {
+    "id": 1794408858017,
+    "tags": ""
+   },
+   {
+    "id": 1794408858018,
+    "tags": ""
+   },
+   {
+    "id": 1794408858030,
+    "tags": ""
+   },
+   {
+    "id": 1794408858031,
+    "tags": ""
+   }
+  ]
+ },
+ {
+  "name": "change deck, a card in a filtered deck going home first",
+  "op": "deck",
+  "nids": [
+   1794408858015,
+   1794408858016
+  ],
+  "deckId": 1794408857991,
+  "cards": [
+   {
+    "id": 1794408858014,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 2,
+    "due": 3,
+    "odue": 0
+   },
+   {
+    "id": 1794408858015,
+    "deck": "👅 Languages::🐘 ภาษาไทย",
+    "home": null,
+    "queue": 2,
+    "due": 4,
+    "odue": 0
+   },
+   {
+    "id": 1794408858016,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 1,
+    "due": 1794408924,
+    "odue": 0
+   },
+   {
+    "id": 1794408858017,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 2,
+    "odue": 0
+   },
+   {
+    "id": 1794408858018,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 2,
+    "due": 10,
+    "odue": 0
+   },
+   {
+    "id": 1794408858019,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": -1,
+    "due": 4,
+    "odue": 0
+   },
+   {
+    "id": 1794408858020,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 5,
+    "odue": 0
+   },
+   {
+    "id": 1794408858030,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 6,
+    "odue": 0
+   },
+   {
+    "id": 1794408858031,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 7,
+    "odue": 0
+   },
+   {
+    "id": 1794408858032,
+    "deck": "🧠 Trivia",
+    "home": null,
+    "queue": 0,
+    "due": 7,
+    "odue": 0
+   }
+  ],
+  "notes": [
+   {
+    "id": 1794408858013,
+    "tags": " a1 noun "
+   },
+   {
+    "id": 1794408858015,
+    "tags": ""
+   },
+   {
+    "id": 1794408858016,
+    "tags": ""
+   },
+   {
+    "id": 1794408858017,
+    "tags": ""
+   },
+   {
+    "id": 1794408858018,
+    "tags": ""
+   },
+   {
+    "id": 1794408858030,
+    "tags": ""
+   },
+   {
+    "id": 1794408858031,
+    "tags": ""
+   }
+  ]
+ }
+]
